@@ -1,0 +1,22 @@
+choosedeg.o: trig.h
+
+comp_heart.o: trig.h
+
+compute_minima.o: trig.h jplhdr.h sunmass.h parbep.h masses.h
+
+compute_statpts.o: trig.h
+
+d2eval.o: trig.h
+
+hess.o: trig.h
+
+mincomp.o: pldata.h trig.h proout.h neoopt.h
+
+mintest.o: jplhdr.h sunmass.h parbep.h masses.h
+
+mutualrefcha.o: trig.h
+
+statcomp.o: pldata.h trig.h proout.h neoopt.h
+
+writemin.o: jplhdr.h sunmass.h parbep.h masses.h
+

@@ -1,0 +1,118 @@
+#!	/bin/sh
+
+awk=awk
+if [ -f /usr/bin/nawk ]; then
+	awk=nawk
+fi
+if [ -f /bin/nawk ]; then
+	awk=nawk
+fi
+
+# Options:
+#	-f: sets explicit dependency of file.F from file.f
+#	-m depfile: sets explicit dependency of file.F from depfile
+
+usage () {
+	echo "Usage: mkdep [-f] [-m depfile] file1 [ file2 ... ]" 1>&2
+	exit 1
+}
+
+if [ $# -lt 1 ]; then
+	usage
+fi
+
+# Read options
+depf=0
+depm=0
+while /bin/true
+do
+	if [ $# -le 0 ]; then
+		break
+	fi
+	case $1 in
+		-f)	depf=1
+			shift ;;
+
+		-m)	if [ $# -lt 2 ]; then
+				usage
+			fi
+			depm=1
+			depfile=$2
+			shift
+			shift ;;
+
+		*)	break ;;
+	esac
+done
+# echo DEPF = $depf
+# echo DEPM = $depm
+# echo Files: $*
+
+$awk '
+BEGIN		{ incmat="^(      |[\t ]*\t+[\t ]*)[Ii] *[Nn] *[Cc] *[Ll] *[Uu] *[Dd] *[Ee]"
+		  begin=1
+		  lenmax=70}
+begin == 1	{ file=FILENAME
+		  begin=0 }
+FILENAME!=file	{ gendep()
+		  file=FILENAME }
+$0 ~ incmat	{ incfile=$0
+		  if(sub(incmat,"",incfile)!=1) {print "'$0': Error code 01" | "cat 1>&2" }
+		  sub(/^[\t ]*['\''"]/, "", incfile)
+		  sub(/['\''"][\t ]*$/, "", incfile)
+		  addlist() }
+END		{ gendep() }
+function gendep(	target,touch) {
+	target=file
+	touch=1
+	if(file~/\.f$/) { sub(/\.f$/,".o",target)
+			  touch=0 }
+	if(file~/\.F$/) { sub(/\.F$/,".o",target)
+			  if('$depf') {
+				filef=file
+				sub(/\.F$/,".f",filef)
+				deplist=deplist " " filef }
+			  if('$depm') {
+				deplist=deplist " '$depfile'" }
+			  touch=0 }
+	if(deplist=="") return
+	outstr=target ":" deplist
+	if(length(outstr)<=lenmax) {print outstr}
+	else {
+		st1=""
+		st2=outstr
+		insp=""
+		while ( length(st2)!=0 ) {
+			maxbl()
+			if (st2==""){print st1} else {print st1 "\\"}
+			if (insp==""){for(ii=0;ii<=index(st1,":");ii++){insp=insp " "}}
+			if(st2!=""){st2=insp st2}
+			st1="" }
+		}
+	if(touch)print "\ttouch", file
+	print ""
+	deplist=""}
+function addlist(	matp) {
+	matp=" " incfile " "
+	if(deplist ~ matp) return
+	matp=" " incfile "$"
+	if(deplist ~ matp) return
+	deplist=deplist " " incfile }
+function maxbl(		i,i1,kk,rem) {
+	if(length(st2)<lenmax){	st1=st2
+				st2=""
+				return }
+	if(index(st2," ")==0) {	st1=st2
+				st2=""
+				return }
+	kk=7
+#	print st1 "|" st2
+	while (kk>0) {
+	i=index(st2," ")
+	if(i==0){i=length(st2)}
+	if(length(st1)+i>lenmax&&st1!="")return
+	st1=st1 substr(st2,1,i)
+	st2=substr(st2,i+1)
+#	print st1 "|" st2
+	}}
+' $*

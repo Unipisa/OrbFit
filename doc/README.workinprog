@@ -1,0 +1,57 @@
+
+This contains the plans for the immediate future of ORBFIT, that is
+the improvements we are either working on, or at least thinking to.
+
+Category 0: things being done now:
+
+1) Improvement to multiple solution algorithms (zmulti) 
+
+2) inclusion in fitobs of regula falsi algorithm to find 
+minimum approach distance along the LOV
+
+3) Yarkovsky effect.  Already available non documented feature, not
+properly tested.
+
+Category 1: things needed, not yet scheduled:
+
+1) Multiple solution from Gauss's preliminary orbit.
+
+2) Processing of satellite observations not yet reduced to geocenter. 
+Also roving observer.
+
+3) Cometary version, with support for non gravitational perturbations
+and hyperbolic/parabolic orbits. 
+
+4) More readable output files, in particular the log files,
+runname.fou, runname.olg, but also runname.fga, etc.
+
+5) verbosity control 
+
+Category 2: conversion to Fortran 90
+
+1) Observations data type and module; to be combined with new observations format
+
+2) Orbital elements data type and module; to be combined with
+possibility to determine initial conditions in cartesian coordinates.
+
+3) Close approach and target plane modules: to untangle the current mess of 
+headers and common.
+
+Category 3: things under consideration:
+
+1) Numbering service. 
+
+2) Observation planning. 
+
+3) Uncertainty of predictions from very short arcs.  
+
+
+KNOWN BUGS:
+
+
+
+Updated 4 May 2002.
+
+
+
+

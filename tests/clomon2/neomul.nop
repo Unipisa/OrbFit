@@ -1,0 +1,20 @@
+! Options for neofit.x 
+neomul.
+        .eledir='epoch'		! directory of orbit elements
+	.obsdir0='mpcobs'	! location of obsfiles
+	.precob=.T.		! Flag for .obs file precedence
+        .neolist='neomul.names'	! list of asteroid names (not really used)
+
+propag.
+	.iast=3		! 0=no asteroids with mass n=no. of massive asteroids 
+	.npoint=300	! minimum number of data points for a deep close appr
+        .dmea=0.2d0     ! min. distance for control of close-app. to Earth only
+        .dter=0.05d0    ! min. distance for control of close-app. to MVM
+!
+errmod.
+	.use = .F.
+reject.
+        .rejopp = .F.  ! reject entire oppositions
+IERS.
+        .extrapolation=.T. ! extrapolation of Earth rotation
+!

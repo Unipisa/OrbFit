@@ -1,0 +1,31 @@
+[To obtain a working copy of OrbFit you should do the following
+(this is a sample session, on a LINUX machine):]
+
+From your web browser you should open the location (URL):
+
+http://newton.dm.unipi.it/pub/orbfit/
+
+You are now offered the following choices:
+
+   1. You can browse the directory structure, and have an idea of the system,
+      by entering in: http://newton/dm.unipi.it/orbfit/OrbFit/.
+
+   2. You can upload a tarball file (http://newton.dm.unipi.it/orbfit/unixtar.tar.gz) 
+      containing a complete distribution for all UNIX systems (including LINUX). 
+      The tarball contains all the necessary source files, and the Makefiles for automated 
+      compilation on every UNIX system with its own Fortran compiler. You can also compile 
+      under WINDOWS from the same sources, but you need to have the Fortran compiler 
+      Digital Visual Fortran 6.0 installed on your computer. 
+
+   3. You can upload a compiled version, ready to run under WindowsXX,
+      packed in a zipfile (http://newton.dm.unipi.it/orbfit/windows.zip).
+      Once the archive (with a name such as OrbFit2_3_win.zip) is on your hard disk, 
+      follow the WINDOWS installation procedure described in "How to install?".
+
+
+   4. You can upload data files containing, e.g., catalogs of precomputed
+      asteroid orbits. This is in more detail described in "How to start?".
+
+
+
+[Note: Now goto README.compile]

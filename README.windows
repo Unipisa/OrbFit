@@ -1,0 +1,28 @@
+1) IMPORTANT: You must unzip the windows distribution into the "C:\"
+directory. This should create the directory "C:\OrbFit\". If you have
+done this, then you have finished the OrbFit installation. (You will
+also to need to install the JPL Ephemerides.)
+
+2) With the exception of this file (README.windows). All documentation
+for the Windows distribution is in the "C:\OrbFit\doc\" directory. A
+good place to start is to open the file "C:\OrbFit\doc\help.html" with
+your web browser.
+
+3) You will need to place a binary format JPL Ephemerides file in the
+OrbFit/lib directory. For information on the Ephemerides, and on how to
+use the programs in this package please open the file
+"C:\OrbFit\doc\help.html" with your web browser.
+
+4) If you want to use the graphical capabilites of fitobs.exe then you
+will need to install GNUPLOT. See the documentation in
+"C:\OrbFit\doc\help.html" under the link "How to install?" for
+details.
+
+5) If you wish compile the sources on your system you should execute
+the compile.bat batch file. You must have Digital Visual FORTRAN
+installed for this to work. Alternatively you may modify the
+conf/make.flags.win32 file (and perhaps the OrbFit/Makefile) to
+conform to your own compiler's specifications.
+
+6) The batch file windist.bat is used only to clean up before making a
+distribution it is NOT INTENDED for normal use.

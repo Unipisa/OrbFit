@@ -1,0 +1,26 @@
+ofclrf.o: proout.h
+
+ofephe.o: comeph.h
+
+ofiden.o: parnob.h parobx.h parcmc.h comidn.h comrej.h mag.h
+
+ofinip.o: proout.h
+
+ofinod.o: parcmc.h
+
+ofofit.o: parobx.h parcmc.h trig.h comlsf.h mag.h
+
+ofprop.o: parcmc.h
+
+orbfit.o: parobx.h parnob.h verbosity.h
+
+rdopte.o: comeph.h
+
+rdoptf.o: comlsf.h
+
+rdopti.o: comidn.h
+
+rdopto.o: sysdep.h
+
+seltid.o: trig.h
+

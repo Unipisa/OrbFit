@@ -1,0 +1,26 @@
+diff ./Makefile /home/milani/orbfit/orb170/src/ephem/Makefile
+3c3
+< all: bineph.x
+---
+> all: bineph.x ephem.x
+11a12,16
+> EPHEM=ephem.o rdopte.o ephemc.o srtept.o
+> 
+> ephem.x: $(EPHEM) ../lib/libsuit.a ../lib/libprop.a
+> 	$(FC) $(FFLAGS) $(EPHEM) -L../lib -lprop -lsuit -o ephem.x
+> 
+16c21
+< 	rm -f *.x *.o lib*.a *% *~ core
+---
+> 	-(rm -f *.x *.o lib*.a *% *~ core); (rm -r album)
+24a30
+> 	cat ephem.f rdopte.f ephemc.f srtept.f > ephem.for; \
+Only in .: differ
+Only in /home/milani/orbfit/orb170/src/ephem/: ephem.f
+Only in /home/milani/orbfit/orb170/src/ephem/: ephemc.f
+diff ./make.dep /home/milani/orbfit/orb170/src/ephem/make.dep
+2a3,4
+> ephemc.o: trig.h phase.h
+> 
+Only in /home/milani/orbfit/orb170/src/ephem/: rdopte.f
+Only in /home/milani/orbfit/orb170/src/ephem/: srtept.f

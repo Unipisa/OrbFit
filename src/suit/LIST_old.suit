@@ -1,0 +1,253 @@
+UPDATED with distribution 1.8.0, December 1998 
+WARNING: routines marked with an asterisk (*) are considered as PRIVATE
+         (the calling sequence is subject to change without notice)
+         other routines are PUBLIC: their content may vary, but the calling
+         sequence and the general behaviour cannot be changed without 
+         discussion
+====================================================================
+ORBITAL ELEMENTS: 
+   COORDINATE CHANGE
+coocha		general purpose coordinate/element change (with and w/o der)
+prop2b          2-body propagator, with derivatives (2nd derivatives to be tested)
+*carequ		cartesian to equinoctal transformation
+*equcar		equinoctal to cartesian transformation
+*kepequ		keplerian to equinoctal transformation
+*equkep		equinoctal to keplerian transformation
+*eqpequ		equinoctal polar to equinoctal transformation
+*equeqp		equinoctal to equinoctal polar transformation
+*ekensd		keplerian to equinoctal transformation
+   INPUT/OUTPUT
+rdoef		input of orbital elements
+*oporbf		open an orbital element file (OEF format)
+*rdorb		read orbital elements from a file (OEF format)
+*clorbf		close an orbital element file (OEF format)
+*fixcnm		generates normal matrix from covariance matrix or viceversa
+rdelem		read orbital elements for a list of objects from a list of files
+oefdet		auto-detects format of orbital element files
+rdastb		read orbital elements from a file written in Bowell's astorb.dat format
+rdmpca		read orbital elements from a file written in MPC format for asteroids
+mpcpds		computes MPC-style packed designation from official IAU code
+iaucod          computes IAU official designations from MPC-style packed(asteroids only)
+outele		verbose output of a set orbital elements to a report file
+wro1lh		writes the header of an orbital element file (1L format)
+wro1lr		writes an orbital element record in an orbital element file (1L format)
+wromlh		writes the header of an orbital element file (ML format)
+wromlr		writes an orbital element record in an orbital element file (ML format)
+====================================================================
+OBSERVATIONS:
+   ERROR MODEL
+***rdorms		read a-priori standard deviation of observations
+***wrorms		writes a-priori standard deviation of observations
+***wrores		writes a-priori standard deviation of observations and fit residuals
+inobs           high level observations input
+obsrms		computation of a-priori RMS of observations
+astrow          computation of astrometry RMS based upon past performances
+*rrmscl		read from a file and store RMS classes
+*crmscl		computes a-priori observation RMS based on known classes
+magrms          computation of photometry RMS based upon past performances
+rearwo          reads residuals, weights and observations file .rwo
+wrirwo          writes residuals, weights and observations file .rwo
+wrirms          writes .rwo file, but without residuals
+addobs          updates .rwo files using input .obs, .rad files
+fitwgt          computes weights as a function of standard deviations
+   INPUT
+mpcin		input of astrometric observations (MPC format)
+mpctr		transformation of an astrometric observation (MPC format)
+mpcrad          transformation of a radar observation (MPC format)
+jplin		input of radar observations (JPL format)
+jplrad          transformation of a radar observation (JPL format)
+sessag		transform an angle into sessagesimal notation
+mpcdat		computes MJD from MPC-style packed dates
+astrad          gets radius of asteroid for radar
+====================================================================
+FILE OPENING/CLOSE AND UNIT ASSIGNMENT:
+filopn		file opening with unit assignment
+filclo		file closing with unit release
+filass		unit assignment without file opening
+filopl		unit assignment and file opening (with library search)
+filopf		unit assignment and file opening (with library search and
+		no abort if the file does not exist)
+dlifex		delete a file if esists
+libini		inizialization of default library directory
+filnam          composition of file name from dir, name suffix
+splinam         split asteroid name (identification, multiple solution)
+fidinam         find path for file
+dircom2         used by fidinam
+====================================================================
+HEADER NAMELIST:
+rdfnam		read and store header namelist
+rdfcha		read a character value
+rdfint		read an integer value
+rdflog		read a logical value
+rdfrea		read a real value
+rdftim		read a date/time value
+rdfref		read a reference system description
+*splkvc		split a record into keyword+value+comment
+*chkfln		check field length for input records
+*getrsc		get a data record skipping comment lines
+wrfini		initialization of options for writing header namelists
+wrfcha		write a character string
+wrfint		write an integer value
+wrfinv		write an integer vector
+wrflog		write a logical value
+wrfrea		write a real value
+wrfrev		write a real vector
+wrftim		write a time/date value
+====================================================================
+MAIN OPTION NAMELIST:
+namini		initialization of namelist common block
+rdnam		read a main option namelist
+*rdnam1		read a main option namelist (INPUT level: 1)
+*rdnam2		read a main option namelist (INPUT level: 2)
+*rdnam3		read a main option namelist (INPUT level: 3)
+rdklst		read the the list of valid keys
+*rdkls1		read the the list of valid keys (INPUT level: 1)
+*chkkey		check keyword validity
+rdncha		read a scalar character value
+rdnint		read a scalar integer value
+rdnlog		read a scalar logical value
+rdnrea		read a scalar real value
+rdntim		read a scalar time/date value
+rdnref		read a reference system description
+rdvint		read an integer vector of knowm dimension
+rdvrea		read a real vector of knowm dimension
+rdvcha		read a character vector of knowm dimension
+rdmint		read an integer vector of unknowm dimension
+rdmrea		read a real vector of unknowm dimension
+rdmcha		read a character vector of unknowm dimension
+*getkv		locates a key/value pair in the input namelist
+====================================================================
+CHARACTER STRINGS:
+lench		length of a character string
+rmsp		remove spaces from a acharacter string
+norstr		normal form of a character string
+strcnt		content of a character string
+upcase		transforms a character string into uppercase
+locase		transforms a character string into lowercase
+stspli		split a character string using a given separator
+isnum		tell whether a character string contains only digits
+islett		tell whether a character string contains only letters
+nitchs		number of items (separated by spaces) in a character string
+spflds		split fields (separated by comma) in a character string
+titast          strings with ast. names to use in graphics and file names
+sv2int          translation of string-valued keywords to integer 
+====================================================================
+REFERENCE SYSTEMS:
+rotpn		transformation between different reference systems
+obleq		mean obliquity of ecliptic
+rnut80		nutation matrix according to Wahr (IAU-1980) theory
+prec		precession matrix
+nutn80		nutation angles according to Wahr (IAU 1980) theory
+equequ		equation of the equinoxes
+gmst		Greenwich Mean Sidereal Time as a function of UT1
+aber1		approximate aberration correction
+obscoo		body-fixed coordinates of an observatory
+chkref		check existence of a reference system indicator
+*ch2ref		translation of a character string into reference system
+posobs		heliocentric position of the observer (mean equator J2000)
+pvobs		position of the observer wrt Earth center of mass
+====================================================================
+TIME AND TIMESCALES:
+*ch2tim		translation of a character string into time value
+*intmon		transform a 3-letter code of a month into integer
+tjm1		computation of Modified Julian Date
+mjddat          transformation of Modified Julian Date to calendar date
+timnf		reduction of time (MJD+sec) to normal form
+itaiut		difference DAT = TAI - UTC as a function of UTC
+chktsc		check existence of a time scale
+cnvtim		conversion between different time scales
+deltt		difference DT = ET - UT
+chmon		transforms integer month (1-12) into a 3-letter code
+bessep		Besselian epoch as a function of MJD
+chmo2i		transforms 3-character month names into integer
+julian          calendar to julian date
+====================================================================
+IERS TIME SERIES:
+delthp		high precision version of deltt
+diurot		diurnal rotation matrix
+dut1r		computation of DUT1R = UT1 - UT1R
+dut1s		computation of DUT1S = UT1 - UT1S
+equeqd		equation of the equinoxes (with der)
+gmsnom		nominal Greenwich Mean Sidereal Time (linear with time)
+gmstd		Greenwich Mean Sidereal Time (with der)
+ierini		initialization of routine iersts
+iersts		IERS time series for EOP
+*isbadr		check records of IERS Bulletin A
+nutarg		fundamental arguments of the IAU 1980 theory of nutation
+nutnd		nutation angles (with der)
+nutwhr		Wahr's nutation series (with der)
+obleqd		mean obliquity of ecliptic (with der)
+precd		precession matrix (with der)
+*rdbula		read IERS Bulletin A
+rnutd		nutation matrix (with der)
+rotpv		rotation of position and velocity vectors
+rotsys		rotation of reference system
+xypol		coordinates of the terrestrial pole
+====================================================================
+MATHEMATICAL ROUTINES:
+   ANGLES
+princ		principal value of an angle
+primea		mean of two angle variables 
+pridif          difference of two angles
+intlo		lower integer
+inthi           higher integer
+polar           transformation from cartesian to polar coordinates
+   3D LINEAR ALGEBRA
+prscal		scalar product of two 3D vectors
+prvec		vector product of two 3D vectors
+vsize		size of a 3D vector
+prodmv		product of a 3x3 matrix by a 3D vector
+prodmm		product of two 3x3 matrices
+lincom		linear combination of two 3D vectors
+vdiff           difference of 2-vectors
+   GENERAL LINEAR ALGEBRA
+prscag 	        scalar product of two general vectors
+mulmat		product between generic matrices
+mulmat_cut      product between generic matrices, when one is not full
+lincog          linear combination of two general vectors
+matvet		generic matrix to vector copy
+vetmat		generic vector to matrix copy
+mulmav          general matrix by vector product
+transp  	transposition of a general matrix
+mcopy		matrix copy
+vcopy		vector copy
+vsumg           vector sum
+ident		identity matrix
+bilin           bilinear form of two general vectors
+   LEGENDRE POLYNOMIALS
+plegm		recursive computation of Legendre polynomials
+plegd1		recursive computation of Legendre polynomials (with der)
+evdis		evaluation of (squared) distance and its derivative
+   POLYNOMIAL ROOTS
+pzeros          general real root solver
+   LEAST SQUARES
+snorm		weighed RMS norm sqrt(xTWx/n)
+snormd		RMS norm sqrt(xTx/n)
+tchol		Tcholesky factorization/inversion of a positive-defined matrix
+matin		inversion of a matrix (Gauss method)
+tchinv          standard interface for tchol, inver
+inv22           inversion of a 2x2 matrix
+covprs		covariance propagation for a NxN (square) matrix
+norprs		normal matrix propagation for a NxN (square) matrix
+   SORTING
+heapsort        sort by integer/real, leaving in place and storing indexes
+====================================================================
+JPL AND BINARY EPHEMERIS
+rdbep		read and interpolate binary ephemeris files 
+fszer2          routines for accessing JPL DE ephemerides
+dpleph          id.
+state           id.
+interp          id.
+const           id.
+split           id.
+jpllis		get JPL masses and IDs for a list of planets
+====================================================================
+VARIOUS UTILITIES
+chkpdf		check parameter definition
+eildri		emulation of free format internal read (integer)
+eildrf		emulation of free format internal read (float)
+eildrl		emulation of free format internal read (logical)
+roff		computation of rounding-off
+truncat         truncation accounting for rounding off
+tee             output on screen and file (as in UNIX tee)
+menu            interactive menu with online help

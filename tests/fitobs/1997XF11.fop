@@ -1,0 +1,26 @@
+! input file for fitobs
+fitobs.
+! first arc
+        .astna0='1997 XF11'    ! full name, first arc
+        .obsdir0='obsdata'    ! directory of observs. file, first arc 
+        .elefi0='astorb.cut' ! first arc elements file
+
+! second arc
+        .astnap='1997 XF11pre'    ! full name, second arc
+        .obsdirp='obsdata'    ! directory of observs. file, second arc 
+        .namp='helin'       ! name of second arc asteroid obs.file
+
+! xephem integration
+        .ixeph= 0            ! xephem integration level, 0=no
+!       .elefide='oscel.ide' ! first guess from identif
+
+propag.
+        .imet=0 !numerical method automatic choice
+!       .iast=3 ! number of perturbing asteroids
+        .npoint=100 ! number of points in close approach
+        .ndeg=20 ! degree 
+!        .dmea=0.03 ! sphere of influence 
+!        .iusci=900! output control
+        .lit2=6! iteration control for RK
+        .iork=16! 
+        .iclap=1! dummy 

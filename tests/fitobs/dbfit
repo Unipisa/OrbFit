@@ -1,0 +1,1 @@
+dbx -I../../src/fitobs -I../../src/propag -I../../src/suit -I../../src/prelim fitobs.x

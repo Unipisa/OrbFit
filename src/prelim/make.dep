@@ -1,0 +1,28 @@
+adds3p.o: pars3m.h sel3m.h
+
+ccek1.o: trig.h
+
+ekcc1.o: trig.h
+
+gauini.o: comgau.h
+
+gaussn.o: parobx.h trig.h comgau.h
+
+iodet.o: pariod.h parobx.h trig.h comiod.h
+
+iodini.o: pariod.h pars3m.h trig.h comiod.h
+
+iodrms.o: trig.h
+
+orbel.o: comvais.h trig.h
+
+sel3g.o: trig.h
+
+sel3mc.o: parobx.h pars3m.h trig.h sel3m.h
+
+sel3mg.o: pars3m.h sel3m.h
+
+vaisala.o: comvais.h trig.h parobx.h
+
+vaisub.o: comvais.h parrho.h
+

@@ -1,0 +1,8 @@
+bineph.o: dim.h comast.h
+
+forceb.o: dim.h comast.h comjpl.h
+
+ra15b.o: dim.h
+
+rdoptb.o: dim.h trig.h comast.h comjpl.h
+
