@@ -1,0 +1,13 @@
+1		Version number
+3.0		Max a-priori RMS (arcsec)
+1		Max decision step
+TIME DEC MIX
++COEF
+  2.154041252414E-01 T F
+*EXP
+  7.610334100695E-02 T F
++COEF
+  2.746638077254E-01 T F
+*EXP
+  1.620004452388E+00 T F
+END

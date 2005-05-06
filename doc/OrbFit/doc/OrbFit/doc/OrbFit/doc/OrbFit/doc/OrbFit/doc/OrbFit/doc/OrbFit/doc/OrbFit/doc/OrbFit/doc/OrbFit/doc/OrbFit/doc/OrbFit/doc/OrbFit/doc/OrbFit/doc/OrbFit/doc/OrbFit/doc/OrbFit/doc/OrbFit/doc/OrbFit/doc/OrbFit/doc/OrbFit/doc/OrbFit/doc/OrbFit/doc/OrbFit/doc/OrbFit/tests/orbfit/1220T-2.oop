@@ -1,0 +1,7 @@
+object1.
+	.name = '1220 T-2'
+
+input_files.incond = 'astorb.dat'
+
+operations.diffcor = 2
+

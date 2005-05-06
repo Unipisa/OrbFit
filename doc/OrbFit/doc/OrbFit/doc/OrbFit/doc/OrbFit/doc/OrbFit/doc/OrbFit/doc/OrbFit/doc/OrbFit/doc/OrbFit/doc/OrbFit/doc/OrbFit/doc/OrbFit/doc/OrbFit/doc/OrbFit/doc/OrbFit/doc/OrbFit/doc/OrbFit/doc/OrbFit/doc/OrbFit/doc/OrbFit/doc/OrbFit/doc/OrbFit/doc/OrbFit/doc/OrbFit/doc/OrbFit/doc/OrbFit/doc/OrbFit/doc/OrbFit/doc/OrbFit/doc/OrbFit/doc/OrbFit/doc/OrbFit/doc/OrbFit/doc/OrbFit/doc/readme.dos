@@ -1,0 +1,8 @@
+WARNING: the DOS version is no longer supported, essentially because we
+found that the FORTRAN code compiled with 32 bit compilers can not run
+under WINDOWS95, not even in the so-called DOS window.
+
+We have now a native WINDOWS version, compiled with
+Digital Visual Fortran 6.0.
+
+february 18, 1999.

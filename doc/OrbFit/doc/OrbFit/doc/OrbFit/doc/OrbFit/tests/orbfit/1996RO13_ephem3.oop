@@ -1,0 +1,14 @@
+object1.
+	.name = '1996 RO13'
+
+input_files.incond = astorb.sub
+
+operations.
+	.ephem = 1
+	.diffcor = 0
+
+ephem.
+	.epoch.start = CAL 1996/Sep/09 00:00:00 UTC
+	.epoch.end   = CAL 1997/May/09 00:00:00 UTC
+	.step = 10
+	.fields      = 'cal,mjd,coord,mag,skyerr'

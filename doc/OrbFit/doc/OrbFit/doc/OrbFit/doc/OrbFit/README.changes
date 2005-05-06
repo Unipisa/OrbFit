@@ -1,0 +1,21 @@
+-rw-r--r--    1 orbmaint orbmaint      952 Jun 15 08:14 triang/difcov_vsa.f90
+-rw-r--r--    1 orbmaint orbmaint    13149 Jun 15 08:40 idconf2/attribute.f90
+-rw-r--r--    1 orbmaint orbmaint    11753 Jun 15 08:45 idconf2/attcheck.f90
+-rw-r--r--    1 orbmaint orbmaint    22871 Jun 15 18:33 idconf2/attcheckfin.f90
+-rw-r--r--    1 orbmaint orbmaint    12744 Jun 15 22:57 triang/vsa_to_sa.f90
+-rw-r--r--    1 orbmaint orbmaint     7921 Jun 16 09:00 allobs/join_ons.f90
+-rw-r--r--    1 orbmaint orbmaint    16789 Jun 16 10:59 triang/vsa_ident2.f90
+-rw-r--r--    1 orbmaint orbmaint    13770 Jun 16 11:30 triang/admis_reg.f90
+-rw-r--r--    1 orbmaint orbmaint     5563 Jun 16 11:50 triang/sample_funcs.f90
+-rw-r--r--    1 orbmaint orbmaint     5436 Jun 16 12:19 triang/vsa_triang2.f90
+lrwxrwxrwx    1 orbmaint orbmaint       21 Jun 16 15:16 triang/difsiz.f90 -> ../idconf2/difsiz.f90
+lrwxrwxrwx    1 orbmaint orbmaint       23 Jun 16 15:16 triang/namparse.f90 -> ../idconf2/namparse.f90
+-rw-r--r--    1 orbmaint orbmaint    41729 Jun 16 16:33 triang/triangola.f90
+-rw-r--r--    1 orbmaint orbmaint    21747 Jun 16 17:50 triang/sample_bound.f90
+-rw-r--r--    1 orbmaint orbmaint     8602 Jun 17 13:03 triang/triangulate.f90
+-rw-r--r--    1 orbmaint orbmaint    21025 Jun 17 19:06 suit/attributable.f90
+-rw-r--r--    1 orbmaint orbmaint    12887 Jun 18 10:06 triang/vsa_attrib.f90
+-rw-r--r--    1 orbmaint orbmaint    23401 Jun 18 13:23 triang/sample_boundary.f90
+-rw-r--r--    1 orbmaint orbmaint     9883 Jun 18 15:01 triang/onsatttri.f90
+-rw-r--r--    1 orbmaint orbmaint     5582 Jun 18 16:21 suit/very_short_arc.f90
+-rw-r--r--    1 orbmaint orbmaint     2960 Jun 18 08:36 triang/Makefile

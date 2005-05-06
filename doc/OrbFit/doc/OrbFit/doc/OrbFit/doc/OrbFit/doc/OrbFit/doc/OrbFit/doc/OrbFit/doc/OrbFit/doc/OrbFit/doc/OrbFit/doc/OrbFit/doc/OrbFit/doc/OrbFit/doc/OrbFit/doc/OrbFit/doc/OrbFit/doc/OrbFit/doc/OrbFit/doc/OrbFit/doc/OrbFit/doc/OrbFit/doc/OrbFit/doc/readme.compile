@@ -1,0 +1,62 @@
+[Unpack, configure for your computer/operating system/compiler  and compile]
+
+$ ls
+OrbFit2.1.1.tar.gz
+$ gunzip *.gz
+$ tar -xf OrbFit2.1.1.tar 
+$ config
+Usage: config [options] <configuration>
+       where options can be:
+          -d  (debug)
+          -O  (optimized)
+          -p  (profiling)
+       and <configuration> is one of the following:
+          HP     (HP PA RISC)
+          IBM    (IBM RISC 6000)
+          MIPS   (MIPS, Silicon Graphics)
+          NAG    (NAG FORTRAN90 compiler)
+          PGI    (Portland group fortran90 compiler
+          SunOS  (SunOS, Fortran 77)
+          fort77 (f2c through fort77 script)
+          g77    (GNU g77 compiler)
+          ALPHA  (Digital alpha f90 compiler)
+	  HP90   (HP Fortran 90)
+$ config -d g77
+default library directory is /home/orbmaint/orbfit/lib
+default documentation directory is /home/orbmaint/orbfit/doc
+$ make
+(cd src; make)
+make[1]: Entering directory `/home/orbmaint/orbfit/src'
+(cd suit; make depend)
+make[2]: Entering directory `/home/orbmaint/orbfit/src/suit'
+mkdep *.f *.h ../include/*.h > make.dep
+make[2]: Leaving directory `/home/orbmaint/orbfit/src/suit'
+(cd prelim; make depend)
+
+....
+
+g77 -g -C -I../include -c fclan.f -o fclan.o 
+g77 -g -C -I../include -c stacop.f -o stacop.o 
+g77 -g -C -I../include -c fobpre.f -o fobpre.o 
+g77 -g -C -I../include -c fstpro.f -o fstpro.o 
+g77 -g -C -I../include -c fsteph.f -o fsteph.o 
+g77 -g -C -I../include -c outobc.f -o outobc.o 
+g77 -g -C -I../include -c outcov.f -o outcov.o 
+g77 -g -C -I../include -c outmul.f -o outmul.o 
+g77 -g -C -I../include -c seleph.f -o seleph.o 
+g77 -g -C -I../include -c fident.f -o fident.o 
+
+......
+
+[Note: very long list of compilation messages; should terminate as follows:]
+
+g77 -g -C -I../include -c ofinip.f -o ofinip.o 
+g77 -g -C -I../include -c ofclrf.f -o ofclrf.o 
+g77 -g -C -I../include -o orbfit.x orbfit.o rdopto.o rdoptf.o rdopti.o rdopte.o srtobs.o seltid.o ustsp.o ofiobs.o ofiorb.o ofinod.o ofofit.o ofiden.o ofephe.o ofprop.o ofinip.o ofclrf.o ../lib/libprop.a ../lib/libgauss.a ../lib/libsuit.a
+make[2]: Leaving directory `/home/orbmaint/orbfit/src/orbfit'
+make[1]: Leaving directory `/home/orbmaint/orbfit/src'
+
+[All the main programs are now compiled. Please report unsuccessful
+compilation, on any UNIX platform.]
+
+[Now goto README.tests]

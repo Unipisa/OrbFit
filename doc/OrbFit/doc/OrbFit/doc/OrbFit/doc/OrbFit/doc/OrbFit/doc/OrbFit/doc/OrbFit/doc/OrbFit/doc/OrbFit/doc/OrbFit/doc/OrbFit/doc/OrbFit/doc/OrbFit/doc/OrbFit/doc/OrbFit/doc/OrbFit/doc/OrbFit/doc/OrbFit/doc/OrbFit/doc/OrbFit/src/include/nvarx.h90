@@ -1,0 +1,4 @@
+! workspace maximum dimensions in propin; suitable for 1 asteroid only
+      INTEGER nvar2x,nvarx
+      PARAMETER (nvar2x=21)
+      PARAMETER (nvarx=2*nvar2x)

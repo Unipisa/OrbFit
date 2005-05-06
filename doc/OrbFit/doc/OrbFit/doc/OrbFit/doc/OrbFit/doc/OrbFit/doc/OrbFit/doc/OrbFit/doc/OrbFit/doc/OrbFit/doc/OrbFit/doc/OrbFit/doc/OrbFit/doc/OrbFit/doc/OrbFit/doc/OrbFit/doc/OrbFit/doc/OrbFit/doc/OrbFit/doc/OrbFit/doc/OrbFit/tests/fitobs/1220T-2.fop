@@ -1,0 +1,16 @@
+! input file for fitobs
+fitobs.
+! first arc
+        .astna0='1220 T-2'    ! full name, first arc
+        .obsdir0='obsdata'    ! directory of observs. file, first arc 
+        .elefi0='astorb.cut' ! first arc elements file
+
+! second arc
+        .astnap='1996 RO13'    ! full name, second arc
+        .obsdirp='obsdata'    ! directory of observs. file, second arc 
+        .elefip='astorb.cut' ! second arc elements file
+        .namelp='1220 T-2'         ! name in ele file, second arc
+
+propag.
+        .imet=0 !numerical method automatic choice
+

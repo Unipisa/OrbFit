@@ -1,0 +1,5 @@
+object1.
+	.name = '1220 T-2'
+
+operations.
+	.diffcor = 2

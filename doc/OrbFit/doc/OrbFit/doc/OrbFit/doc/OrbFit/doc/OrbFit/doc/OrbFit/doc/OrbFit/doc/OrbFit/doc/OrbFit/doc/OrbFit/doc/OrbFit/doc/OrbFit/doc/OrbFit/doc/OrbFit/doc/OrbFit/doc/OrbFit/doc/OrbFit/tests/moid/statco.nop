@@ -1,0 +1,5 @@
+! Options for statcomp.x 
+statco.
+        .eledir='epoch'		        ! directory of orbit elements
+
+!

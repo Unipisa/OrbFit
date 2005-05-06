@@ -1,0 +1,142 @@
+<HTML>
+
+<HEAD>
+<TITLE>OrbFit Software</TITLE>
+</HEAD>
+
+<BODY BGCOLOR="#FFFFFF" LINK="#000088" VLINK="#0088AA">
+
+<H1><FONT COLOR="#000088"><B>The OrbFit Software Package</B></FONT></H1>
+
+<P>
+<TABLE BORDER=0 WIDTH=100%>
+<TR>
+<TD WIDTH=30% VALIGN=TOP><FONT COLOR="#880000">
+<B>Warning</B></FONT></TD> <TD WIDTH=60%>The OrbFit software system is
+now undergoing a major upgrade. Starting from version 3.0 it will be
+written in a different language, namely Fortran90. The change does not
+only involve the free format of the source code: the new versions
+will exploit the main features of Fortran90, especially user defined
+data types and modules. This change is necessary for two reasons: (1)
+to allow an easier software maintenance, given the serious manpower
+problems of the consortium and the number of requests for
+improvements/bug fixes we receive (2) to allow for substantial
+generalizations of the code, such as the ones required to allow for
+observation weighing based on statistical analysis of past observatory
+performance, and determination of orbits in different coordinate
+systems. 
+</P>
+
+<P>
+The procedure is as follows: the distribution 2.3 has been the last in
+Fortran77. We will keep distributing patches 2.3.x to this
+distribution.  
+
+ if we should release the software version 3.0 at some lower
+level of reliability, as beta-test version, to receive input from the
+public users, rather than waiting for the end of tests performed by a
+few recipients of a private preliminary version.
+</P>
+
+<P>
+The patch 2.3.3 is indeed available for UNIX users. It contains fixes
+to several bugs, either found by us or reported by users, including
+the infamous "polar bug" by which the Orbfit predictions were
+unreliable at declinations close to 90 deg. We are sorry, but we are
+currently not equipped for providing upgrades to the Windows version;
+more exactly, we do not want to be equipped, by paying a tax to
+Microsoft to be allowed to provide free software.
+</P>
+
+<P>The next distribution 3.1 is in the new language, now available
+as beta-test. However, this will be a really big change in the
+software, and it is reasobale to assume that this will imply a
+difficult testing procedure. We need to be assisted by
+the users to perform an in depth debugging. 
+</P>
+
+
+</TD>
+<TD WIDTH=10%></TD>
+</TR>
+</TABLE>
+</P>
+
+<P>
+<TABLE BORDER=0 WIDTH=100%>
+<TR>
+<TD WIDTH=30% VALIGN=TOP><FONT COLOR="#880000">
+<B>What is OrbFit?</B></FONT></TD>
+<TD WIDTH=60%>OrbFit is a FORTRAN program used for the 
+study of asteroid orbits.
+</TD>
+<TD WIDTH=10%></TD>
+</TR>
+</TABLE>
+</P>
+
+<P>
+<TABLE BORDER=0 WIDTH=100%>
+<TR>
+<TD WIDTH=30% VALIGN=TOP><FONT COLOR="#880000"><B>Where can I learn
+more?</B></FONT></TD>
+
+<TD WIDTH=60%> You can use the online help <a
+href="./OrbFit/doc/help.html"> here</a>. You may also go directly to
+our online OrbFit <a href="http://newton.dm.unipi.it/orbfit/OrbFit/">
+directory</a>.  </TD>
+
+<TD WIDTH=10%></TD>
+</TR>
+</TABLE>
+</P>
+
+<P>
+<TABLE BORDER=0 WIDTH=100%>
+<TR>
+<TD WIDTH=30% VALIGN=TOP><FONT COLOR="#880000"><B>Where can I get
+OrbFit?</B></FONT></TD>
+
+<TD WIDTH=60%>You can dowload <a href="/orbfit/OrbFit3.1.tar.gz"> the
+ Fortran 90 OrbFit distribution for UNIX </a>.
+</TD>
+
+<TD WIDTH=10%></TD>
+</TR>
+</TABLE>
+</P>
+
+<P>
+<TABLE BORDER=0 WIDTH=100%>
+<TR>
+<TD WIDTH=30% VALIGN=TOP><FONT COLOR="#880000"><B>Where can I get
+OrbFit?</B></FONT></TD>
+
+<TD WIDTH=60%>You can dowload <a href="/orbfit/OrbFit2.3tar.gz"> the
+Fortran 77 OrbFit distribution 2.3 for UNIX </a>, as well as <a
+href="/orbfit/OrbFit2_3_win.zip"> the OrbFit distribution 2.3 for
+WINDOWS</a>. The current version for both operating systems is 2.3.0.
+For UNIX a <a href="/orbfit/patch2.3.3.tar.gz"> patch 2.3.3 </a> is
+available.  </TD>
+
+<TD WIDTH=10%></TD>
+</TR>
+</TABLE>
+</P>
+
+<P>
+<TABLE BORDER=0 WIDTH=100%>
+<TR>
+<TD WIDTH=30% VALIGN=TOP><FONT COLOR="#880000"><B>Who maintains
+OrbFit?</B></FONT></TD> <TD WIDTH=60%>The <a
+href="./OrbFit/doc/help.html#authors">OrbFit Consortium</a>.
+</TD>
+<TD WIDTH=10%></TD>
+</TR>
+</TABLE>
+</P>
+
+<EM> Last updated 22 Jan 2004 </EM>
+
+</BODY></HTML>
+

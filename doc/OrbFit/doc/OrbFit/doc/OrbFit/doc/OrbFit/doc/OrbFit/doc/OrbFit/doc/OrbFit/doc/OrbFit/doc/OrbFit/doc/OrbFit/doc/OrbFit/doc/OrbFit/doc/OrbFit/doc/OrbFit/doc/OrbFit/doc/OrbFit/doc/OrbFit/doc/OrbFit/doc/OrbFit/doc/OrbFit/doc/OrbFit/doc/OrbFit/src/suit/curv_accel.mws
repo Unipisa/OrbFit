@@ -1,0 +1,82 @@
+{VERSION 3 0 "IBM INTEL LINUX" "3.0" }
+{USTYLETAB {CSTYLE "Maple Input" -1 0 "Courier" 0 1 255 0 0 1 0 1 0 0 
+1 0 0 0 0 }{CSTYLE "2D Math" -1 2 "Times" 0 1 0 0 0 0 0 0 2 0 0 0 0 0 
+0 }{CSTYLE "2D Output" 2 20 "" 0 1 0 0 255 1 0 0 0 0 0 0 0 0 0 }
+{PSTYLE "Normal" -1 0 1 {CSTYLE "" -1 -1 "" 0 1 0 0 0 0 0 0 0 0 0 0 0 
+0 0 }0 0 0 -1 -1 -1 0 0 0 0 0 0 -1 0 }{PSTYLE "Maple Output" 0 11 1 
+{CSTYLE "" -1 -1 "" 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 }3 3 0 -1 -1 -1 0 0 
+0 0 0 0 -1 0 }}
+{SECT 0 {EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 8 "restart;" }}}{EXCHG 
+{PARA 0 "> " 0 "" {MPLTEXT 1 0 18 "writeto(terminal);" }}}{EXCHG 
+{PARA 0 "> " 0 "" {MPLTEXT 1 0 41 "k1 := ((ddd*da - dda*dd)/eta^3)*cos
+(d) ; " }}{PARA 11 "" 1 "" {XPPMATH 20 "6#>%#k1G*&*&,&*&%$dddG\"\"\"%#
+daGF*F**&%$ddaGF*%#ddGF*!\"\"F*-%$cosG6#%\"dGF*\"\"\"*$)%$etaG\"\"$F4!
+\"\"" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 40 "k2 := (da*sin(d)/et
+a^3)*(eta^2 + dd^2); " }}{PARA 11 "" 1 "" {XPPMATH 20 "6#>%#k2G*&*(%#d
+aG\"\"\"-%$sinG6#%\"dGF(,&*$)%$etaG\"\"#\"\"\"F(*$)%#ddGF1F2F(F(F2*$)F
+0\"\"$F2!\"\"" }}}{EXCHG {PARA 0 "" 0 "" {TEXT -1 29 "***** C U R V A \+
+T U R E *****" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 13 "k := k1 + \+
+k2;" }}{PARA 11 "" 1 "" {XPPMATH 20 "6#>%\"kG,&*&*&,&*&%$dddG\"\"\"%#d
+aGF+F+*&%$ddaGF+%#ddGF+!\"\"F+-%$cosG6#%\"dGF+\"\"\"*$)%$etaG\"\"$F5!
+\"\"F+*&*(F,F5-%$sinGF3F+,&*$)F8\"\"#F5F+*$)F/FBF5F+F+F5*$)F8\"\"$F5F:
+F+" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 16 "ka := diff(k,a);" }}
+{PARA 11 "" 1 "" {XPPMATH 20 "6#>%#kaG\"\"!" }}}{EXCHG {PARA 0 "> " 0 
+"" {MPLTEXT 1 0 16 "kd := diff(k,d);" }}{PARA 11 "" 1 "" {XPPMATH 20 "
+6#>%#kdG,&*&*&,&*&%$dddG\"\"\"%#daGF+F+*&%$ddaGF+%#ddGF+!\"\"F+-%$sinG
+6#%\"dGF+\"\"\"*$)%$etaG\"\"$F5!\"\"F0*&*(F,F5-%$cosGF3F+,&*$)F8\"\"#F
+5F+*$)F/FBF5F+F+F5*$)F8\"\"$F5F:F+" }}}{EXCHG {PARA 0 "> " 0 "" 
+{MPLTEXT 1 0 18 "kda := diff(k,da);" }}{PARA 11 "" 1 "" {XPPMATH 20 "6
+#>%$kdaG,&*&*&%$dddG\"\"\"-%$cosG6#%\"dGF)\"\"\"*$)%$etaG\"\"$F.!\"\"F
+)*&*&-%$sinGF,F),&*$)F1\"\"#F.F)*$)%#ddGF;F.F)F)F.*$)F1\"\"$F.F3F)" }}
+}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 18 "kdd := diff(k,dd);" }}
+{PARA 11 "" 1 "" {XPPMATH 20 "6#>%$kddG,&*&*&%$ddaG\"\"\"-%$cosG6#%\"d
+GF)\"\"\"*$)%$etaG\"\"$F.!\"\"!\"\"*&*(%#daGF)-%$sinGF,F)%#ddGF)F.*$)F
+1\"\"$F.F3\"\"#" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 20 "kdda := \+
+diff(k,dda);" }}{PARA 11 "" 1 "" {XPPMATH 20 "6#>%%kddaG,$*&*&%#ddG\"
+\"\"-%$cosG6#%\"dGF)\"\"\"*$)%$etaG\"\"$F.!\"\"!\"\"" }}}{EXCHG {PARA 
+0 "> " 0 "" {MPLTEXT 1 0 20 "kddd := diff(k,ddd);" }}{PARA 11 "" 1 "" 
+{XPPMATH 20 "6#>%%kdddG*&*&%#daG\"\"\"-%$cosG6#%\"dGF(\"\"\"*$)%$etaG
+\"\"$F-!\"\"" }}}{EXCHG {PARA 0 "" 0 "" {TEXT -1 35 "***** A C C E L E
+ R A T I O N *****" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 68 "accel
+ := (1/eta)*(da*dda*cos(d)^2 + dd*ddd - da^2*cos(d)*sin(d)*dd);" }}
+{PARA 11 "" 1 "" {XPPMATH 20 "6#>%&accelG*&,(*(%#daG\"\"\"%$ddaGF))-%$
+cosG6#%\"dG\"\"#\"\"\"F)*&%#ddGF)%$dddGF)F)**)F(F0F1F,F)-%$sinGF.F)F3F
+1!\"\"F1%$etaG!\"\"" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 24 "acce
+la := diff(accel,a);" }}{PARA 11 "" 1 "" {XPPMATH 20 "6#>%'accelaG\"\"
+!" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 24 "acceld := diff(accel,d
+);" }}{PARA 11 "" 1 "" {XPPMATH 20 "6#>%'acceldG*&,(**%#daG\"\"\"%$dda
+GF)-%$cosG6#%\"dGF)-%$sinGF-F)!\"#*()F(\"\"#\"\"\")F/F4F5%#ddGF)F)*(F3
+F5)F+F4F5F7F5!\"\"F5%$etaG!\"\"" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 
+1 0 26 "accelda := diff(accel,da);" }}{PARA 11 "" 1 "" {XPPMATH 20 "6#
+>%(acceldaG*&,&*&%$ddaG\"\"\")-%$cosG6#%\"dG\"\"#\"\"\"F)**%#daGF)F+F)
+-%$sinGF-F)%#ddGF)!\"#F0%$etaG!\"\"" }}}{EXCHG {PARA 0 "> " 0 "" 
+{MPLTEXT 1 0 26 "acceldd := diff(accel,dd);" }}{PARA 11 "" 1 "" 
+{XPPMATH 20 "6#>%(accelddG*&,&%$dddG\"\"\"*()%#daG\"\"#\"\"\"-%$cosG6#
+%\"dGF(-%$sinGF0F(!\"\"F-%$etaG!\"\"" }}}{EXCHG {PARA 0 "> " 0 "" 
+{MPLTEXT 1 0 28 "acceldda := diff(accel,dda);" }}{PARA 11 "" 1 "" 
+{XPPMATH 20 "6#>%)accelddaG*&*&%#daG\"\"\")-%$cosG6#%\"dG\"\"#\"\"\"F/
+%$etaG!\"\"" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 28 "accelddd := \+
+diff(accel,ddd);" }}{PARA 11 "" 1 "" {XPPMATH 20 "6#>%)acceldddG*&%#dd
+G\"\"\"%$etaG!\"\"" }}}{EXCHG {PARA 0 "" 0 "" {TEXT -1 62 "***********
+***************************************************" }}}{EXCHG {PARA 
+0 "> " 0 "" {MPLTEXT 1 0 22 "writeto(J_curv_accel);" }}}{EXCHG {PARA 
+0 "> " 0 "" {MPLTEXT 1 0 39 "fortran(ka,optimized,precision=double);" 
+}}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 39 "fortran(kd,optimized,prec
+ision=double);" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 40 "fortran(k
+da,optimized,precision=double);" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 
+1 0 40 "fortran(kdd,optimized,precision=double);" }}}{EXCHG {PARA 0 ">
+ " 0 "" {MPLTEXT 1 0 41 "fortran(kdda,optimized,precision=double);" }}
+}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 41 "fortran(kddd,optimized,prec
+ision=double);" }}}{EXCHG {PARA 0 "" 0 "" {TEXT -1 79 "---------------
+----------------------------------------------------------------" }}}
+{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 43 "fortran(accela,optimized,pre
+cision=double);" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 43 "fortran(
+acceld,optimized,precision=double);" }}}{EXCHG {PARA 0 "> " 0 "" 
+{MPLTEXT 1 0 44 "fortran(acceldd,optimized,precision=double);" }}}
+{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 44 "fortran(accelda,optimized,pr
+ecision=double);" }}}{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 45 "fortran
+(acceldda,optimized,precision=double);" }}}{EXCHG {PARA 0 "> " 0 "" 
+{MPLTEXT 1 0 45 "fortran(accelddd,optimized,precision=double);" }}}
+{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 18 "writeto(terminal);" }}}
+{EXCHG {PARA 0 "> " 0 "" {MPLTEXT 1 0 0 "" }}}}{MARK "36 0 0" 0 }
+{VIEWOPTS 1 1 0 1 1 1803 }

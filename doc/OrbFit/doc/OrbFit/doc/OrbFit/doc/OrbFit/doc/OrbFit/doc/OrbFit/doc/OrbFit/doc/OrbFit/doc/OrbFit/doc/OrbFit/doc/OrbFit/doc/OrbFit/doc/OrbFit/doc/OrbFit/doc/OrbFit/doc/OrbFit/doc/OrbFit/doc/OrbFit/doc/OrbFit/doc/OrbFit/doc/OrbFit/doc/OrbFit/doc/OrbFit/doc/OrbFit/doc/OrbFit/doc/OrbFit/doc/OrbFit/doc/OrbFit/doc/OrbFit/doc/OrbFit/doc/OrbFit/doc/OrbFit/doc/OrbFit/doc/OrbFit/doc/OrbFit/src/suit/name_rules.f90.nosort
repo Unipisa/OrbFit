@@ -1,0 +1,137 @@
+MODULE name_rules
+
+IMPLICIT NONE
+PRIVATE
+! length of official IAU designation, without spaces                    
+  INTEGER, PUBLIC, PARAMETER :: name_len=9 
+  INTEGER, PUBLIC, PARAMETER :: nmax_ids=8
+  INTEGER, PUBLIC, PARAMETER :: idname_len=(name_len+1)*nmax_ids-1 
+  INTEGER, PUBLIC, PARAMETER :: idnamvir_len=idname_len+4
+
+PUBLIC fullnamparse
+CONTAINS
+
+! =======================================                               
+! fullnamparse                                                              
+! parse asteroid name to find identifications/multiple solutions        
+! to be used by both vsa_attrib and vsa_attmore                         
+! fullname is of the general form                                       
+! name[=names(1)][=names(2)]=....=[_nvir]    [optional]
+! if missing nvir is store as 0       
+! nam0 has the _nvir removed                          
+! =======================================                               
+SUBROUTINE fullnamparse(fullname,srt,nam0,name,nid,nvir,ierror) 
+! ------------input------------------                                   
+  CHARACTER*(*), INTENT(IN) :: fullname
+  LOGICAL, INTENT(IN) :: srt ! to sort or not to sort? 
+! ------------output-----------------  
+  CHARACTER*(name_len), INTENT(OUT) :: name(nmax_ids) 
+  INTEGER, INTENT(OUT) :: nid 
+  CHARACTER*(idname_len), INTENT(OUT) :: nam0 
+  INTEGER nvir ! index of multiple solution, if applicable
+  INTEGER ierror ! error flag 
+! ------------end interface------------- 
+  CHARACTER*(idname_len) longname
+! length of fullname, of longname, position of _, position of =
+  INTEGER le,le1,ll,ll1 
+  INTEGER ieq,id
+  CHARACTER*(name_len) nam
+  INTEGER ind(nmax_ids), nvtr ! for sorting, which design. has triangles
+  DOUBLE PRECISION times(nmax_ids) ! for sorting
+! ==========================================                            
+  ierror=0
+! parse fullname to find index of virtual asteroid  
+  longname=fullname                    
+  CALL rmsp(longname,le) 
+  IF(le.gt.idname_len)THEN
+     WRITE(*,*)'fullnamparse: too many ids. ',fullname(1:le),le 
+     ierror=5
+  ENDIF
+  ll=index(longname,'_') 
+  IF(ll.gt.0)THEN 
+     IF(le-ll.eq.1)THEN 
+        READ(longname(ll+1:ll+1),111)nvir 
+111     format(i1) 
+     ELSEIF(le-ll.eq.2)THEN 
+        READ(longname(ll+1:ll+2),112)nvir 
+112     format(i2) 
+     ELSEIF(le-ll.eq.3)THEN 
+        READ(longname(ll+1:ll+3),113)nvir 
+113     format(i3) 
+     ELSEIF(le-ll.eq.4)THEN 
+        READ(longname(ll+1:ll+4),114)nvir 
+114     format(i4) 
+     ELSE 
+        WRITE(*,*)'namparse: error in reading nvir ',longname,le,ll 
+        ierror=1 
+        RETURN 
+     ENDIF
+     longname(ll:)=' '
+  ELSEIF(ll.eq.0)THEN 
+! single solution, give default number                                  
+     nvir=0 
+  ELSE 
+     WRITE(*,*)'fullnamparse: error in _ sign ',longname(1:le),le,ll 
+     ierror=2 
+     STOP 
+  ENDIF
+! =============================================                         
+! parse fullname to find identification marks
+  le1=ll
+  DO nid=1,nmax_ids  
+     ll1=index(longname,'=') 
+     IF(ll1.eq.0)THEN 
+! no more identifications
+        IF(le1.gt.name_len)THEN
+           WRITE(*,*)'fullnamparse: too long name truncated',longname(1:ll1-1) 
+           ierror=3 
+           name(nid)=longname(1:name_len)
+           longname=' '
+        ELSE
+           name(nid)=longname(1:le1)
+           longname=' '
+        ENDIF        
+     ELSEIF(ll1.gt.0)THEN
+! check length of first name
+        IF(ll1.gt.name_len+1)THEN
+           WRITE(*,*)'fullnamparse: too long name truncated',longname(1:ll1-1) 
+           ierror=3 
+           name(nid)=longname(1:name_len)
+           longname=longname(ll1+1:le1)
+        ELSEIF(ll1.gt.1)THEN
+           name(nid)=longname(1:ll1-1)
+           longname=longname(ll1+1:le1)
+        ELSE
+           WRITE(*,*)'fullnamparse: error == ',fullname(1:le),le,ll,ll1
+           ierror=4
+           STOP
+        ENDIF
+     ELSE 
+        WRITE(*,*)'fullnamparse: error in = sign ',fullname(1:le),le,ll,ll1 
+        ierror=6 
+        STOP 
+     ENDIF
+     CALL rmsp(longname,le1)
+     IF(le1.eq.0)EXIT
+  ENDDO
+! id=total number of designations contained in the string 
+
+  IF(srt)THEN
+     WRITE(*,*) ' fullnamparse: sort function not ready'
+     STOP
+  ELSE ! not to sort
+! identification name, with ids not sorted.
+     nam0=name(1)
+     DO id=2,nid
+        ieq=(name_len+1)*(id-1)
+        nam0(ieq:ieq)='='
+        nam0(ieq+1:ieq+name_len)=name(id)
+     ENDDO
+  ENDIF 
+
+END SUBROUTINE fullnamparse
+
+
+
+END MODULE name_rules
+

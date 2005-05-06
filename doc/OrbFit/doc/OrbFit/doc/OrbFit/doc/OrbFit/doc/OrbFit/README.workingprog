@@ -1,0 +1,44 @@
+
+This contains the plans for the immediate future of ORBFIT, that is
+the improvements we are either working on, or at least thinking to.
+
+Category 0: things being done now:
+
+0) More robust test suite
+
+1) inclusion in fitobs of regula falsi algorithm to find 
+   minimum approach distance along the LOV
+
+2) Cometary version, with support for hyperbolic/parabolic orbits
+   (almost done) and non gravitational perturbations.
+
+3) Include attributables generation (done) and handling in the distribution.
+
+4) verbosity control needs to be generalized 
+
+5) include orbit9 in the f90 system
+
+Category 1: things needed, not yet scheduled:
+
+1) Multiple solution from Gauss's preliminary orbit. More stable
+   algorithms for preliminary orbits.
+
+2) Yarkovsky effect.  Already available non documented feature, not
+   properly tested.
+
+3) More readable output files, in particular the log files,
+   runname.fou, runname.olg, but also runname.fga, etc.
+
+
+Category 2: algorithms being defined
+
+1) Virtual Impactors from VSA
+
+KNOWN BUGS:
+
+
+Updated 10 February  2005, A. Milani.
+
+
+
+
