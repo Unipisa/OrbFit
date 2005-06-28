@@ -49,11 +49,7 @@ SUBROUTINE fstpro(batch,icov,ini0,cov0,iun20,iun8,ok,             &
   INTEGER ii,j 
 ! ===================================================================== 
 ! check availability of required data                                   
-  IF(batch)THEN 
-     CALL chereq(icov,ini0,cov0,el0%t,iun20,-1,ok) 
-  ELSE 
-     CALL chereq(icov,ini0,cov0,el0%t,iun20,iun8,ok) 
-  ENDIF
+  CALL chereq(icov,ini0,cov0,el0%t,iun20,ok) 
   IF(.not.ok)RETURN 
 ! ===================================================================== 
 ! check availability of JPL ephemerides                                  

@@ -1,3 +1,194 @@
+!                                                                       
+! ====================================================                  
+! FCLOMON2 impact monitoring from FITOBS
+! ====================================================  
+SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla)
+  USE propag_state
+  USE tp_trace
+  USE output_control
+  USE orbit_elements
+  USE ret_analysistp
+  USE multiple_sol
+  USE obssto
+  USE force_model, ONLY: masjpl
+  USE planet_masses, ONLY: dmea
+  USE close_app, ONLY: fix_mole
+  IMPLICIT NONE
+! =================INPUT=========================================
+  character*(6), INTENT(IN) :: progna ! program name
+  integer, INTENT(IN) :: m ! observation number
+! new data types
+  TYPE(ast_obs),DIMENSION(m), INTENT(IN) :: obs
+  TYPE(ast_wbsr),DIMENSION(m), INTENT(IN) :: obsw
+! min and max index of alternate orbits                                
+  INTEGER, INTENT(IN) :: mm1
+  INTEGER, INTENT(IN) :: mm2
+! search until time (MJD)
+  DOUBLE PRECISION, INTENT(IN) :: tmcla 
+! workspace por pro_ele 
+  TYPE(orbit_elem) el1
+  TYPE(orb_uncert) unm1
+  CHARACTER*10 mulname
+  INTEGER nm,j,le  ! number of virtual objects, index, string length
+  INTEGER no                                    ! number of close approaches found
+  INTEGER, PARAMETER :: nox=10000               ! max no close app
+  TYPE(tp_point), DIMENSION(nox) :: vas_tr      ! array of tp_traces (global)
+  TYPE(tp_point), DIMENSION(nox) :: vas_trl     ! array of tp_traces (of return)
+  DOUBLE PRECISION :: dist(nox)
+  DOUBLE PRECISION :: dminpos(nox) 
+  LOGICAL :: is_min, newflag                    ! local minimum, low  MOID
+  INTEGER :: no_risk                   ! number of Virtual impactors found
+  INTEGER, PARAMETER :: nshx=10000              ! maximum number of showers
+  INTEGER, PARAMETER :: nretx=50000             ! maximum number of returns 
+  INTEGER            :: nsho                    ! showers number
+  INTEGER            :: isho(nshx)              ! showers index
+  INTEGER            :: iret(nretx)             ! returns (trails) index
+  INTEGER            :: nret                    ! returns (trails) number
+  INTEGER            :: lre,ire,nr,ns,nnew,nrisk
+  DOUBLE PRECISION   :: tcat                    ! time of initial conditions
+  CHARACTER(LEN=15)  :: despla  ! desired planet 
+!=============================OPTIONS=====================================  
+  DOUBLE PRECISION :: dt             ! length of showers 
+  DOUBLE PRECISION :: tgap           ! time gap desired
+  DOUBLE PRECISION :: dmin_used      ! radius of TP
+  DOUBLE PRECISION :: dnewton        ! control on distance
+  LOGICAL ireq,found
+  INTEGER vdifold, vmultold
+  CHARACTER*60 comment 
+! ===============================================================
+! input options
+! ================shower length time============================  
+  ireq=.false.
+  dt=90.d0  
+  comment='shower length time'
+  CALL input_rea_opt(progna,'dt',dt,ireq,found,comment,iun_log)
+! ================shower gap time============================           
+  ireq=.false.
+  tgap=30  
+  comment='shower gap time'
+  CALL input_rea_opt(progna,'tgap',tgap,ireq,found,comment,iun_log)
+! ================radius of target plane used===========================
+  dmin_used=dmea ! must be equal to the one used in the propagation
+! ================control for startup of Newton's method================
+! in earth radii                                                        
+  ireq=.false.
+  dnewton=60.d0 
+  comment='newton control value, in Earth radii'
+  CALL input_rea_opt(progna,'dnewton',dnewton,ireq,found,comment,iun_log)
+! ================control factor on beta================
+! to identify entangled                                
+  ireq=.false. 
+  beta_factor=20.d0
+  comment='control factor on beta to identify entangled'
+  CALL input_rea_opt(progna,'beta_factor',beta_factor,ireq,found,comment,iun_log)
+! ================fix mole by using 2-body inside Earth?==============
+  ireq=.false.
+  fix_mole=.true.            ! default for fix_mole     
+  comment='fix mole by using 2-body inside Earth'
+  CALL input_log_opt(progna,'fix_mole',fix_mole,ireq,found,comment,iun_log)
+  vdifold=verb_dif
+  verb_dif=1
+  vmultold=verb_mul
+  verb_mul=1
+! ===================================================================
+  deltasig=delta_sigma ! align stepsize in multiple_sol and tp_trace
+  imul0=imi0 ! align index of nominal solution in multiple_sol and tp_trace
+! copy observations 
+  m_m=m
+  obs_m(1:m)=obs(1:m)
+  obsw_m(1:m)=obsw(1:m)
+! setup close app. output
+  tpplane=.true. ! use TP plane, not MTP
+  REWIND(iuncla) ! cleanup previous close app. records
+! propagation and output close approach files
+  nm=mm2-mm1+1
+  DO j=mm1,mm2
+     WRITE(mulname,110)j
+ 110 FORMAT('mult_',I5)
+     CALL rmsp(mulname,le)
+     WRITE(iuncla,*)mulname
+     CALL cov_avai(unm(j),elm(j)%coo,elm(j)%coord)
+     CALL pro_ele(elm(j),tmcla,el1,unm(j),unm1)
+     WRITE(*,*) ' VA number ',j,' propagated'
+  ENDDO 
+  REWIND(iuncla)
+! now input tp records
+  despla='EARTH'
+  CALL masjpl  ! should not matter, unless fclomon2 is executed too early....
+  CALL inclolinctp(iun_log,iuncla,despla,vas_tr,no,nox)
+  IF(no.le.0)THEN
+     WRITE(*,*) ' no close approach to ', despla, ' found up to time MJD ',tmcla
+     RETURN
+  ENDIF
+! shower analysis
+  CALL showret3tp(iun_log,vas_tr,no,dt,tgap,isho,nsho,iret,nret)
+! main loop on returns                                                  
+  ns=1 
+  CALL header_rep(iun_log)
+  CALL header_rep(0)
+  DO 1 nr=1,nret 
+! shower counter                                                        
+     if(iret(nr).ge.isho(ns+1))ns=ns+1 
+! reopen files for filament report                                      
+     ire=iret(nr) 
+! warning: remember to define iret(nr+1)                                
+     lre=iret(nr+1)-iret(nr) 
+! analyse return, finding minimum distance etc.                         
+     WRITE(iun_log,197)ns,nr,lre,vas_tr(ire)%rindex,vas_tr(ire+lre-1)%rindex 
+197  FORMAT('shower no. ', i4,' return no. ',i5,' length ',i5,' from ',f6.1,' to ',f6.1)
+! vas_trace  copied in a "return record' vas_traceloc                                  
+     CALL arrcut(vas_tr,ire,lre,nox,iun_log,vas_trl) 
+     dist(1:lre)=vas_trl(1:lre)%b
+     dminpos(1:lre)=vas_trl(1:lre)%minposs
+     newflag=.false. 
+     IF(lre.gt.1)THEN 
+! finding local minima                                                  
+        DO 2 j=1,lre 
+           is_min=.false. 
+           IF(j.eq.1)THEN 
+              IF(dist(j).lt.dist(j+1))is_min=.true. 
+           ELSEIF(j.eq.lre)THEN 
+              IF(dist(j).lt.dist(j-1))is_min=.true. 
+           ELSE 
+              IF(dist(j).lt.dist(j+1).and.dist(j).lt.dist(j-1))     &
+     &                 is_min=.true.                                    
+           ENDIF
+! if local minimum, check minimum possible                              
+           IF(is_min)THEN
+              CALL header_rep(iun_log)
+              CALL header_rep(0)
+              CALL wrireptp(vas_trl(j),vas_trl(1)%rindex,vas_trl(lre)%rindex,-iun_log)   
+              IF(dminpos(j).lt.dnewton)THEN 
+                 newflag=.true. 
+              ENDIF
+           ENDIF
+2       ENDDO
+     ELSE 
+! singletons: check if moid is small 
+        CALL header_rep(iun_log)
+        CALL header_rep(0)  
+        CALL wrireptp(vas_trl(1),vas_trl(1)%rindex,vas_trl(lre)%rindex,-iun_log)
+        DO j=1,lre 
+           IF(dminpos(j).lt.dnewton)newflag=.true.
+        ENDDO
+     ENDIF
+! selected for further analysis?                                        
+     IF(newflag)THEN 
+! reopen files for newton report                                        
+        WRITE(*,*)' return number nr=',nr, ' falsi/newton ' 
+        nnew=nnew+1 
+        CALL ret_min(lre,vas_trl,tdt_cat,dnewton,no_risk)
+! test output                                                           
+        nrisk=nrisk+no_risk 
+     ELSE 
+        WRITE(*,*)' return number nr=',nr, 'NO  falsi/newton ' 
+     ENDIF
+! end loop on returns 
+1 ENDDO
+  verb_dif=vdifold
+  verb_mul=vmultold
+END SUBROUTINE fclomon2
+
 ! ==================================================================    
 ! FINOBS                                                                
 ! ==================================================================    
@@ -201,26 +392,30 @@ END SUBROUTINE f_gauss
 ! ====================================================                  
 ! FOBPRE predict observations                                           
 ! ====================================================                  
-SUBROUTINE fobpre(icov,ini0,cov0,iun8,ok,titnam,filnam,  &
-     &   el0,unc0,ids,type1,t1,tut,aobs0,dobs0,t2,dt,astnam)
+SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
+     &   el00,unc00,ids,type1,t1,tut,aobs0,dobs0,t2,dt,astnam)
   USE multiple_sol, ONLY: outmul 
   USE pred_obs
   USE orbit_elements
   USE util_suit
   USE output_control
+  USE astrometric_observations
+  USE two_states
+  USE fund_const
+  USE station_coordinates, ONLY: codestat,obscoo
+  USE reference_systems, ONLY: observer_position
   IMPLICIT NONE 
 ! =================INPUT=========================================       
   INTEGER,INTENT(IN) :: icov ! requirements on covariance
-  LOGICAL ini0,cov0 ! availability of initial conditions, covariance
-  INTEGER, INTENT(IN) ::  iun8 ! output unit for covariance 
+  LOGICAL ini00,cov00 ! availability of initial conditions, covariance
   DOUBLE PRECISION, INTENT(IN) :: t1,t2,dt ! observation time, 
 ! also beginning of ephemerides time, end of ephemerides time, step
   DOUBLE PRECISION tut ! UTC of observation 
   INTEGER ids ! station code
   CHARACTER*(1) type1 ! observation type  
-  TYPE(orbit_elem), INTENT(IN) :: el0 ! elements
-  TYPE(orb_uncert), INTENT(IN) :: unc0 !covariance and normal matrix 
-  CHARACTER*80, INTENT(IN) :: titnam ! asteroid name etc. 
+  TYPE(orbit_elem), INTENT(IN) :: el00 ! elements
+  TYPE(orb_uncert), INTENT(IN) :: unc00 !covariance and normal matrix 
+  CHARACTER*80, INTENT(INOUT) :: titnam ! asteroid name etc. 
   CHARACTER*60, INTENT(IN) :: filnam                     
   DOUBLE PRECISION, INTENT(IN) :: aobs0,dobs0 ! actual obs. for comparison 
   CHARACTER*(*), INTENT(IN) :: astnam ! asteroid name
@@ -231,6 +426,8 @@ SUBROUTINE fobpre(icov,ini0,cov0,iun8,ok,titnam,filnam,  &
   DOUBLE PRECISION alpha,delta,hmagn
 ! covariance of the observations                                        
   DOUBLE PRECISION gamad(2,2),axes(2,2),sig(2),gamad1(2,2)
+! noise in observations
+  DOUBLE PRECISION rmssec, rmsmag
 ! confidence boundary, line of max variation 
   INTEGER npo, ibv, npo1, npop 
   DOUBLE PRECISION sigma
@@ -240,26 +437,26 @@ SUBROUTINE fobpre(icov,ini0,cov0,iun8,ok,titnam,filnam,  &
   CHARACTER*20 menunam ! menu                                     
   CHARACTER*100 file,fields ! ephemerides output 
   CHARACTER*3 scale 
-  INTEGER ln,iuneph 
+  INTEGER ln,iuneph,le 
 ! ===================================================================== 
 ! options                                                               
 ! ===================================================================   
 ! ===================================================================   
 ! chose handling of nonlinearity                                        
-57 IF(icov.ge.2)THEN 
+57 IF(icov.ge.3)THEN 
      menunam='prednonl' 
      CALL menu(inl,menunam,3,'How to handle nonlinearity?=',        &
      &         'linear map=',                                           &
      &         '2-body nonlinearity=',                                  &
      &         'full n-body nonlinearity=')
      IF(inl.eq.0)GOTO 57 
-  ELSE
+  ELSE ! icov=1 for simple obs, icov=2 for use simulated obs
      inl=-1
   ENDIF
   ibv=0
 ! ===================================================================== 
 ! check availability of initial conditions (also covariance for icov=2) 
-  CALL chereq(icov,ini0,cov0,el0%t,iun_log,iun8,ok) 
+  CALL chereq(icov,ini00,cov00,el00%t,iun_log,ok) 
   IF(.not.ok)RETURN 
 ! ===================================================================== 
 ! check availability of JPL ephemerides and ET-UT table                 
@@ -268,29 +465,69 @@ SUBROUTINE fobpre(icov,ini0,cov0,iun8,ok,titnam,filnam,  &
 ! ===================================================================== 
 ! compute prediction; without and with covariance                       
 ! ===================================================================== 
-  IF(icov.eq.1)THEN 
+  IF(icov.eq.1.or.icov.eq.2)THEN 
 ! ===================================================================== 
 ! only alpha, delta, magnitude
      inl=1                                          
-     CALL predic_obs(el0,ids,t1,type1,             &
+     CALL predic_obs(el00,ids,t1,type1,             &
      &        alpha,delta,hmagn,inl,                                      &
      &        ADOT0=adot,DDOT0=ddot,PHA0=pha,DIS0=dis,                  &
      &        DSUN0=dsun,ELO0=elo,GALLAT0=gallat)
-     CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
-     &     elo,dis,icov,gamad,sig,axes)                                 
-  ELSEIF(icov.eq.2)THEN 
+     IF(icov.eq.1)THEN
+        CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
+     &     elo,dis,icov,gamad,sig,axes)
+     ELSE
+! add second arc, if not there
+        IF(.not.obsp)THEN
+           obsp=.true.
+           astnap='sim'
+        ENDIF
+        IF(obs0)obstwo=.true.
+! weights and elements files for identification                         
+        IF(obstwo.and.iunelt.eq.0)THEN 
+           CALL titast(3,astna0,astnap,titnam,rwofil,le) 
+           CALL rmsp(rwofil,le) 
+           rwotwo=rwofil(1:le)//'.rwo' 
+! compose elements file full name                                       
+           eletwo=rwofil(1:le)//'.fel' 
+           CALL rmsp(eletwo,le) 
+           CALL filopn(iunelt,eletwo(1:le),'unknown') 
+           ! output header                                                         
+           CALL wromlh (iunelt,'ECLM','J2000') 
+        ENDIF
+! select noise level
+         WRITE(*,*)' give RMS of simulated observation'
+         IF(type1.eq.'O')THEN
+            WRITE(*,*)' for both alpha, delta in arcsec'
+            READ(*,*) rmssec
+         ELSEIF(type1.eq.'R')THEN
+            WRITE(*,*)' for distance, in km'
+            READ(*,*) rmssec
+         ELSEIF(type1.eq.'V')THEN
+            WRITE(*,*)' for range rate, in km/day'
+            READ(*,*) rmssec
+         ENDIF
+         rmsmag=0.7d0
+! add observation to second arc
+         mall=mall+1
+         mp=mp+1   
+         CALL obs_simul(type1,t1,tut,astnam,ids,rmssec,rmsmag,alpha,delta,   &
+      &                hmagn,obs(mall),obsw(mall))
+         IF(type1.eq.'R'.or.type1.eq.'V')CALL radar_ob(obs(1:mall)%type,mall)
+      ENDIF
+   ELSEIF(icov.eq.3)THEN 
 ! ===================================================================== 
 ! alpha, delta, magnitude, covariance and ellipse of confidence         
-     CALL predic_obs(el0,ids,t1,type1,             &
+     CALL predic_obs(el00,ids,t1,type1,             &
      &        alpha,delta,hmagn,inl,                                    &
-     &        UNCERT=unc0,GAMAD=gamad,SIG=sig,AXES=axes,          &
+     &        UNCERT=unc00,GAMAD=gamad,SIG=sig,AXES=axes,          &
      &        ADOT0=adot,DDOT0=ddot,PHA0=pha,DIS0=dis,                  &
      &        DSUN0=dsun,ELO0=elo,GALLAT0=gallat)
      CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
      &     elo,dis,icov,gamad,sig,axes)                                 
 ! ===================================================================   
 ! generation of sky epehemrides                                         
-  ELSEIF(icov.eq.5)THEN 
+  ELSEIF(icov.eq.6)THEN 
 ! check availability of JPL ephemerides and ET-UT table for entire time 
      CALL chetim(t1,t2,ok) 
      IF(.not.ok)RETURN 
@@ -306,21 +543,21 @@ SUBROUTINE fobpre(icov,ini0,cov0,iun8,ok,titnam,filnam,  &
         CALL filopn(iuneph,file(1:ln),'unknown') 
         fields='cal,mjd,coord,mag,elong,glat,r,delta,appmot,skyerr' 
         scale='UTC' 
-        CALL ephemc(iuneph,el0,unc0,.true.,t1,t2,dt,ids,scale,fields)
+        CALL ephemc(iuneph,el00,unc00,.true.,t1,t2,dt,ids,scale,fields)
         CALL filclo(iuneph,' ') 
         WRITE(*,*)' Generated ephemeris in file: ',file(1:ln) 
      ENDIF
 ! ===================================================================== 
-  ELSEIF(icov.eq.3.or.icov.eq.4)THEN 
+  ELSEIF(icov.eq.4.or.icov.eq.5)THEN 
 ! ===================================================================== 
 ! alpha, delta, magnitude, covariance and confidence boundary;          
 ! input specification of set of points                                  
      CALL asscbd(iun_log,npoinx,npo,sigma,ibv) 
 ! ===================================================================== 
 ! compute prediction, boundary                                          
-     CALL predic_obs(el0,ids,t1,type1,             &
+     CALL predic_obs(el00,ids,t1,type1,             &
      &        alpha,delta,hmagn,inl,                                    &
-     &        unc0,sigma,npo,ibv,gamad,sig,axes,npo1,                   &
+     &        unc00,sigma,npo,ibv,gamad,sig,axes,npo1,                   &
      &        adot,ddot,pha,dis,dsun,elo,gallat)
      CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
      &        elo,dis,icov,gamad,sig,axes)                                 
@@ -341,7 +578,7 @@ SUBROUTINE fobpre(icov,ini0,cov0,iun8,ok,titnam,filnam,  &
         npop=npo1 
      ENDIF
 ! if no observation is given, use the nominal marked with a cross       
-     IF(icov.eq.3)THEN 
+     IF(icov.eq.4)THEN 
         aobs=alpha 
         dobs=delta 
      ELSE
@@ -351,7 +588,7 @@ SUBROUTINE fobpre(icov,ini0,cov0,iun8,ok,titnam,filnam,  &
 ! ===================================================================== 
 ! output observation, apparent motion, confidence boundary              
      CALL outmul(titnam,filnam,tut,sigma,alpha,delta,               &
-     &              al_m,de_m,hmag_m,1,npop,1,icov-2,aobs,dobs,type1)
+     &              al_m,de_m,hmag_m,1,npop,1,icov-3,aobs,dobs,type1)
   ENDIF
 END SUBROUTINE fobpre                                      
 ! ===================================================================   

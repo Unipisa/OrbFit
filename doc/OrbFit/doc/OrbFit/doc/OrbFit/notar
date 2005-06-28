@@ -15,10 +15,14 @@
 ./src/test
 ./src/suit/J_curv_accel
 ./src/include/SUSPECT.list
-./src/moid/CHANGES
-./src/moid/notactual
+./src/moid/APPUNTI
+./src/moid/no_shift
+./src/moid/not_used
+./src/moid/old
+./src/moid/oldmoid
 ./tests/cloapp2
 ./tests/fitobs/othertests
+./tests/fitobs/mn4
 ./tests/orbit9
 ./src/README.tobedone
 ./src/astdys

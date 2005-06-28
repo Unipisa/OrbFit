@@ -4,12 +4,11 @@
 ! input options, for the propagator and the specific main program       
 ! input: progna = program name (6 characters)                           
 !        run    = run identifier (80 characters, up to 76 non-blank)    
-SUBROUTINE finopt(progna,run,astna0,astnap,iunout,iuncovar,error_model) 
+SUBROUTINE finopt(progna,run,astna0,astnap,error_model) 
   USE output_control
   implicit none 
   character*6,INTENT(IN) :: progna 
   character*80,INTENT(IN) :: run 
-  integer, intent(out) :: iunout,iuncovar ! output units
   CHARACTER*(*),INTENT(OUT) :: astna0,astnap 
   CHARACTER*(20),INTENT(OUT) :: error_model ! error model file name
 ! hidden output through bizset: controls for bizarre orbits
@@ -20,6 +19,7 @@ SUBROUTINE finopt(progna,run,astna0,astnap,iunout,iuncovar,error_model)
   LOGICAL ireq,found
   CHARACTER*60 comment 
   CHARACTER*100 filnam
+  INTEGER iunout, iuncovar ! now only local names
 ! =============================
   CALL initopt(progna,run,'fop')                                         
 ! read option for physical model and integration method                 
@@ -36,6 +36,7 @@ SUBROUTINE finopt(progna,run,astna0,astnap,iunout,iuncovar,error_model)
   filnam=run//'.fga' 
   CALL rmsp(filnam,le) 
   call filopn(iuncovar,filnam,'UNKNOWN')
+  iun_covar=iuncovar
 ! ===================================================================== 
 ! Output files: for errors, close approaches, for propagator parameters 
   filnam=run//'.err' 

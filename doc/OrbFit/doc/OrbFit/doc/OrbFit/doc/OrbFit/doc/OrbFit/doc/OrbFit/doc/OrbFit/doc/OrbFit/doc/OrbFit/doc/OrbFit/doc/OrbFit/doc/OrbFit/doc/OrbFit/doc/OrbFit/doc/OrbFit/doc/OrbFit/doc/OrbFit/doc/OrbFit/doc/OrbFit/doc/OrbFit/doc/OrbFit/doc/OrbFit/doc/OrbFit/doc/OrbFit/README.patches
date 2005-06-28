@@ -1,11 +1,11 @@
-DISTRIBUTION 3.2.5 (February 2004)
+DISTRIBUTION 3.3 (June 2005)
 
 It is not only a conversion to Fortran90, but incorporates many new features,
 including:
 
 1) Upgrade of propagator, with use of predictor-corrector in the multistep
 
-2) Attributabkle generation software
+2) Attributable generation software
 
 3) Orbital elements of type COM, ATT (on top of CAR, EQU, KEP) are all
   handled as orbit_elem user-defined data type. We now use an
@@ -21,8 +21,9 @@ including:
 5) vastly improved close approach control, incuding the use of the
    tp_trace user-defined data type.
 
+6) new MOID algorithms, stable for e=1
 
-PATCHES TO DISTRIBUTION 3.2.5
+PATCHES TO DISTRIBUTION 3.3
 
 [these files should be included in every patch, to make sure the patch
 itself is well defined:]
@@ -35,7 +36,7 @@ itself is well defined:]
 ./src/vers.h
 ./notar
 
-PATCH 3.2.6
+PATCH 3.3.1 
 
 not yet 
 

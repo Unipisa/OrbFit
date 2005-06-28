@@ -10,8 +10,8 @@ integer iuncla,numcla,ierrou,numerr
 ! asteroid name for messages
 CHARACTER*30 name_obj
 INTEGER lobjnam
-! unit for log report (replaces the old iun20, iunlog, iundummy, and so on)
-INTEGER iun_log
+! unit for log report (replace the old iun20, iun8, iuncovar, iunlog, iundummy, and so on)
+INTEGER iun_log,iun_covar
 ! =========verbosity control==========
 ! for close approaches
 INTEGER verb_clo

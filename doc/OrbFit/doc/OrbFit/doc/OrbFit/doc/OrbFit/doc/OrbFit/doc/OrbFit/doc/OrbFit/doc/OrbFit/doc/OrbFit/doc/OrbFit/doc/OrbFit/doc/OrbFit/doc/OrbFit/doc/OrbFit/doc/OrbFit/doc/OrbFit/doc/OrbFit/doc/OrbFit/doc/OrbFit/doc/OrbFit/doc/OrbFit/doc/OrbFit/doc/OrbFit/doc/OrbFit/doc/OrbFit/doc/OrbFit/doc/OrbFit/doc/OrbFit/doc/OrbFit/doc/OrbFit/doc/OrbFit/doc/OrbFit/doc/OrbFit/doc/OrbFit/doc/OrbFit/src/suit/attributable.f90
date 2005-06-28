@@ -67,52 +67,52 @@ DOUBLE PRECISION, PARAMETER :: sphdistx=2.d0 ! spherical distance betw first and
 ! public entities
 PUBLIC attrib, undefined_attrib
 
-PUBLIC attri_comp, wri_attri, spher_dist , rea_attri
+PUBLIC attri_comp, wri_attri, spher_dist , rea_attri, att_diff
 
 PUBLIC sphdistx
 
 CONTAINS
-  SUBROUTINE rea_attri(iunatt,iunrat,name0,att,trou,eof)
-    TYPE(attrib), INTENT(OUT) :: att
-    CHARACTER*(name_len), INTENT(OUT) :: name0 
-    DOUBLE PRECISION, INTENT(OUT) :: trou ! rounded time
-    LOGICAL, INTENT(OUT) :: eof
-    INTEGER, INTENT(IN) :: iunatt,iunrat ! units for attributable,
+SUBROUTINE rea_attri(iunatt,iunrat,name0,att,trou,eof)
+  TYPE(attrib), INTENT(OUT) :: att
+  CHARACTER*(name_len), INTENT(OUT) :: name0 
+  DOUBLE PRECISION, INTENT(OUT) :: trou ! rounded time
+  LOGICAL, INTENT(OUT) :: eof
+  INTEGER, INTENT(IN) :: iunatt,iunrat ! units for attributable,
                                        ! for curvature info
-    DOUBLE PRECISION sec1,sec2
-    INTEGER mjd1,mjd2
-    DOUBLE PRECISION atrou,dtrou,sa,sd,sadot,sddot,caad,cddd,eta
-    CHARACTER*(name_len) name1
-    CHARACTER*256 record
-    INTEGER yearm
-    DOUBLE PRECISION arc2,ds2,curv,accel,curv_unc,acc_unc,eta_unc
+  DOUBLE PRECISION sec1,sec2
+  INTEGER mjd1,mjd2
+  DOUBLE PRECISION atrou,dtrou,sa,sd,sadot,sddot,caad,cddd,eta
+  CHARACTER*(name_len) name1
+  CHARACTER*256 record
+  INTEGER yearm
+  DOUBLE PRECISION arc2,ds2,curv,accel,curv_unc,acc_unc,eta_unc
 ! read att file
-    READ(iunatt,100,END=2)att%tdtobs,att%angles,trou,atrou,dtrou, &
+  READ(iunatt,100,END=2)att%tdtobs,att%angles,trou,atrou,dtrou, &
 &        att%nobs,att%arc,name0,att%obscod,    &
 &        sa,sd,sadot,sddot,caad,cddd,att%eta,att%apm
 100 FORMAT(f13.6,1x,f10.7,1x,f10.7,1p,1x,d12.5,1x,d12.5,1x,0p,      &
      &      f9.2,1x,f8.5,1x,f8.5,1x,i3,1x,f8.2,1x,a9,1x,a3,             &
      &      1p,6(1x,d10.3),0p,1x,f9.4,1x,f5.2)
 ! compose covariance matrix
-       att%g=0.d0
-       att%g(1,1)=sa**2
-       att%g(2,2)=sd**2
-       att%g(3,3)=sadot**2
-       att%g(4,4)=sddot**2
-       att%g(1,3)=caad*(sa*sadot)
-       att%g(3,1)=att%g(1,3)
-       att%g(2,4)=cddd*(sd*sddot)
-       att%g(4,2)=att%g(2,4)
+  att%g=0.d0
+  att%g(1,1)=sa**2
+  att%g(2,2)=sd**2
+  att%g(3,3)=sadot**2
+  att%g(4,4)=sddot**2
+  att%g(1,3)=caad*(sa*sadot)
+  att%g(3,1)=att%g(1,3)
+  att%g(2,4)=cddd*(sd*sddot)
+  att%g(4,2)=att%g(2,4)
 ! find UT of observation
-       mjd1=FLOOR(att%tdtobs)
-       sec1=att%tdtobs-mjd1
-       CALL cnvtim(mjd1,sec1,'TDT',mjd2,sec2,'UTC')
-       att%tutobs=mjd2+sec2/86400.d0
+  mjd1=FLOOR(att%tdtobs)
+  sec1=att%tdtobs-mjd1
+  CALL cnvtim(mjd1,sec1,'TDT',mjd2,sec2,'UTC')
+  att%tutobs=mjd2+sec2/86400.d0
 ! read .rat file
-       READ(iunrat,'(A)', END=3)record
-       READ(record,101)name1,att%nobs,att%arc,yearm,att%nrad,att%nsta, &
-      & att%sph,eta,eta_unc
-101    FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7))
+  READ(iunrat,'(A)', END=3)record
+  READ(record,101)name1,att%nobs,att%arc,yearm,att%nrad,att%nsta, &
+       & att%sph,eta,eta_unc
+101 FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7))
 ! 9+1+4+1+10+1+4+1+2+1+1+3*13 = 35+39 = 74 
 ! name1 = a9
 ! nobs = i4
@@ -121,116 +121,106 @@ CONTAINS
 ! nrad = i2
 ! nsta = i1
 ! sph,eta,eta_unc = f12.7
-       READ(record(76:173),*)curv,accel,curv_unc,acc_unc, &
+  READ(record(76:173),*)curv,accel,curv_unc,acc_unc, &
       & att%rms_obs,att%rms_a,att%rms_d,att%c_curvacc
 ! 74 + 4*13+3*13+1+7 = 173
 ! curv,accel,curv_unc,acc_unc = d12.5
 ! rms_obs,rms_a,rms_d = d12.5
 ! c_curvacc = f7.4
+  att%sph=att%sph/degrad
+  IF(abs(eta-att%eta).gt.1.d-4.or.name0.ne.name1)THEN
+     WRITE(*,*)' rea_attri: inconsistency ',name0,' ',name1,att%eta, eta
+  ENDIF
+  att%ntime=att%nobs  ! guess 
+  att%eta=att%eta/degrad
+  arc2=(att%arc/2.d0)**2
+  ds2=(att%arc*att%eta/2.d0)**2 
+  att%geocurv=curv/(ds2*degrad)
+  att%etadot= accel/(arc2*degrad)
+  att%rms_geocurv=curv_unc/(ds2*degrad)
+  att%rms_etadot=acc_unc/(arc2*degrad)
+  att%rms_eta=eta_unc/degrad
+  eof=.false.          
+  RETURN
+2 WRITE(*,*)' rea_attri: end of file .att'
+  eof=.true.
+  RETURN
+3 WRITE(*,*)' rea_attri: end of file .rat'
+  eof=.true.
+END SUBROUTINE rea_attri
 
-! *************** WRONG ***************************************************
-!       READ(record,101)name1,att%nobs,att%arc,yearm,att%nrad,att%nsta, &
-!      & att%sph,eta,eta_unc, &
-!      & att%rms_obs,att%rms_a,att%rms_d,att%c_curvacc
-!101    FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7),       &
-! &      40x,3(1x,f12.7),1x,f7.4)
-!       READ(record(74:172),*)curv,accel,curv_unc,acc_unc
-! **************************************************************************
-
-    att%sph=att%sph/degrad
-    IF(abs(eta-att%eta).gt.1.d-4.or.name0.ne.name1)THEN
-       WRITE(*,*)' rea_attri: inconsistency ',name0,' ',name1,att%eta, eta
-    ENDIF
-    att%ntime=att%nobs  ! guess 
-    att%eta=att%eta/degrad
-    arc2=(att%arc/2.d0)**2
-    ds2=(att%arc*att%eta/2.d0)**2 
-    att%geocurv=curv/(ds2*degrad)
-    att%etadot= accel/(arc2*degrad)
-    att%rms_geocurv=curv_unc/(ds2*degrad)
-    att%rms_etadot=acc_unc/(arc2*degrad)
-    att%rms_eta=eta_unc/degrad
-    eof=.false.          
-    RETURN
-2   WRITE(*,*)' rea_attri: end of file .att'
-    eof=.true.
-    RETURN
-3   WRITE(*,*)' rea_attri: end of file .rat'
-    eof=.true.
-  END SUBROUTINE rea_attri
-
-  SUBROUTINE wri_attri(iunatt,iunrat,name0,att,trou,nvir)
-    TYPE(attrib), INTENT(IN) :: att
-    CHARACTER*(name_len), INTENT(IN) :: name0 
-    DOUBLE PRECISION, INTENT(IN) :: trou ! rounded time
-    INTEGER, INTENT(IN) :: iunatt,iunrat ! units for attributable,
+SUBROUTINE wri_attri(iunatt,iunrat,name0,att,trou,nvir)
+  TYPE(attrib), INTENT(IN) :: att
+  CHARACTER*(name_len), INTENT(IN) :: name0 
+  DOUBLE PRECISION, INTENT(IN) :: trou ! rounded time
+  INTEGER, INTENT(IN) :: iunatt,iunrat ! units for attributable,
                                        ! for curvature info
-    INTEGER, INTENT(IN), OPTIONAL :: nvir
-    DOUBLE PRECISION atrou,dtrou, princ,sa,sd,sadot,sddot,caad,cddd
-    INTEGER iday,month,yearm 
-    DOUBLE PRECISION hour,arc2,ds2,curv,accel,curv_unc,acc_unc,eta_unc
+  INTEGER, INTENT(IN), OPTIONAL :: nvir
+  DOUBLE PRECISION atrou,dtrou, princ,sa,sd,sadot,sddot,caad,cddd
+  INTEGER iday,month,yearm 
+  DOUBLE PRECISION hour,arc2,ds2,curv,accel,curv_unc,acc_unc,eta_unc
 ! write .att file
-    IF(iunatt.ge.0)THEN
-       IF(iunatt.eq.0)  WRITE(iunatt,201)
-201 FORMAT(' t(MJD)  R.A.  DEC. radot  decdot tround rarou decrou nobs arc(d) '&
+  IF(iunatt.ge.0)THEN
+     IF(iunatt.eq.0)  WRITE(iunatt,201)
+201  FORMAT(' t(MJD)  R.A.  DEC. radot  decdot tround rarou decrou nobs arc(d) '&
  &  ,' name  obscod  s(ra) s(dec) s(rad) s(decd) c(aad) c(ddd) pr.m(deg) appmag')
-       atrou=att%angles(1)+(trou-att%tdtobs)*att%angles(3)
-       atrou=princ(atrou)
-       dtrou=att%angles(2)+(trou-att%tdtobs)*att%angles(4)
-       sa=sqrt(att%g(1,1))
-       sd=sqrt(att%g(2,2))
-       sadot=sqrt(att%g(3,3))
-       sddot=sqrt(att%g(4,4))
-       caad=att%g(1,3)/(sa*sadot)
-       cddd=att%g(2,4)/(sd*sddot)
-       IF(PRESENT(nvir))THEN
-          WRITE(iunatt,300)att%tdtobs,att%angles,trou,atrou,dtrou,   &
+     atrou=att%angles(1)+(trou-att%tdtobs)*att%angles(3)
+     atrou=princ(atrou)
+     dtrou=att%angles(2)+(trou-att%tdtobs)*att%angles(4)
+     sa=sqrt(att%g(1,1))
+     sd=sqrt(att%g(2,2))
+     sadot=sqrt(att%g(3,3))
+     sddot=sqrt(att%g(4,4))
+     caad=att%g(1,3)/(sa*sadot)
+     cddd=att%g(2,4)/(sd*sddot)
+     IF(PRESENT(nvir))THEN
+        WRITE(iunatt,300)att%tdtobs,att%angles,trou,atrou,dtrou,   &
      &        att%nobs,att%arc,name0,att%obscod,nvir,                &
      &        sa,sd,sadot,sddot,caad,cddd,att%eta*degrad,att%apm
-300       FORMAT(f13.6,1x,f10.7,1x,f10.7,1p,1x,d12.5,1x,d12.5,1x,0p, &
+300     FORMAT(f13.6,1x,f10.7,1x,f10.7,1p,1x,d12.5,1x,d12.5,1x,0p, &
      &      f9.2,1x,f8.5,1x,f8.5,1x,i3,1x,f8.2,1x,a9,1x,a3,1x,i5,    &
      &      1p,6(1x,d10.3),0p,1x,f9.4,1x,f5.2)
-       ELSE
-          WRITE(iunatt,100)att%tdtobs,att%angles,trou,atrou,dtrou,   &
+     ELSE
+        WRITE(iunatt,100)att%tdtobs,att%angles,trou,atrou,dtrou,   &
      &        att%nobs,att%arc,name0,att%obscod,                     &
      &        sa,sd,sadot,sddot,caad,cddd,att%eta*degrad,att%apm
-100       FORMAT(f13.6,1x,f10.7,1x,f10.7,1p,1x,d12.5,1x,d12.5,1x,0p,      &
+100     FORMAT(f13.6,1x,f10.7,1x,f10.7,1p,1x,d12.5,1x,d12.5,1x,0p,      &
      &      f9.2,1x,f8.5,1x,f8.5,1x,i3,1x,f8.2,1x,a9,1x,a3,          &
      &      1p,6(1x,d10.3),0p,1x,f9.4,1x,f5.2)
-       ENDIF
-    ENDIF
+     ENDIF
+  ENDIF
 ! write .rat file header
-    IF(iunrat.lt.0)RETURN
-    IF(iunrat.eq.0)WRITE(iunrat,200)
+  IF(iunrat.lt.0)RETURN
+  IF(iunrat.eq.0)WRITE(iunrat,200)
 200 FORMAT('  name    nobs  arctime year nr st   arcang     pr.m     pmunc   ', &
-  & '  geocurv    accel     gcunc    accunc     RMS      RMS(a)    RMS(d)', &
-  & ' cor-g-a') 
-    CALL mjddat(att%tdtobs,iday,month,yearm,hour) 
+      & '  geocurv    accel     gcunc    accunc     RMS      RMS(a)    RMS(d)', &
+      & ' cor-g-a') 
+  CALL mjddat(att%tdtobs,iday,month,yearm,hour) 
 ! output               
-    arc2=(att%arc/2.d0)**2
-    ds2=(att%arc*att%eta/2.d0)**2                     
-    curv=att%geocurv*ds2*degrad
-    accel=att%etadot*arc2*degrad
-    curv_unc=att%rms_geocurv*ds2*degrad
-    acc_unc=att%rms_etadot*arc2*degrad
-    eta_unc=att%rms_eta*degrad
-    IF(abs(curv).gt.999.d0.or.abs(accel).gt.999.d0.or.abs(att%rms_obs) &
-&    .gt.999.d0.or.abs(att%rms_a).gt.999.d0.or.abs(att%rms_d).gt.999.d0)THEN
-       WRITE(iunrat,101)name0,att%nobs,att%arc,yearm,att%nrad,att%nsta,   &
+  arc2=(att%arc/2.d0)**2
+  ds2=(att%arc*att%eta/2.d0)**2                     
+  curv=att%geocurv*ds2*degrad
+  accel=att%etadot*arc2*degrad
+  curv_unc=att%rms_geocurv*ds2*degrad
+  acc_unc=att%rms_etadot*arc2*degrad
+  eta_unc=att%rms_eta*degrad
+  IF(abs(curv).gt.999.d0.or.abs(accel).gt.999.d0.or.abs(att%rms_obs) &
+  &    .gt.999.d0.or.abs(att%rms_a).gt.999.d0.or.abs(att%rms_d).gt.999.d0)THEN
+     WRITE(iunrat,101)name0,att%nobs,att%arc,yearm,att%nrad,att%nsta,   &
       & att%sph*degrad,att%eta*degrad,eta_unc,                            &
       & curv,accel,curv_unc,acc_unc,att%rms_obs,att%rms_a,att%rms_d,      &
       & att%c_curvacc,att%tdtobs
-101    FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7),       &
+101  FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7),       &
  &    1p,4(1x,d12.5),0p,3(1x,d12.5),1x,f7.4,1x,f13.6)
-    ELSE
-       WRITE(iunrat,102)name0,att%nobs,att%arc,yearm,att%nrad,att%nsta,   &
+  ELSE
+     WRITE(iunrat,102)name0,att%nobs,att%arc,yearm,att%nrad,att%nsta,   &
       & att%sph*degrad,att%eta*degrad,eta_unc,                            &
       & curv,accel,curv_unc,acc_unc,att%rms_obs,att%rms_a,att%rms_d,      &
       & att%c_curvacc,att%tdtobs
-102    FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7),       &
+102  FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7),       &
  &    4(1x,f12.7),3(1x,f12.7),1x,f7.4,1x,f13.6)
-    ENDIF
-  END SUBROUTINE wri_attri
+  ENDIF
+END SUBROUTINE wri_attri
 
   SUBROUTINE attri_comp(m,obs,obsw,att,error)
   USE astrometric_observations
@@ -626,5 +616,14 @@ CONTAINS
        spher_dist=acos(pp)
     ENDIF
 END FUNCTION spher_dist
+
+! attributables differences
+SUBROUTINE att_diff(att1,att2,datt)
+  TYPE(attrib), INTENT(IN) :: att1, att2
+  DOUBLE PRECISION, DIMENSION(4), INTENT(OUT) :: datt
+  DOUBLE PRECISION pridif
+  datt(2:4)=att1%angles(2:4)-att2%angles(2:4)
+  datt(1)=pridif(att1%angles(1),att2%angles(1))
+END SUBROUTINE att_diff
 
 END MODULE attributable

@@ -27,6 +27,8 @@ MODULE io_elems
   LOGICAL deft0,nxtend
   PUBLIC orbunt,orbnr,iicorb,orbfn,depstr,dept0,dfrsty,rectyp,deltyp, &
   &      dfrsep,deft0,nxtend
+! dirty fix for passing the obscode (for ATT elelemnts) from rdorb without changing interface 
+  CHARACTER*3, PUBLIC ::  obscod
 
 END MODULE io_elems
 
@@ -35,14 +37,12 @@ END MODULE io_elems
 ! rdelem	read orbital els for a list of objects from a list of files    
 ! oefdet	auto-detects format of orbital element files
 !        READING DIFFERENT FORMATS  
-! rdast1	read orbital elements for list of obj (Bowell's pre-1999 astorb.dat format)  
-!                 CAN BE REMOVED        
 ! rdast2	read orbital elements for list of obj (Bowell's astorb.dat format) 
 ! rdmpca	read orbital elements for list of obj (MPC format for asteroids)  
 ! rdmpca3       read all orbital elements (MPC format for asteroids) 
 ! rdoef		read orbital elements (OEF format)   
 ! oporbf	open an orbital element file (OEF format)                     
-! rdorb	read orbital element record (OEF format)                 
+! rdorb	        read orbital element record (OEF format)                 
 ! clorbf	close an orbital element file (OEF format)                    
 !  ELEMENTS OUTPUT
 ! outele	verbose output of a set orbital elements to a report file      
@@ -151,10 +151,12 @@ SUBROUTINE rdelem(unit,objnam,nobj,infils,nfil,deforb,defcn,      &
      &               elem,cove,nore,mass,h,g,comele)                    
         CALL clorbf 
      ELSEIF(form.EQ.'BA1') THEN 
-        IF(.NOT.opened) CALL filopn(uniin,infil1,'OLD') 
-        CALL rdast1(uniin,infil1,objnam,nobj,deforb,defcn,            &
-     &                eltype,telem,elem,cove,nore,mass,h,g,comele)      
-        CALL filclo(uniin,' ') 
+        WRITE(*,*)' rdelem: obsolete Lowell format pre-1999'
+        STOP
+!        IF(.NOT.opened) CALL filopn(uniin,infil1,'OLD') 
+!        CALL rdast1(uniin,infil1,objnam,nobj,deforb,defcn,            &
+!     &                eltype,telem,elem,cove,nore,mass,h,g,comele)      
+!        CALL filclo(uniin,' ') 
       ELSEIF(form.EQ.'BA2') THEN 
           IF(.NOT.opened) CALL filopn(uniin,infil1,'OLD') 
           CALL rdast2(uniin,infil1,objnam,nobj,deforb,defcn,            &
@@ -349,125 +351,7 @@ SUBROUTINE oefdet(unit,filnam,form)
 200 FORMAT('ERROR: format auto-detection failed for file "',A,'":'/   &
      &       '       please specify format explicitly')  
  END SUBROUTINE oefdet
-! Copyright (C) 1997-1999 by Mario Carpino (carpino@brera.mi.astro.it)  
-! Version: February 12, 1999                                            
-! --------------------------------------------------------------------- 
-!                                                                       
-!  *****************************************************************    
-!  *                                                               *    
-!  *                         R D A S T 1                           *    
-!  *                                                               *    
-!  *          Read orbital elements for a list of objects          *    
-!  *       from a file written in Bowell's astorb.dat format       *    
-!  *          (version reading OLD, pre-1999 format)               *    
-!  *                                                               *    
-!  *****************************************************************    
-!                                                                       
-! INPUT:    UNIT      -  Input FORTRAN unit (must be already opened)    
-!           FILNAM    -  Input file name (for error messages)           
-!           OBJNAM    -  Object names                                   
-!           NOBJ      -  Number of objects                              
-!                                                                       
-! OUTPUT:   DEFORB    -  Tells whether orbital elements are defined     
-!           DEFCN     -  Tells whether covariance/normal matrices       
-!                            are defined                                
-!           ELTYPE    -  Type of orbital elements (EQU/KEP/CAR)         
-!           TELEM     -  Epoch of orbital elements (MJD, TDT)           
-!           ELEM      -  Orbital elements (ECLM J2000)                  
-!           COVE      -  Covariance matrix of orbital elements          
-!           NORE      -  Normal matrix of orbital elements              
-!           MASS      -  Mass (solar masses)                            
-!           H         -  H absolute magnitude (if <-100, missing)       
-!           G         -  G slope parameter                              
-!           COMELE    -  Comment on orbital elements                    
-!                                                                       
-! WARNING: the routine assumes that objects having DEFORB=.true.        
-!          have already orbital elements defined (possibly from another 
-!          input file) and does not overwrite them                      
-!                                                                       
-! OBJECT NAME TRANSLATION: all names of objects appearing in the        
-! file are modified (removing all blanks) before comparison with        
-! the name requested by the calling module                              
-!                                                                       
-SUBROUTINE rdast1(unit,filnam,objnam,nobj,deforb,defcn,           &
-     &                  eltype,telem,elem,cove,nore,mass,h,g,comele)
-  USE fund_const    
-  IMPLICIT NONE                                                                       
-  INTEGER unit,nobj 
-  DOUBLE PRECISION telem(nobj),elem(6,nobj),cove(6,6,nobj) 
-  DOUBLE PRECISION nore(6,6,nobj),mass(nobj),h(nobj),g(nobj) 
-  CHARACTER*(*) filnam,objnam(nobj),eltype(nobj),comele(nobj) 
-  LOGICAL deforb(nobj),defcn(nobj)                                                                       
-  INTEGER ln,nr,lf,nrem,k,flags(6),year,month,day,lc 
-  DOUBLE PRECISION el1(6) 
-  CHARACTER n1*4,n2*18,name*18,hc*5,gc*5,krc*10                                                   
-  INTEGER lench 
-  DOUBLE PRECISION tjm1 
-  EXTERNAL lench,tjm1                                                                 
-! Number of remaining object (orbit not yet found)                      
-  nrem=0 
-  DO 10 k=1,nobj 
-     IF(deforb(k)) GOTO 10 
-     nrem=nrem+1 
-10 END DO
-  IF(nrem.LE.0) RETURN 
-  lf=lench(filnam)                                                                       
-  nr=0 
-1 CONTINUE 
-  READ(unit,100,END=2) n1,n2 
-  nr=nr+1 
-  IF(n1.EQ.'    ') THEN 
-     name=n2 
-  ELSE 
-     name=n1 
-  END IF
-  CALL rmsp(name,ln) 
-  IF(ln.LE.0) THEN 
-     WRITE(*,200) filnam(1:lf),nr 
-200  FORMAT('ERROR in reading file "',A,'": no object name at record',I6)
-     GOTO 1 
-  END IF
-  DO 3 k=1,nobj 
-     IF(deforb(k)) GOTO 3 
-     IF(name.EQ.objnam(k)) THEN 
-        BACKSPACE(unit) 
-        READ(unit,100) n1,n2,hc,gc,flags,year,month,day,el1
-100     FORMAT(A4,1X,A18,17X,A5,1X,A5,17X,6I4,12X,I4,2I2,1X,   &
-     &       3(F10.6,1X),F9.6,1X,F10.8,1X,F12.8)       
-        deforb(k)=.true. 
-        defcn(k)=.false. 
-        eltype(k)='KEP' 
-        telem(k)=tjm1(day,month,year,0.D0) 
-        elem(1,k)=el1(6) 
-        elem(2,k)=el1(5) 
-        elem(3,k)=el1(4)*radeg 
-        elem(4,k)=el1(3)*radeg 
-        elem(5,k)=el1(2)*radeg 
-        elem(6,k)=el1(1)*radeg 
-        mass(k)=0.d0 
-        IF(hc.EQ.'     ') THEN 
-           h(k)=-1.D9 
-        ELSE 
-           READ(hc,101) h(k) 
-        END IF
-        IF(gc.EQ.'     ') THEN 
-           g(k)=0.15D0 
-        ELSE 
-           READ(gc,101) g(k) 
-101        FORMAT(F5.2) 
-        END IF
-        WRITE(krc,107) nr 
-107     FORMAT(I6)
-        CALL rmsp(krc,lc) 
-        comele(k)='read from file "'//filnam(1:lf)//                  &
-     &              '" at record '//krc(1:lc) 
-        nrem=nrem-1 
-        IF(nrem.LE.0) RETURN 
-     END IF
-3 END DO                                                                      
-  GOTO 1 
-2 CONTINUE
-END SUBROUTINE rdast1
+
 ! Copyright (C) 1997-1999 by Mario Carpino (carpino@brera.mi.astro.it)  
 ! Version: February 12, 1999                                            
 ! --------------------------------------------------------------------- 
@@ -658,7 +542,7 @@ SUBROUTINE rdmpca(unit,filnam,objnam,nobj,deforb,defcn,           &
 1 CONTINUE 
   READ(unit,100,END=2) nmpc1 
 100 FORMAT(A7,A5,2X,A5,1X,A5,1X,F9.5,2X,F9.5,2X,F9.5,2X,F9.5,         &
-     &       2X,F9.7,13X,F11.7)                                         
+     &       2X,F9.7,13X,F11.7)                           
   nr=nr+1                                                               
   DO 3 k=1,nobj 
      IF(deforb(k)) GOTO 3 
@@ -807,7 +691,7 @@ SUBROUTINE rdmpca3(unit,filnam,objnam,nobjx,nobj,defcn,           &
   eltype='KEP' 
 END SUBROUTINE rdmpca3                           
 ! Copyright (C) 1998 by Mario Carpino (carpino@brera.mi.astro.it),      
-! Version: June 19, 1998                                                
+! Version: June 19, 1998
 ! --------------------------------------------------------------------- 
 !                                                                       
 !  *****************************************************************    
@@ -827,7 +711,7 @@ END SUBROUTINE rdmpca3
 ! OUTPUT:   DEFORB    -  Tells whether orbital elements are defined     
 !           DEFCN     -  Tells whether covariance/normal matrices       
 !                            are defined                                
-!           ELTYPE    -  Type of orbital elements (EQU/KEP/CAR)         
+!           ELTYPE    -  Type of orbital elements (EQU/KEP/CAR/COM?ATT)         
 !           TELEM     -  Epoch of orbital elements (MJD, TDT)           
 !           ELEM      -  Orbital elements (ECLM J2000)                  
 !           COVE      -  Covariance matrix of orbital elements          
@@ -844,7 +728,8 @@ END SUBROUTINE rdmpca3
 SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
      &                 elem,cove,nore,mass,h,g,comele)                  
   USE fund_const
-  USE reference_systems 
+  USE reference_systems
+  USE name_rules 
   IMPLICIT NONE 
   INTEGER, INTENT(IN) :: uniin 
   INTEGER nobj 
@@ -859,9 +744,9 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
   DOUBLE PRECISION rot(3,3) 
   DOUBLE PRECISION elem1(6),xv(6),cove1(6,6),cove2(6,6) 
   DOUBLE PRECISION de(6,6),nore1(6,6),nore2(6,6) 
-  CHARACTER name1*80,eltyp1*3,rsys*10,epoch*10,krc*10,nc1*80 
+  CHARACTER eltyp1*3,rsys*10,epoch*10,krc*10 
   LOGICAL defcov,defnor,end,error 
-                                                                        
+  CHARACTER*(idnamvir_len) name1,nc1
   INTEGER lench 
   EXTERNAL lench 
                                                                         
@@ -1098,6 +983,7 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
  END SUBROUTINE clorbf
 ! Copyright (C) 1997-1998 by Mario Carpino (carpino@brera.mi.astro.it)  
 ! Version: June 21, 1998                                                
+! modified to handle COM/ATT A. Milani June 2005                                                
 ! --------------------------------------------------------------------- 
 !                                                                       
 !  *****************************************************************    
@@ -1113,7 +999,7 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
 !                                                                       
 ! OUTPUT:   NAME      -  Name of planet/asteroid/comet                  
 !           ELEM(6)   -  Orbital element vector                         
-!           ELTYPE    -  Type of orbital elements (KEP/EQU/CAR)         
+!           ELTYPE    -  Type of orbital elements (KEP/EQU/CAR/COM/ATT)         
 !           T0        -  Epoch of orbital elements (MJD, TDT)           
 !           COVE      -  Covariance matrix of orbital elements          
 !           DEFCOV    -  Tells whether the covariance matrix is defined 
@@ -1217,6 +1103,8 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
          noep=.false. 
       ELSEIF(rec(1:4).EQ.' MAG') THEN 
          READ(rec(5:),*,ERR=20) h,g 
+      ELSEIF(rec(1:4).EQ.'STA')THEN ! station code for ATT only
+         READ(rec(5:),*,ERR=20) obscod
       ELSEIF(rec(1:4).EQ.' MAS') THEN 
          READ(rec(5:),*,ERR=20) mass 
       ELSEIF(rec(1:4).EQ.' COV') THEN 
@@ -1438,13 +1326,19 @@ SUBROUTINE wro1lr(unit,name,elem,eltype,t0,h,g)
   ELSEIF(eltype .eq. 'COM')THEN 
      cnvele(3:5)=cnvele(3:5)*degrad 
      elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
-     &        '1p,5(e25.16),0p,f13.6,'//                            &
+     &        '1p,5(e25.16),0p,f14.6,'//                            &
      &        '0p,2F6.2)'                             
   ELSEIF(eltype .eq. 'EQU')THEN 
      cnvele(6)=cnvele(6)*degrad 
      elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
      &        'F16.12,4(1x,f12.9),1x,F12.7,'//                      &
      &        '2F6.2)'                                                  
+  ELSEIF(eltype.eq.'ATT')THEN
+     WRITE(*,*)' wro1lr: warning, the ATT elelments in  this format have no station code '
+     cnvele(1:4)=cnvele(1:4)*degrad
+     elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
+     &        '1p,6(e25.16),'//                                     &
+     &        '0p,2F6.2)'  
   ELSE 
      WRITE(*,*)'*** wro1lr: unsupported coordinate type', eltype
      STOP '*** wro1lr: unsupported coordinate type' 
@@ -1659,14 +1553,15 @@ END SUBROUTINE wromlh
 SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,           &
      &                  nore,defnor,h,g,mass)    
   USE fund_const  
-  USE output_control                     
+  USE output_control
+  USE name_rules  
+  USE io_elems, ONLY: obscod   
   IMPLICIT NONE
   INTEGER unit 
   DOUBLE PRECISION elem(6),t0,h,g,cove(6,6),nore(6,6),mass 
   CHARACTER*(*), INTENT(IN):: name0,eltype 
   LOGICAL defcov,defnor 
-! CHARACTER*19 name
-  CHARACTER*69 name
+  CHARACTER*(idnamvir_len) name
   INCLUDE 'parcmc.h90'
   INTEGER l1,ln,i,k 
   DOUBLE PRECISION cnv(6),std(6)
@@ -1725,8 +1620,7 @@ SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,           &
      WRITE(unit,103) (elem(i)*cnv(i),i=1,6) 
   103 FORMAT(' EQU ',1P,E22.14,0P,2(1x,f19.15),2(1x,f20.15),1x,F17.13) 
   ELSEIF(eltype.EQ.'COM') THEN 
-     cnv(3:6)=degrad 
-     if(elem(6).lt.0.d0)elem(6)=elem(6)+dpig 
+     cnv(3:5)=degrad 
      if(elem(5).lt.0.d0)elem(5)=elem(5)+dpig 
      if(elem(4).lt.0.d0)elem(4)=elem(4)+dpig 
      WRITE(unit,204) comcha 
@@ -1742,6 +1636,8 @@ SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,           &
            &         ' auxiliary information on observer needed')  
      WRITE(unit,115) (elem(i)*cnv(i),i=1,6) 
 115  FORMAT(' ATT ',2(F18.13,1x),2(F18.13,1x),2(F18.13,1x)) 
+     WRITE(unit,116) ' STA ',obscod
+116  FORMAT(A5,A3)
   ELSE
      WRITE(*,*)  '**** wromlr: unsupported orbital element type ****', eltype
      STOP '**** wromlr: unsupported orbital element type ****' 
@@ -1766,8 +1662,10 @@ SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,           &
         IF(eigval(i).gt.0.d0)THEN 
            eigval(i)=sqrt(eigval(i)) 
         ELSE 
-           WRITE(*,*)'wromlr: zero/negative eigenvalue', eigval(i) 
-           WRITE(*,*) '  for asteroid ',name(l1:ln) 
+           IF(eigval(i).lt.-1.d-10)THEN
+              WRITE(*,*)'wromlr: zero/negative eigenvalue', eigval(i) 
+              WRITE(*,*) '  for asteroid ',name(l1:ln)
+           ENDIF 
            eigval(i)=-sqrt(-eigval(i)) 
         ENDIF
      ENDDO

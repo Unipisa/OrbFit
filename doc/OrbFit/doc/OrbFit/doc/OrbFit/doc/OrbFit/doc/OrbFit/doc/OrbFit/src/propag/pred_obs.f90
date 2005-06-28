@@ -132,7 +132,7 @@ CONTAINS
 SUBROUTINE predic_obs(el,idsta,tobs,type,       &
      &    alpha,delta,hmagn,inl,                                    &
      &    uncert,sigma,npo,ibv,gamad,sig,axes,npo1,               &  
-     &    adot0,ddot0,pha0,dis0,dsun0,elo0,gallat0,twobo)
+     &    adot0,ddot0,pha0,dis0,dsun0,elo0,gallat0,ecllat0,twobo)
   USE station_coordinates 
   USE orbit_elements                 
 ! ============= input ==================================================
@@ -153,7 +153,7 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
 ! ======optional output =================================================
   DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: adot0,ddot0 ! proper motion
   DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: gamad(2,2),axes(2,2),sig(2) ! covariance on sky plane
-  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: pha0,dis0,dsun0,elo0,gallat0 ! phase, distance to Earth, distance to Sun 
+  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: pha0,dis0,dsun0,elo0,gallat0,ecllat0 ! phase, distance to Earth, distance to Sun 
                                              ! elongation, galactic latitude
 ! points on the confidence boundary (difference w.r. to alpha,delta)    
 ! WARNING! the output number of points is npo1.le.npo; this beacuse hyperbolic points are discarded 
@@ -176,7 +176,7 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
   DOUBLE PRECISION appmag
 ! for astronomical unit in km from fund_const
 ! elongation,distance to Earth, distance to Sun (to compute magnitude)  
-  DOUBLE PRECISION adot,ddot,pha,dis,rdot,dsun,elo,gallat 
+  DOUBLE PRECISION adot,ddot,pha,dis,rdot,dsun,elo,gallat, ecllat
   double precision obs4(4) ! observations: alpha, delta in RAD  alphadot, deltadot in RAD/day
   double precision dobde(4,6) ! partial derivatives of obs, w.r. to asteroid elements
 ! for r_rdot
@@ -219,7 +219,7 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
 ! compute observation; derivatives (of order 1) if required                
   if(type.eq.'O')then 
      CALL alph_del2 (el,tobs,idsta,obs4,ider,dobde,      &
-            &   pha,dis,rdot,dsun,elo,gallat,twobo1) 
+            &   pha,dis,rdot,dsun,elo,gallat,ecllat,twobo1) 
      alpha=obs4(1)
      delta=obs4(2)
      IF(ider.gt.0)THEN
@@ -234,6 +234,7 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
      IF(PRESENT(dsun0))dsun0=dsun 
      IF(PRESENT(elo0))elo0=elo 
      IF(PRESENT(gallat0))gallat0=gallat 
+     IF(PRESENT(ecllat0))ecllat0=ecllat
 ! compute apparent magnitude at time of observation                     
      hmagn=appmag(el%h_mag,el%g_mag,dsun,dis,pha) 
   elseif(type.eq.'R'.or.type.eq.'V')then 
@@ -432,7 +433,7 @@ SUBROUTINE predic_obs2(el,idsta,tobs,att,uncert,rr,pha,dsun,twobo,dobde)
 ! functions                                                             
   DOUBLE PRECISION appmag
 ! elongation, galactic latitude (not really used)
-  DOUBLE PRECISION elo,gallat 
+  DOUBLE PRECISION elo,gallat,ecllat 
 ! TIME CONVERSION
   integer MJD1,MJD2
   double precision SEC1,SEC2
@@ -462,7 +463,7 @@ SUBROUTINE predic_obs2(el,idsta,tobs,att,uncert,rr,pha,dsun,twobo,dobde)
 ! ===================================================================== 
 ! compute observation; derivatives (of order 1) if required                
   CALL alph_del2 (el,tobs,idsta,att4,ider,dadde,      &
-            &   pha0,dis0,rdot0,dsun0,elo,gallat,twobo1)
+            &   pha0,dis0,rdot0,dsun0,elo,gallat,ecllat,twobo1)
 ! optional arguments for magnitude
   IF(PRESENT(pha))pha=pha0
   IF(PRESENT(dsun))dsun=dsun0 
@@ -529,7 +530,7 @@ END SUBROUTINE predic_obs2
 !
 ! ==============INTERFACE============================================   
 SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
-     &   dobde,pha0,dis0,rdot0,dsun0,elo0,gallat0,twobo) 
+     &   dobde,pha0,dis0,rdot0,dsun0,elo0,gallat0,eclat0,twobo) 
   USE propag_state
   USE orbit_elements                 
 ! ==============INPUT==========================
@@ -545,8 +546,8 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
   double precision, intent(OUT), OPTIONAL :: dobde(4,6) ! partial derivatives 
 ! of obs, w.r. to asteroid elements
 ! ======optional output =================================================
-! phase, distance to Earth, distance to Sun, elongation, galactic latitude
-  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: pha0,dis0,dsun0,rdot0,elo0,gallat0
+! phase, distance to Earth, distance to Sun, elongation, galactic and ecliptic latitude
+  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: pha0,dis0,dsun0,rdot0,elo0,gallat0,eclat0
 ! =============END INTERFACE=========================================   
   LOGICAL twobo1 ! control of 2-body approximation
   double precision xast(6) ! asteroid cartesian coordinates 
@@ -556,7 +557,7 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
 ! derivatives of cart. coord. w. r. elements 
   double precision dxde(6,6),ddxde(3,6,6) 
 ! elongation,distance to Earth, distance to Sun (to compute magnitude)  
-  DOUBLE PRECISION pha,dis,rdot,dsun,elo,gallat
+  DOUBLE PRECISION pha,dis,rdot,dsun,elo,gallat,eclat
 ! **********************************************************************
 !****************                                                       
 !   static memory not required                                          
@@ -571,7 +572,7 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
   CALL propag(el,tobs,xast,xea,ider,dxde,twobo1) 
 ! Computation of observations                                           
   call oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
-     &   pha,dis,rdot,dsun,elo,gallat) 
+     &   pha,dis,rdot,dsun,elo,gallat,eclat) 
  ! store true phase, etc.  
   IF(PRESENT(pha0))pha0=pha 
   IF(PRESENT(dis0))dis0=dis 
@@ -579,6 +580,7 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
   IF(PRESENT(rdot0))rdot0=rdot 
   IF(PRESENT(elo0))elo0=elo 
   IF(PRESENT(gallat0))gallat0=gallat 
+  IF(PRESENT(eclat0))eclat0=eclat
   if(ider.lt.1) return 
 ! derivatives with respect to equinoctal elements                       
   IF(PRESENT(dobde))THEN
@@ -610,7 +612,7 @@ END SUBROUTINE alph_del2
 ! (if required)                                                         
 ! ===================================================================== 
 SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
-     &   pha0,dis0,rdot0,dsun0,elo0,gallat0) 
+     &   pha0,dis0,rdot0,dsun0,elo0,gallat0,eclat0) 
   USE reference_systems, ONLY: roteqec, roteceq, pvobs  
   USE force_model
 ! INPUT
@@ -621,7 +623,7 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
   DOUBLE PRECISION, INTENT(OUT) :: obs4(4) ! observations alpha, delta, aodt,ddot
   DOUBLE PRECISION, INTENT(OUT) :: dobdx(4,6) ! partials of obs  w.r.t. cartesian ecliptic
 ! phase, distance to Earth, distance to Sun ! elongation, galactic latitude
-  DOUBLE PRECISION,INTENT(OUT) :: pha0,dis0,rdot0,dsun0,elo0,gallat0 
+  DOUBLE PRECISION,INTENT(OUT) :: pha0,dis0,rdot0,dsun0,elo0,gallat0,eclat0
 ! ===================================================================== 
   double precision d(6) ! vector difference of cartesian coordinates, ecliptic 
 ! WARNING: even if the velocities are not always propagated, they are available
@@ -668,6 +670,7 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
   sinelo=-vvv(3)
   elo0=acos(coselo)
   IF(sinelo.lt.0.d0)elo0=-elo0
+  eclat0=asin(d(3)/dis0)
 ! ===================================================================== 
 ! rotation to the equatorial reference system   
   deq(1:3)=MATMUL(roteceq,d(1:3)) 

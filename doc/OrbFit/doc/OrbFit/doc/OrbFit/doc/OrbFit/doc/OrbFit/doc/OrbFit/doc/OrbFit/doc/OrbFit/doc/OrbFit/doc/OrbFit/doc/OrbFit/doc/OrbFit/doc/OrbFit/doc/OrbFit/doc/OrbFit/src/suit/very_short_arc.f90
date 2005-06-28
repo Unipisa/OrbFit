@@ -21,17 +21,15 @@ END TYPE vsa
 
 PUBLIC vsa, nobs_shx ! type, parameter
 
-PUBLIC vsa_read ! routines  
+PUBLIC vsa_read, in_ons ! routines  
 CONTAINS 
 
-SUBROUTINE vsa_read(iunobs,error_model,timestep,v,obscodi,qua, &
-&   error,eof,iundup,iunlst,iunatt,iunrat,mmin,rwoout,obsdir)
-  
+SUBROUTINE vsa_read(iunobs,error_model,timestep,shift,v,obscodi,qua, &
+&   error,eof,iundup,iunlst,iunatt,iunrat,mmin,rwoout,obsdir)  
   INTEGER, INTENT(IN) :: iunobs ! input logical unit
-
   INTEGER, INTENT(IN) :: iundup,iunlst,iunatt,iunrat ! output units
   INTEGER, INTENT(IN) :: mmin ! min no obs to write the .rwo file
-  DOUBLE PRECISION, INTENT(IN) :: timestep ! for rounded times 
+  DOUBLE PRECISION, INTENT(IN) :: timestep,shift ! for rounded times 
   TYPE(vsa), INTENT(OUT) :: v ! very short arc 
   INTEGER, INTENT(OUT) :: qua ! quality code 1-10
   INTEGER, INTENT(OUT) :: obscodi ! integer observatory code
@@ -56,7 +54,7 @@ SUBROUTINE vsa_read(iunobs,error_model,timestep,v,obscodi,qua, &
      CALL in_ons_rwo(iunobs,iundup,error_model,obsdir,namshort,obs0 &
 &      ,m,v%obs,v%obsw,obscodi,nobs_shx,iun_log,mmin)
   ELSE
-     CALL in_ons(iunobs,iundup,error_model,namshort,obs0 &
+     CALL in_ons(iunobs,error_model,namshort,obs0 &
 &      ,m,v%obs,v%obsw,obscodi,nobs_shx,iun_log,mmin)
   ENDIF
   IF(.not.obs0)THEN 
@@ -82,7 +80,7 @@ SUBROUTINE vsa_read(iunobs,error_model,timestep,v,obscodi,qua, &
   IF(error) RETURN
 ! copy into vsa record already done
 ! find rounded time:                                                    
-  trou=timestep*nint(v%att%tdtobs/timestep) 
+  trou=timestep*nint((v%att%tdtobs-shift)/timestep)+shift 
 ! output .att and .rat files
   CALL wri_attri(iunatt,iunrat,v%name,v%att,trou)
 END SUBROUTINE vsa_read
@@ -92,10 +90,10 @@ END SUBROUTINE vsa_read
 ! without output on .rwo file
 ! anti duplication check should be done in the calling module            
 ! ==================================================== 
-SUBROUTINE in_ons(iunobs,iundup,error_model,name0,obs0&
+SUBROUTINE in_ons(iunobs,error_model,name0,obs0&
 &      ,m,obs,obsw,obscodi,nobshx,iunout,mmin) 
   INTEGER, INTENT(IN) :: nobshx ! max numbe rof observations
-  INTEGER, INTENT(IN) :: iunobs, iundup, iunout ! input/output units
+  INTEGER, INTENT(IN) :: iunobs, iunout ! input/output units
   INTEGER, INTENT(IN) :: mmin ! min no obs to write the .rwo file
   CHARACTER*(*), INTENT(IN) :: error_model ! error model
   logical, intent(out) :: obs0 ! successful input flag

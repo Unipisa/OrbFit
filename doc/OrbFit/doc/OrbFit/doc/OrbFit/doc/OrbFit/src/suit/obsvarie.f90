@@ -45,29 +45,39 @@
       LOGICAL isnum 
       EXTERNAL lench,isnum 
                                                                         
-      CHARACTER*12 numfield, desfield 
+      CHARACTER numfield*5, desfield*12 
                                                                         
       error=.false. 
       iaudes=' ' 
                                                                         
       ln=lench(mpccod) 
       IF(ln.LE.0) GOTO 10 
-                                                                        
+! check if numbered                                                                        
       numfield=mpccod(1:5) 
-      call rmsp(numfield,ln) 
-! Numbered asteroids                                                    
-      if(ln.ne.0) then 
-         iaudes=numfield 
-         do i=1,ln-1 
-            if (iaudes(i:i).eq.'0') then 
-               iaudes(i:i)=' ' 
-            else 
-               goto 123 
-            endif 
-         enddo 
-  123    call rmsp(iaudes,ln) 
-         return 
-      endif 
+      CALL rmsp(numfield,ln)                                
+      IF(ln.ne.0) THEN
+! Numbered asteroids  
+         IF(isnum(numfield(1:1)))THEN
+! standard number
+            iaudes=numfield
+! remove leading zeros
+            DO i=1,ln-1 
+               IF (iaudes(i:i).eq.'0') THEN 
+                  iaudes(i:i)=' ' 
+               ELSE 
+                  EXIT 
+               ENDIF
+            ENDDO
+         ELSE
+! alphanumeric asteroid number
+            temp=ichar(numfield(1:1))-55
+            if (temp.gt.35) temp = temp - 6  
+            WRITE(iaudes,133)temp,numfield(2:5)
+  133       FORMAT(I2,A4)
+         ENDIF 
+  123    CALL rmsp(iaudes,ln) 
+         RETURN 
+      ENDIF
                                                                         
 ! Unnumbered asteroids                                                  
       desfield=mpccod(6:12) 
@@ -159,20 +169,31 @@
       IF(ln.eq.5)THEN 
 ! Numbered asteroids                                                    
          numfield=mpccod(1:5) 
-         call rmsp(numfield,ln) 
-         iaudes=numfield 
-         do i=1,ln-1 
-            if (iaudes(i:i).eq.'0') then 
-               iaudes(i:i)=' ' 
-            else 
-               goto 123 
-            endif 
-         enddo 
-  123    call rmsp(iaudes,ln) 
+         CALL rmsp(numfield,ln) 
+         IF(isnum(numfield(1:1)))THEN
+! standard number
+            iaudes=numfield
+! remove leading zeros
+            DO i=1,ln-1 
+               IF (iaudes(i:i).eq.'0') THEN 
+                  iaudes(i:i)=' ' 
+               ELSE 
+                  EXIT 
+               ENDIF
+            ENDDO
+         ELSE
+! alphanumeric asteroid number
+            temp=ichar(numfield(1:1))-55
+            if (temp.gt.35) temp = temp - 6  
+            WRITE(iaudes,133)temp,numfield(2:5)
+  133       FORMAT(I2,A4)
+         ENDIF 
+         CALL rmsp(iaudes,ln) 
+! padding 
          DO i=ln+1,9 
            iaudes(i:i)='w' 
          ENDDO 
-         return 
+         RETURN
        ELSEIF(ln.eq.7)THEN 
 ! Unnumbered asteroids                                                  
           desfield=mpccod(1:7) 
@@ -273,6 +294,7 @@ END FUNCTION nights
 SUBROUTINE mpcpds(iauco,mpccod,error) 
   IMPLICIT NONE
   CHARACTER*(*) iauco,mpccod 
+  INTEGER number
   LOGICAL error
   INTEGER ln,nd,i,head 
   CHARACTER tsn*1
@@ -283,13 +305,29 @@ SUBROUTINE mpcpds(iauco,mpccod,error)
   mpccod=' '                                                             
   ln=lench(iauco) 
   IF(ln.LE.0) GOTO 10
-! Numbered asteroids                                                    
-  IF(isnum(iauco(1:ln)) .AND. ln.LE.5) THEN 
-     DO  i=1,5-ln 
-        mpccod(i:i)='0' 
-     ENDDO
-     mpccod(5-ln+1:5)=iauco(1:ln) 
-     RETURN 
+! Check if numbered asteroids (up to 999999)                                                   
+  IF(isnum(iauco(1:ln)) .AND. ln.LE.6) THEN
+! numbered
+     IF(ln.le.5)THEN 
+! numbered < 100000
+        DO  i=1,5-ln 
+           mpccod(i:i)='0' 
+        ENDDO
+        mpccod(5-ln+1:5)=iauco(1:ln)
+        mpccod(6:7)='  ' 
+        RETURN 
+     ELSE
+! numbered with alphanumeric first digit
+        READ(iauco(1:2),*)number
+        IF(number.gt.35)THEN
+           mpccod(1:1)=char(number+61)
+        ELSE
+           mpccod(1:1)=char(number+55)
+        ENDIF
+        mpccod(2:5)=iauco(3:6)
+        mpccod(6:7)='  '
+     ENDIF
+     RETURN
   END IF                                                                      
 ! Asteroid provisional designations (e.g., 1982QB1)                     
   IF(ln.LT.6 .OR. ln.GT.9) GOTO 2 
@@ -319,7 +357,11 @@ SUBROUTINE mpcpds(iauco,mpccod,error)
   ELSEIF(nd.EQ.3) THEN 
      read(iauco,103) head 
 103  format(6x,i2) 
-     mpccod(5:5)=char(head+55) 
+     IF(head.gt.35)THEN
+        mpccod(1:1)=char(head+61)
+     ELSE
+        mpccod(5:5)=char(head+55)
+     ENDIF 
      mpccod(6:6)=iauco(9:9) 
   ELSE 
      GOTO 2 

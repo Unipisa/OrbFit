@@ -33,9 +33,9 @@ SUBROUTINE nomoid(t0,el0,moid,dnp,dnm)
   TYPE(orbit_elem) :: eleq, elcar
   DOUBLE PRECISION eqp(6),xast(6),xea(6) 
 ! cartesian coordinates asteroid and planet at minimum                  
-  DOUBLE PRECISION cmin(6,20),cplmin(6,20) 
+  DOUBLE PRECISION cmin(3,16),cplmin(3,16) 
 !     SQUARED DISTANCE function                                         
-  DOUBLE PRECISION d2(20) 
+  DOUBLE PRECISION d2(16) 
 !     number of relative minima found                                   
   INTEGER nummin 
 ! error in coordinate change
@@ -59,7 +59,7 @@ SUBROUTINE nomoid(t0,el0,moid,dnp,dnm)
   xast=elcar%coord
   CALL earcar(t0,xea,1)
 ! compute moid                                                          
-  CALL compute_minima(xast,xea,3,cmin,cplmin,d2,nummin) 
+  CALL compute_minima_ta(xast,xea,3,cmin,cplmin,d2,nummin) 
   moid=sqrt(d2(1)) 
 END SUBROUTINE nomoid
 ! ==========================================                            

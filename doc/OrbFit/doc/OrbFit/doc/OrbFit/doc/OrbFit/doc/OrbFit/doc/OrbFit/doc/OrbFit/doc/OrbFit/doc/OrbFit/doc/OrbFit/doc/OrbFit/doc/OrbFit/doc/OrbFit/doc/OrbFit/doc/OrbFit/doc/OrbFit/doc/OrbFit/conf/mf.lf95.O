@@ -7,3 +7,4 @@ FFLAGS= -O --staticlink -I../include
 # "ranlib" command: if it is not needed, use "RANLIB=touch"
 RANLIB=ranlib
 VPATH=../include
+

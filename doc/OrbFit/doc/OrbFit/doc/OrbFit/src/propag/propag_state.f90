@@ -288,7 +288,7 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
 ! two body propagation  
      IF(el%coo.eq.'EQU')THEN
 ! use old style 2-body propagator with Kepler's equation
-        call prop2b(el%t,eleq%coord,t2,xast,gms,ider,dxde,ddxde) 
+        call prop2b(el%t,el%coord,t2,xast,gms,ider,dxde,ddxde) 
         RETURN
      ELSEIF(el%coo.eq.'CAR')THEN
 ! ready for f-g series propagation

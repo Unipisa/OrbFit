@@ -240,9 +240,9 @@ CONTAINS
 ! variables for call to compute_minima                                  
    DOUBLE PRECISION x6(6) 
 ! cartesian coordinates asteroid and planet at minimum                  
-   DOUBLE PRECISION cmin(6,20),cplmin(6,20) 
+   DOUBLE PRECISION cmin(3,16),cplmin(3,16) 
 !     SQUARED DISTANCE function                                         
-   DOUBLE PRECISION d2(20) 
+   DOUBLE PRECISION d2(16) 
 !     number of relative minima found                                   
    INTEGER nummin 
    INTEGER, PARAMETER :: itmax_f=50 !iterations of falsi
@@ -267,7 +267,7 @@ CONTAINS
 ! MOID at the beginning of each encounter                               
          x6(1:3)=xa(1:3) 
          x6(4:6)=va(1:3)      
-         CALL compute_minima(x6,xpla,iplam,cmin,cplmin,d2,nummin)
+         CALL compute_minima_ta(x6,xpla,iplam,cmin,cplmin,d2,nummin)
       ENDIF 
 ! end initialisation of close approach                                  
       RETURN 
@@ -422,16 +422,16 @@ END SUBROUTINE tp_fser
 SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
      &             d2,cplmin,nummin) 
   USE tp_trace
-  USE planet_masses                         
+  USE planet_masses
 ! input                                                                 
 ! planet number
   INTEGER, INTENT(IN) :: iplam0
 ! time current, distance, radial velocity (should be small)             
   DOUBLE PRECISION,INTENT(IN) :: tcur,r,rdot 
 ! cartesian coordinates of planet at local MOID                           
-  DOUBLE PRECISION, INTENT(IN) :: cplmin(6,20) 
+  DOUBLE PRECISION, INTENT(IN) :: cplmin(3,16) 
 ! SQUARED DISTANCE function at local MOIDs
-  DOUBLE PRECISION, INTENT(IN):: d2(20) 
+  DOUBLE PRECISION, INTENT(IN):: d2(16) 
 ! number of relative minima (local MOID) found
   INTEGER, INTENT(IN) :: nummin 
 !  planet position and velocity                                         
@@ -523,26 +523,21 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
   lpla=lench(planam) 
   numcla=numcla+1 
   call mjddat(tcur2,iday,imonth,iyear,hour) 
+  IF(verb_clo.gt.9)THEN
+     write(date,'(i4,a1,i2.2,a1,i2.2,f6.5)') iyear,'/',imonth,'/',iday,hour/24d0
+     WRITE(*,97)planam(1:lpla),date,tcur2,r2 
+97   FORMAT(' Close approach to ',a,' on ',a16,f12.5,' MJD at ',f10.8,' AU.')
+  ENDIF
   IF(nv.eq.3)THEN 
-     IF(verb_clo.gt.9)THEN
-        write(date,'(i4,a1,i2.2,a1,i2.2,f6.5)')                        &
-          &        iyear,'/',imonth,'/',iday,hour/24d0                       
-!         WRITE(iuncla,100) planam(1:lpla),date,tcur,r,rdot,             &
-!     &      (xcla(i,jc),i=1,3),(vcla(i,jc),i=1,3)                       
-!  100    FORMAT(a,1x,a16,f12.5,1x,f11.8,e11.3,1x,6(1x,f11.8)) 
-        WRITE(*,97)planam(1:lpla),date,tcur2,r2 
-97      FORMAT(' Close approach to ',a,' on ',a16,f12.5,' MJD at ',f10.8,' AU.')
-     ENDIF
+! nothing to do
   ELSEIF(nv.eq.21)THEN 
 ! store partials at close approach time                                 
      DO i=4,21 
         xcla(i,jc)=xat(i) 
         vcla(i,jc)=vat(i) 
      ENDDO
-! planet velocity is needed to define reference system                  
-     DO i=1,6 
-        xplaj(i,jc)=xpla(i) 
-     ENDDO
+! planet velocity is needed [to define reference system] 
+     xplaj(1:6,jc)=xpla(1:6) 
   ELSE 
      write(*,*)' strclo: nv=',nv 
      STOP 

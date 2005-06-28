@@ -1,29 +1,37 @@
 ! ========MODULE tp_trace================================  
-!
-! CONTAINS         
-! LIST OF PUBLIC ENTITIES:
-!
-!  SUBROUTINES 
-!             str_clan
-!             wri_tppoint
-!             rea_tppoint
-!             wri_clan [private]
-!             marg2    [private] ???
-!             rea_clorec
-!                      CONTAINS
-!                               rea_clan [private]
-!  DATA TYPE 
+! version 3.2.6, A. Milani April 2005
+!          
+!  DATA TYPES 
 !             tp_point
 !             mtp_point
-! 
-! =========================================================
-! DEP.                                
-! tp_trace.o: \
-!	../include/nvarx.h90 \
-!	../suit/fund_const.mod \
-!	../suit/orbit_elements.mod \
-!	../suit/output_control.mod \
-!	../suit/planet_masses.mod 
+!
+! ROUTINES
+!   str_clan(dx1dx0,dx0de) 
+!       mtp_rot3(batchcl,vt3,dx,dv,dxde,gc,                     &
+!       marg_2(gmtp,gxz,svv,cxv,czv) 
+!       wri_clan(iuncla,planam,tcla,xcla,vcla,                 &
+!   wri_tppoint(tp,iunclo,covav)
+!   rea_tppoint(tp,iunclo,covav)
+!   rea_clorectp(iunclo,reqpla,imulcur,va_trace,               &
+!   inclolinctp(iunout,iunclo,despla,vas_trace,no,nox)
+!   arrloadtp(va_tp,rindex) 
+!   rescaltp(va_tp) 
+!        min_poss3tp(smax,va_tp)
+! obsolescent MTP routines 
+!   rea_clorec(iunclo,reqpla,imulcur,va_trace,               &
+!        rea_clan(record,va_trace,error) 
+! non in mod
+!   aftclov(iplam,t0,tcla,v_inf,tbefore,tafter) 
+!   funct.  v_infty(el0)
+! DEPENDENCIES:
+
+!tp_trace.o: \
+!        ../include/nvarx.h90 \
+!        ../suit/fund_const.mod \
+!        ../suit/orbit_elements.mod \
+!        ../suit/output_control.mod \
+!        ../suit/planet_masses.mod 
+
 ! ==========================================================
 
 
@@ -33,16 +41,6 @@ USE orbit_elements
 IMPLICIT NONE
 
 PRIVATE
-
-! INTEGER, PARAMETER :: ncol= 27
-
-! deltasigma, max value of sigma
-DOUBLE PRECISION deltasig, smax
-! index range of multiple solution 
-INTEGER m1,m2
-INTEGER nmul
-! output on TP/MTP?
-LOGICAL, PUBLIC :: tpplane ! if true, convert to tp; if false, mtp
 
 TYPE tp_point ! trace on TP (extended to 6d) of a close approach
      DOUBLE PRECISION  :: tcla         ! Time of close approach 
@@ -64,7 +62,6 @@ TYPE tp_point ! trace on TP (extended to 6d) of a close approach
                                                            ! zeta axis
      DOUBLE PRECISION                      :: sigma        ! VA's value of sigma
      DOUBLE PRECISION                      :: minposs      ! Minimun possible distance
-     DOUBLE PRECISION                      :: moid_gf      ! MOID with gravitational focusing
      DOUBLE PRECISION                      :: dd2_ds       ! Derivative of square distance
                                                            ! rispect to sigma
      DOUBLE PRECISION                      :: rindex       ! real VA index
@@ -116,14 +113,33 @@ TYPE mtp_point ! trace on MTP (extended to 3d) of a close approach
                                         ! in the present strclan3 
 END TYPE mtp_point
 
+
+DOUBLE PRECISION, DIMENSION(6), PARAMETER :: zero_6d_vect = &
+&    (/ 0.d0, 0.d0, 0.d0, 0.d0, 0.d0, 0.d0 /)
+
+TYPE(tp_point), PARAMETER :: undefined_tp_point= TP_POINT( &
+&   0.d0 , zero_6d_vect,   &  ! object designation
+&  0.d0, 0.d0, 0.d0, 0.d0, &
+&  0.d0, 0.d0, 0.d0, 0.d0, &
+&undefined_orbit_elem, undefined_orb_uncert, & ! Opik elements
+&  0.d0, 0.d0, 0.d0, 0.d0, 0.d0, &
+&  0.d0, 0.d0, 0.d0, 0.d0, 0.d0, 0.d0, &
+&        .false., .false., 0  )  ! 
 ! LIST OF PUBLIC ENTITIES
 ! Derived TYPEs
 PUBLIC :: mtp_point, tp_point
 ! SUBROUTINEs
-PUBLIC :: str_clan, rea_clorec, rea_clorectp!, fclan2
-! PARAMETERs
-PUBLIC :: deltasig, smax,m1,m2,nmul
+PUBLIC :: str_clan, rea_clorec, rea_clorectp, inclolinctp,arrloadtp, wri_tppoint!, fclan2
 
+
+! output on TP
+LOGICAL, PUBLIC :: tpplane ! if true, convert to tp; if false, mtp
+
+! deltasigma, max value of sigma
+DOUBLE PRECISION deltasig, smax
+! index of nominal solution 
+INTEGER imul0
+PUBLIC :: deltasig, smax, imul0
 
 ! common data: former covariance.h
 ! DOUBLE PRECISION gc_store(6,6) ! covariance matrix, to be used by strclan
@@ -233,6 +249,7 @@ CONTAINS
          mtpcar%coord(4:6)=vcla(1:3,jc)
          mtpcar%center=iplam
          mtpcar%t=tcla(jc)
+         tp=undefined_tp_point
 ! Opik elements          
          IF(.not.covava)THEN
             tpcar=tpcar_mtpcar(mtpcar,fail_flag1,tp%bsd)
@@ -327,8 +344,8 @@ CONTAINS
 !         rr=MATMUL(r2,r1)
 !         rrt=TRANSPOSE(rr)
 !         xop=MATMUL(rrt,xx)
-         IF(abs(xop(1)).gt.1.d-8)THEN
-            WRITE(*,*)' str_clan: prrrrr ', xop
+         IF(abs(xop(1)).gt.1.d-7)THEN
+            WRITE(*,*)' str_clan: eta.ne.0  ', xop
          ENDIF         
          tp%txi=xop(3)
          tp%tze=xop(2)  
@@ -701,7 +718,7 @@ END SUBROUTINE str_clan
 &        tp%opik%coord(2:3)*degrad,tp%b,tp%opik%coord(1), tp%theta*degrad, tp%phi*degrad, tp%txi, tp%tze, &
 &        tp%xytp,            & 
 &        rms, cor(2:6,1), cor(3:6,2), cor(4:6,3), cor(5:6,4), cor(6,5) 
-100     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f12.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/     &
+100     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f14.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/     &
 &        2(1x,1p,e12.4),1x,0p,f10.5,1x,f10.6,1x,f7.2,1x,1p,e12.4,0p,1x,f10.5/         &
 &        f10.6,1x,f11.6,1x,2(1x,f13.10),1x,f10.6,1x,f11.6,2(1x,f13.10)/6(1x,f12.9)/ &
 &        1p,6(1x,d18.11)/0p,5(1x,f19.16)/5(1x,f19.16)/5(1x,f19.16))
@@ -709,7 +726,7 @@ END SUBROUTINE str_clan
         WRITE(iunclo,101)planam,date,tp%tcla,tp%d,tp%v, tp%opik%coord(4:6), tp%tp_conv,  &
 &        tp%opik%coord(2:3)*degrad,tp%b,tp%opik%coord(1), tp%theta*degrad, tp%phi*degrad, tp%txi, tp%tze,&
 &         tp%xytp
-101     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f12.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/      &
+101     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f14.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/      &
 &              f10.6,1x,f11.6,1x,2(1x,f13.10),1x,f10.6,1x,f11.6,2(1x,f13.10),6(1x,f12.9))  
      ENDIF
    END SUBROUTINE wri_tppoint
@@ -725,12 +742,13 @@ END SUBROUTINE str_clan
      CHARACTER*30 planam
      CHARACTER*16 date
      INTEGER j,i,le
+     tp=undefined_tp_point
      IF(covav)THEN
         READ(iunclo,100)planam,date,tp%tcla,tp%d,tp%v, tp%opik%coord(4:6), tp%tp_conv,   &
 &        tp%stretch, tp%width, tp%alpha, tp%moid, tp%angmoid, tp%stretch_lov, tp%alpha_lov, &
 &        tp%opik%coord(2:3),tp%b, tp%opik%coord(1), tp%theta, tp%phi, tp%txi, tp%tze, tp%xytp,& 
 &        rms, cor(2:6,1), cor(3:6,2), cor(4:6,3), cor(5:6,4), cor(6,5) 
-100     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f12.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/     &
+100     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f14.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/     &
 &        2(1x,1p,e12.4),1x,0p,f10.5,1x,f10.6,1x,f7.2,1x,1p,e12.4,0p,1x,f10.5/         &
 &        f10.6,1x,f11.6,1x,2(1x,f13.10),2(1x,f10.6),2(1x,f13.10)/6(1x,f12.9)/ &
 &        1p,6(1x,d18.11)/0p,5(1x,f19.16)/5(1x,f19.16)/5(1x,f19.16))
@@ -747,7 +765,7 @@ END SUBROUTINE str_clan
      ELSE
         READ(iunclo,101)planam,date,tp%tcla, tp%d,tp%v, tp%opik%coord(4:6), tp%tp_conv,&
 &        tp%opik%coord(2:3),tp%b, tp%opik%coord(1), tp%theta, tp%phi, tp%txi, tp%tze, tp%xytp
-101     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f12.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/      &
+101     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f14.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/      &
 &       f10.6,1x,f11.6,1x,2(1x,f13.10),2(1x,f10.6),2(1x,f13.10),6(1x,f12.9))  
      ENDIF
      tp%theta=tp%theta*radeg
@@ -776,8 +794,7 @@ END SUBROUTINE str_clan
 ! REACLORECTP reads the next close approach record of the required planet 
 ! reqpla; if reqpla=' ', then all planets are required                  
 ! ==================================================================    
-   SUBROUTINE rea_clorectp(iunclo,reqpla,imulcur,va_trace,               &
-     &     planam,error,eof)                                           
+   SUBROUTINE rea_clorectp(iunclo,reqpla,imulcur,va_trace,planam,error,eof) 
 ! INPUT                                                                 
 ! required planet                                                       
      CHARACTER*15 reqpla 
@@ -827,6 +844,164 @@ END SUBROUTINE str_clan
 2    eof=.true. 
    END SUBROUTINE rea_clorectp
 
+! ================================================                      
+! INCLOLINCTP                                                              
+! input close approach data, with confidence ellipse                    
+! version 2tp, 6 Jan. 2005                                              
+! ================================================                      
+  SUBROUTINE inclolinctp(iunout,iunclo,despla,vas_trace,no,nox)
+! ======================INPUT=================================
+    INTEGER, INTENT(IN)           :: iunout  ! output kog unit
+    INTEGER, INTENT(IN)           :: iunclo  ! input unit
+    CHARACTER(LEN=15), INTENT(IN) :: despla  ! desired planet 
+    INTEGER, INTENT(IN)           :: nox     ! max no close app
+! =====================OUTPUT=================================
+    INTEGER, INTENT(OUT)          ::  no     ! total number close app 
+    TYPE(tp_point), DIMENSION(nox), INTENT(OUT) :: vas_trace
+! ===================END INTERFACE============================== 
+    TYPE(tp_point)    :: va_trace                                                        
+    CHARACTER(LEN=15) :: curpla,planam 
+    INTEGER           :: le,i,j 
+    INTEGER           :: imultot
+    INTEGER           :: imulcur 
+    DOUBLE PRECISION, DIMENSION(3) :: p,v
+    LOGICAL           :: error,eof 
+! ==============================================================                             
+    curpla=despla 
+    no=0 
+    imultot=0 
+! loop on records                                                       
+1   CONTINUE 
+! read next record on desired planet
+    CALL rea_clorectp(iunclo,curpla,imulcur,va_trace,planam,error,eof) 
+    IF(error)THEN 
+       WRITE(*,*)'inclolin; error cloapp ',no,' orbit ', imulcur 
+       STOP
+    ELSEIF(eof)THEN 
+       GOTO 2 
+    ELSE 
+       no=no+1 
+       va_trace%rindex=imulcur 
+       imultot=imultot+1 
+! conversion of angles already done in rea_tppoint
+! rescaling in Re, find minimum possible
+       CALL rescaltp(va_trace)
+       IF(no.gt.nox)THEN
+          WRITE(*,*) ' too many .clo records, max was ', nox, ' to be increased'
+          STOP
+       ENDIF
+       vas_trace(no)=va_trace
+    ENDIF
+    GOTO 1 
+! end of file                                                           
+2   WRITE(iunout,*)' read ',no,' closapp. from ',imultot,' orbits' 
+  END SUBROUTINE inclolinctp
+
+!=================================================================================
+  SUBROUTINE arrloadtp(va_tp,rindex) 
+!======================OUTPUT======================================================
+    TYPE(tp_point), INTENT(OUT)  :: va_tp
+    DOUBLE PRECISION, INTENT(IN) :: rindex
+!====================END INTERFACE=================================================
+    DOUBLE PRECISION :: tprmin
+    INTEGER :: j,jc 
+    LOGICAL :: bound
+!==================================================================================
+! select lower minimum                                                  
+    IF(njc.eq.1)THEN 
+       jc=1 
+    ELSE 
+       tprmin=1.d10 
+       DO j=1,njc
+          IF(tp_store(j)%d.lt.tprmin)THEN 
+             jc=j 
+             tprmin=tp_store(j)%d 
+          ENDIF
+       ENDDO
+    ENDIF
+    jcsel=jc
+    va_tp=tp_store(jcsel)
+    va_tp%rindex=rindex
+    CALL rescaltp(va_tp) 
+  END SUBROUTINE arrloadtp
+
+ SUBROUTINE rescaltp(va_tp) 
+    USE planet_masses
+    USE fund_const
+! ====================INPUT/OUTPUT========================================
+    TYPE(tp_point), INTENT(INOUT) :: va_tp 
+! ====================END INTERFACE=======================================
+! coordinate change to TP                                               
+    DOUBLE PRECISION                 :: mu
+!    INTEGER                          :: imul0 
+!=====================================================================================
+!  rescaling units                                                      
+    mu=gmearth/reau**3 
+! rescaling of lengths; positions, velocities in Earth radii
+    va_tp%d=va_tp%d/reau
+    va_tp%b=va_tp%b/reau
+!    va_tp%rdotcla=va_tp%rdotcla/reau
+    va_tp%xytp(1:3)=va_tp%xytp(1:3)/reau
+    va_tp%xytp(4:6)=va_tp%xytp(4:6)/reau
+    va_tp%opik%coord(4:5)=va_tp%opik%coord(4:5)/reau
+    va_tp%opik%coord(1)=va_tp%opik%coord(1)/reau
+    va_tp%v=va_tp%v/reau
+    va_tp%stretch=va_tp%stretch/reau
+    va_tp%width=va_tp%width/reau
+    va_tp%moid=va_tp%moid/reau
+    va_tp%stretch_lov=va_tp%stretch_lov/reau
+!    va_tp%dvdsigma=va_tp%dvdsigma/reau
+!    va_tp%unc_opik%g(6,6)=va_tp%unc_opik%g(6,6)/reau
+    va_tp%cov_tp=.true.
+! computation of auxiliary quantities                                   
+! derivative of distance squared with respect to sigma                  
+    va_tp%dd2_ds=2*va_tp%stretch_lov*(-va_tp%opik%coord(4)*  &
+     &        sin(va_tp%alpha_lov)+         &
+     &        va_tp%opik%coord(5)*cos(va_tp%alpha_lov))              
+! value of sigma (parameter along the LOV)                              
+!    imul0=nmul/2+1 
+!     arrline(25)=(2.d0*smax/nmul)*(xmul-imul0)                         
+    va_tp%sigma=deltasig*(va_tp%rindex-imul0) 
+! minimum possible, moid_gf                                             
+    CALL min_poss3tp(smax,va_tp)
+    CONTAINS
+            
+! ================================================================================
+! MIN_POSSible distance, box model; in unit of Earth radius             
+! ================================================================================
+      SUBROUTINE min_poss3tp(smax,va_tp)
+!========================INPUT====================================================
+        DOUBLE PRECISION, INTENT(IN) :: smax
+!=====================INPUT/OUTPUT================================================
+        TYPE(tp_point), INTENT(INOUT) :: va_tp 
+!=====================END INTERFACE===============================================
+        DOUBLE PRECISION :: wtpr,wtpal    ! projection of LOV on target plane, 
+                                        ! polar coordinates                                
+        DOUBLE PRECISION :: dmin          ! local variables 
+        DOUBLE PRECISION :: xx,yy,re,s0,w0   
+        DOUBLE PRECISION :: dmin1, r 
+        DOUBLE PRECISION :: rad,vel,vsize,c_opik     ! use of moid
+! ================================================================================
+! compute gravitational focusing                                        
+        r=va_tp%b 
+        vel=va_tp%opik%coord(1)
+        c_opik=gmearth/(vel**2 - 2.d0*gmearth/r) 
+! use MOID                                                              
+        dmin=va_tp%moid-smax*va_tp%width 
+        IF(dmin.lt.0.d0)dmin=0.d0 
+! check for confidence regions too small to allow to get to the MOID    
+        IF(va_tp%dd2_ds.gt.0.d0)THEN 
+           dmin1=va_tp%d-(va_tp%sigma+smax)*va_tp%stretch
+        ELSEIF(va_tp%dd2_ds.lt.0.d0)THEN 
+           dmin1=va_tp%d-(smax-va_tp%sigma)*va_tp%stretch 
+        ENDIF
+        dmin=MAX(dmin,dmin1) 
+        va_tp%minposs=dmin 
+      END SUBROUTINE min_poss3tp
+  END SUBROUTINE rescaltp
+!
+!===================================================================
+! PART OBSOLESCENT, USING MTP
 ! =================================================================     
 ! REACLOREC reads the next close approach record of the required planet 
 ! reqpla; if reqpla=' ', then all planets are required                  
@@ -885,9 +1060,7 @@ END SUBROUTINE str_clan
       RETURN 
     2 eof=.true. 
 
-   CONTAINS
-        
-        
+   CONTAINS        
        ! ================================================                      
 ! REACLAN reads record written by wriclan3, only data part, places in a
       SUBROUTINE rea_clan(record,va_trace,error) 
@@ -936,46 +1109,45 @@ END MODULE tp_trace
 ! AFTCLOV                                                               
 ! select time interval to get after the close approach                  
 ! taking into account the relative velocity w.r. to Earth               
-      SUBROUTINE aftclov(iplam,t0,tcla,v_inf,tbefore,tafter) 
-      USE planet_masses
-      IMPLICIT NONE 
+SUBROUTINE aftclov(iplam,t0,tcla,v_inf,tbefore,tafter) 
+  USE planet_masses
+  IMPLICIT NONE 
 ! input: planet number, time of initial conditions,                     
 ! of known close approach, velocity                                     
-      INTEGER iplam 
-      DOUBLE PRECISION t0,tcla,v_inf 
+  INTEGER iplam 
+  DOUBLE PRECISION t0,tcla,v_inf 
 ! output: time "after", time "before" (depending upon sense of propagati
-      DOUBLE PRECISION tafter,tbefore 
+  DOUBLE PRECISION tafter,tbefore 
 ! end interface                                                         
 ! time interval to exit from TP disk                                    
-      DOUBLE PRECISION delt_tp 
+  DOUBLE PRECISION delt_tp 
 ! target plane disk radius from planet_masses
 ! ===================================================================   
 ! warning: really done only for Earth                                   
-      IF(ordnam(iplam).ne.'EARTH') THEN 
-         WRITE(*,*)' aftclov: not to be used for planet ',ordnam(iplam) 
-         delt_tp=180.d0 
+  IF(ordnam(iplam).ne.'EARTH') THEN 
+     WRITE(*,*)' aftclov: not to be used for planet ',ordnam(iplam) 
+     delt_tp=180.d0 
 ! time interval to exit from TP disk
-      ELSEIF(v_inf.gt.0.d0)THEN                                 
-         delt_tp=2*dmin(iplam)/v_inf
-      ELSE
-         delt_tp=365.25d0
-      ENDIF 
+  ELSEIF(v_inf.gt.0.d0)THEN                                 
+     delt_tp=2*dmin(iplam)/v_inf
+  ELSE
+     delt_tp=365.25d0
+  ENDIF
 ! forced to avoid infinte intervals for v-inf=0
-      delt_tp=MIN(delt_tp,365.25d0)  
+  delt_tp=MIN(delt_tp,365.25d0)  
 ! forced to avoid short intervals for fast encounters                   
-      IF(delt_tp.lt.50.d0)delt_tp=50.d0 
+  IF(delt_tp.lt.50.d0)delt_tp=50.d0 
 ! time interval to be clear out of the TP disk is given as deltat       
-      IF(t0.lt.tcla)THEN 
+  IF(t0.lt.tcla)THEN 
 ! future close approaches                                               
-         tafter=tcla+delt_tp 
-         tbefore=tcla-delt_tp 
-      ELSE 
+     tafter=tcla+delt_tp 
+     tbefore=tcla-delt_tp 
+  ELSE 
 ! past close approaches                                                 
-         tafter=tcla-delt_tp 
-         tbefore=tcla+delt_tp 
-      ENDIF 
-      RETURN 
-      END SUBROUTINE aftclov 
+     tafter=tcla-delt_tp 
+     tbefore=tcla+delt_tp 
+  ENDIF
+END SUBROUTINE aftclov
 ! ===================================================
 ! velocity at infinity with repect to Earth
 ! (circular approx) in AU/day

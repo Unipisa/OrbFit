@@ -1670,7 +1670,7 @@ LOGICAL,       INTENT(OUT) :: error
       integer year,month,day,hour,min,isec,mjd,mjdt
       double precision sec,sect
       character*3 scale
-! functions
+! funcs
       INTEGER ix
       DOUBLE PRECISION tjm1
       EXTERNAL tjm1
@@ -1786,7 +1786,7 @@ LOGICAL,       INTENT(OUT) :: error
 
 END SUBROUTINE jplradar_transform
 
-! ====================== station function =============================
+! ====================== station func =============================
 ! compute observatory code from string
 INTEGER FUNCTION radar_station(stastr)
   character*(*) stastr
@@ -2126,7 +2126,7 @@ INTEGER FUNCTION find_obs(obst,obs,m,double)
   INTEGER m ! number of obs
   TYPE(ast_obs), INTENT(IN) :: obst ! one new observation
   TYPE(ast_obs),  INTENT(IN), DIMENSION(m) :: obs ! observations
-! ============OUTPUT (impure function!) ===========
+! ============OUTPUT (impure func!) ===========
   INTEGER, INTENT(OUT) :: double ! location of the duplicate observation
 ! =========END INTERFACE=====================
   INTEGER j

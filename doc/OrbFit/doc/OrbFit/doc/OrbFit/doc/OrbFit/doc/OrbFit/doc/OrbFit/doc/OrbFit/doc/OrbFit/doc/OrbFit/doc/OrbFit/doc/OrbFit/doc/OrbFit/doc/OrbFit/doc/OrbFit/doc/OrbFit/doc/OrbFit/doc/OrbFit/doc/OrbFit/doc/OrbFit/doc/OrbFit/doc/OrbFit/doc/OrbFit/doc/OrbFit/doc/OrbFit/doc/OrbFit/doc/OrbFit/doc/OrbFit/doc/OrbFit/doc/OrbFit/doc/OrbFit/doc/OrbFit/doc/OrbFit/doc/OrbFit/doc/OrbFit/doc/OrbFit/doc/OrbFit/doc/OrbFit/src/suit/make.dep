@@ -49,6 +49,7 @@ io_elems.o: \
 	../include/parcmc.h90 \
 	fund_const.o \
 	io_elems.o \
+	name_rules.o \
 	output_control.o \
 	reference_systems.o 
 
@@ -67,6 +68,13 @@ jpl_ephem.o: \
 	fund_const.o \
 	planet_masses.o \
 	reference_systems.o 
+
+obs_simul.o: \
+	astrometric_observations.o \
+	fund_const.o \
+	name_rules.o \
+	reference_systems.o \
+	station_coordinates.o 
 
 observ_rms.o: \
 	astrometric_observations.o \
@@ -94,6 +102,7 @@ orbit_elements.o: \
 	attributable.o \
 	ever_pitkin.o \
 	fund_const.o \
+	io_elems.o \
 	name_rules.o \
 	output_control.o \
 	planet_masses.o \

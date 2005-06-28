@@ -47,7 +47,7 @@ CHARACTER(LEN=3)       :: coo     ! elements type; known types are:
 !             0 eccentricity, 0 and 180 degrees inclination;
 !    'COM' : cometary elements, valid for ecc.ge.1 
 !    'ATT' : attributable plus r rdot
-!    ['OPI' : Opik type elements not yet implemented]
+!    'OPI' : Opik type elements not yet implemented
 
 INTEGER :: ndim  ! actual dimension of elements vector
 DOUBLE PRECISION, DIMENSION(ndimx) :: coord ! elements vector 
@@ -80,12 +80,6 @@ TYPE(orbit_elem), PARAMETER :: undefined_orbit_elem = ORBIT_ELEM( &
 &    500            & ! default is not topocentric correction 
 ! &  ,gms            & ! if needed
 &     )  ! 
-
-! CALL fdiff_cor(batch,iarc,obs0,ini0,ok,   & ! controls
-!     &     eq0,          &            ! initial orbit
-!     &     ,m,obs,obsw,  &            ! obs data and weights
-!     &     rwofi0,iun20,iun8,         ! output files
-!           eqc)                       ! corrected orbit, with uncertainty
 
 TYPE orb_uncert
 ! normal and covariance matrix (warning: covariance not full if not all solved)
@@ -201,6 +195,9 @@ IF(cargr_in)THEN
       IF(PRESENT(del))THEN
          CALl eye(ndim,del1)     ! initialize by identity
       ENDIF
+!   ELSEIF(coox.eq.'OPI')THEN
+!      WRITE(*,*)' coo_cha: this conversion not ready ', coox, ' ',cooy
+!      STOP
    ENDIF
    IF(cooy.eq.'CAR')THEN
       y=z ! done
@@ -1444,11 +1441,12 @@ TYPE(orbit_elem) FUNCTION tpcar_mtpcar(el,fail_flag,bd,del)
   v=vsize(y)      ! velocity
   xmtp=x-prscal(x,y)*y/v**2
   d=vsize(xmtp)      ! distance from center
-  eps=1.d-9
+  eps=5.d-8
 ! check on orthogonality
   sig0=prscal(x,y)/(v*d)
   IF(abs(sig0).gt.eps)THEN
-     WRITE(*,*)' tpcar_mtpcar: pos, vel not orthogonal ', sig0,eps
+     WRITE(*,199) sig0,eps
+ 199 FORMAT(' tpcar_mtpcar: pos, vel not orthogonal ',1P,2d10.3)
   ENDIF
   call prvec(x,y,ang)           !  angular momentum 
   bsd2=(d*v**2)/(d*v**2-2*gm)
@@ -1730,10 +1728,11 @@ TYPE(orbit_elem) FUNCTION opik_tpcar(el,fail_flag,del,vt3)
   b=vsize(xytp(1:3))
   cosa=prscal(xytp(1:3),xytp(4:6))/(b*opik(1))
   dt=-b*cosa/opik(1)
-  IF(abs(cosa).gt.1.d-9)THEN
+  IF(abs(cosa).gt.5.d-8)THEN
 !     xytp(1:3)=xytp(1:3)-b*cosa*v1
 !     b=vsize(xytp(1:3))
-     WRITE(*,*)'opik_tpcar: position not orthogonal to velocity ',cosa, b, opik(1)
+     WRITE(*,199)cosa, b, opik(1)
+ 199 FORMAT('opik_tpcar: pos not orthogonal to vel ',1p,3D10.3)
 !     fail_flag=7
   ENDIF
 ! polar coordinates                 
@@ -1875,80 +1874,82 @@ END FUNCTION opik_tpcar
 ! I/O submodule
 ! ====================================================================
 SUBROUTINE read_elems(el,name,eof,file,unit,covar)
-USE fund_const
-TYPE(orbit_elem), INTENT(OUT) :: el
-CHARACTER*(*),INTENT(OUT) :: name
-LOGICAL, INTENT(OUT) :: eof
-CHARACTER*(*), INTENT(IN) :: file ! input file
-INTEGER, INTENT(IN), OPTIONAL :: unit ! input unit, only if file already opened
-TYPE(orb_uncert), INTENT(OUT), OPTIONAL :: covar 
+  USE fund_const
+  USE io_elems, ONLY: obscod
+  USE station_coordinates, ONLY: statcode
+  TYPE(orbit_elem), INTENT(OUT) :: el
+  CHARACTER*(*),INTENT(OUT) :: name
+  LOGICAL, INTENT(OUT) :: eof
+  CHARACTER*(*), INTENT(IN) :: file ! input file
+  INTEGER, INTENT(IN), OPTIONAL :: unit ! input unit, only if file already opened
+  TYPE(orb_uncert), INTENT(OUT), OPTIONAL :: covar 
 ! end interface
-!INTEGER uniin
-DOUBLE PRECISION elem(6),t0,h,g,cove(6,6),nore(6,6),mass !,cnv(6)
-CHARACTER*3 eltype
-CHARACTER*10 rsys,epoch 
-LOGICAL defcov,defnor,defcn
-INTEGER kr 
+  DOUBLE PRECISION elem(6),t0,h,g,cove(6,6),nore(6,6),mass !,cnv(6)
+  CHARACTER*3 eltype
+  CHARACTER*10 rsys,epoch 
+  LOGICAL defcov,defnor,defcn
+  INTEGER kr, iobs 
 
-IF(.not.PRESENT(unit))THEN
-  CALL oporbf(file,0)
-!ELSE
-!  uniin=unit
-ENDIF
-el=undefined_orbit_elem
-CALL rdorb(name,elem,eltype,t0,cove,defcov,nore,defnor,     &
+  IF(.not.PRESENT(unit))THEN
+     CALL oporbf(file,0)
+  ENDIF
+  el=undefined_orbit_elem
+  CALL rdorb(name,elem,eltype,t0,cove,defcov,nore,defnor,     &
      &                 h,g,mass,rsys,epoch,kr,eof)
-IF(eof)THEN
-   IF(.not.PRESENT(unit)) CALL clorbf
-   RETURN
-ENDIF
-IF(eltype.EQ.'KEP'.or.eltype.eq.'COM') THEN 
+  IF(eof)THEN
+     IF(.not.PRESENT(unit)) CALL clorbf
+     RETURN
+  ENDIF
+  IF(eltype.EQ.'KEP'.or.eltype.eq.'COM') THEN 
 !   cnv(3:6)=radeg conversions already done by rdorb
-ELSEIF(eltype.EQ.'EQU') THEN 
+  ELSEIF(eltype.EQ.'EQU') THEN 
 !   cnv(6)=radeg 
-ELSEIF(eltype.EQ.'CAR') THEN 
+  ELSEIF(eltype.EQ.'CAR') THEN 
 !   CONTINUE 
-ELSEIF(eltype.eq.'ATT')THEN
-!   CONTINUE 
-ELSE 
-   WRITE(*,*) '**** read_elems: not ready for type ', eltype,' from ', file 
-   STOP
-END IF
+  ELSEIF(eltype.eq.'ATT')THEN
+! input obscod
+     CALL statcode(obscod,iobs)
+  ELSE 
+     WRITE(*,*) '**** read_elems: not ready for type ', eltype,' from ', file 
+     STOP
+  END IF
 ! what to do with rsys,epoch????
-IF(rsys.ne.'ECLM'.or.epoch.ne.'J2000')THEN
-  WRITE(*,*)' read_elem: other reference systems not handled ', rsys,'  ', epoch
-  STOP
-ENDIF
+  IF(rsys.ne.'ECLM'.or.epoch.ne.'J2000')THEN
+     WRITE(*,*)' read_elem: other reference systems not handled ', rsys,'  ', epoch
+     STOP
+  ENDIF
 ! copy into output elements
-el%coo=eltype
-el%coord=elem
-el%t=t0
-IF(h.lt.-10.d0)THEN
-   el%mag_set=.false.
-ELSE
-   el%mag_set=.true.
-   el%h_mag=h
-   el%g_mag=g
-ENDIF
+  el%coo=eltype
+  el%coord=elem
+  el%t=t0
+  IF(h.lt.-10.d0)THEN
+     el%mag_set=.false.
+  ELSE
+     el%mag_set=.true.
+     el%h_mag=h
+     el%g_mag=g
+  ENDIF
+  IF(el%coo.eq.'ATT')el%obscode=iobs
 
-IF(PRESENT(covar))THEN
-   covar=undefined_orb_uncert
-   IF(defcov) covar%g=cove
-   IF(defnor) covar%c=nore
-   CALL fixcnm(defcov,defnor,defcn,cove,nore)
-   IF(defcn)THEN
-      covar%succ=.true.
-   ELSE
-      covar%succ=.false.
-   ENDIF   
-ENDIF
+  IF(PRESENT(covar))THEN
+     covar=undefined_orb_uncert
+     IF(defcov) covar%g=cove
+     IF(defnor) covar%c=nore
+     CALL fixcnm(defcov,defnor,defcn,cove,nore)
+     IF(defcn)THEN
+        covar%succ=.true.
+     ELSE
+        covar%succ=.false.
+     ENDIF
+  ENDIF
 
-IF(.not.PRESENT(unit)) CALL clorbf
-RETURN
+  IF(.not.PRESENT(unit)) CALL clorbf
 END SUBROUTINE read_elems
 
 SUBROUTINE write_elems(el,name,form,file,unit,covar,incfit)
   USE name_rules
+  USE io_elems, ONLY: obscod
+  USE station_coordinates, ONLY: codestat
   TYPE(orbit_elem), INTENT(IN) :: el
   CHARACTER*(*),INTENT(IN) :: name
   CHARACTER*(*), INTENT(IN) :: form ! can be either '1L' or 'ML'
@@ -1957,7 +1958,7 @@ SUBROUTINE write_elems(el,name,form,file,unit,covar,incfit)
   INTEGER, INTENT(IN), OPTIONAL :: unit ! input unit, only if already opened
 ! WARNING: if file already opened, it must also have the header already written
   TYPE(orb_uncert), INTENT(IN), OPTIONAL :: covar 
-  LOGICAL, INTENT(IN), OPTIONAL :: incfit ! result from incomplete fit;
+  INTEGER, INTENT(IN), OPTIONAL :: incfit ! result from incomplete fit;
     ! warn the users of this!!!!
 ! =========== end interface================
   INTEGER uniout,le
@@ -1966,53 +1967,61 @@ SUBROUTINE write_elems(el,name,form,file,unit,covar,incfit)
   LOGICAL defcov,defnor
   DOUBLE PRECISION mass, cove(6,6), nore(6,6) 
 ! open output file if not opened already
-IF(.not.PRESENT(unit))THEN
-  CALL filopn(uniout,file,'unknown')
+  IF(.not.PRESENT(unit))THEN
+     CALL filopn(uniout,file,'unknown')
 ! write file header
-  rsys='ECLM'
-  epoch='J2000'
-  IF(form.eq.'1L')THEN
-     CALL wro1lh(uniout,rsys,epoch,el%coo)
-  ELSEIF(form.eq.'ML')THEN
-     CALL wromlh(uniout,rsys,epoch)
+     rsys='ECLM'
+     epoch='J2000'
+     IF(form.eq.'1L')THEN
+! what to do when el%coo=ATT ?????
+        CALL codestat(el%obscode,obscod)
+        CALL wro1lh(uniout,rsys,epoch,el%coo)
+     ELSEIF(form.eq.'ML')THEN
+        CALL wromlh(uniout,rsys,epoch)
+     ENDIF
+  ELSE
+     uniout=unit
   ENDIF
-ELSE
-  uniout=unit
-ENDIF
-namloc=name
-CALL rmsp(namloc,le)
-IF(PRESENT(incfit))THEN
-   IF(incfit)WRITE(uniout,200)namloc(1:le)
-200 FORMAT('! CONSTRAINED SOLUTION for ',a)
-ENDIF
-! decide on format
-IF(PRESENT(covar))THEN
-  IF(covar%succ)THEN
-     defcov=.true.
-     defnor=.true.
-     cove=covar%g
-     nore=covar%c
+  namloc=name
+  CALL rmsp(namloc,le)
+  IF(PRESENT(incfit))THEN
+     IF(incfit.eq.5)THEN
+        WRITE(uniout,200)namloc(1:le)
+200     FORMAT('! CONSTRAINED SOLUTION for ',a)
+     ELSEIF(incfit.eq.4)THEN
+        WRITE(uniout,201)namloc(1:le)
+201     FORMAT('! 4_PARAMETERS SOLUTION for ',a)
+     ENDIF
+  ENDIF
+! COVARIANCE; HOWEVER NOT WRITTEN IF FORMAT= '1L'
+  IF(PRESENT(covar))THEN
+     IF(covar%succ)THEN
+        defcov=.true.
+        defnor=.true.
+        cove=covar%g
+        nore=covar%c
+     ELSE
+        defcov=.false.
+        defnor=.false.
+        cove=0.d0
+        nore=0.d0
+     ENDIF
   ELSE
      defcov=.false.
      defnor=.false.
      cove=0.d0
      nore=0.d0
   ENDIF
-ELSE
-  defcov=.false.
-  defnor=.false.
-  cove=0.d0
-  nore=0.d0
-ENDIF
-mass=0.d0
-IF(form.eq.'1L')THEN
-   CALL wro1lr(uniout,namloc(1:le),el%coord,el%coo,el%t,el%h_mag,el%g_mag)
-ELSEIF(form.eq.'ML')THEN
-   CALL wromlr(uniout,namloc(1:le),el%coord,el%coo,el%t,cove,defcov,      &
-     &                  nore,defnor,el%h_mag,el%g_mag,mass)
-ENDIF
+  mass=0.d0
+  IF(form.eq.'1L')THEN
+     CALL wro1lr(uniout,namloc(1:le),el%coord,el%coo,el%t,el%h_mag,el%g_mag)
+  ELSEIF(form.eq.'ML')THEN
+     CALL codestat(el%obscode,obscod)
+     CALL wromlr(uniout,namloc(1:le),el%coord,el%coo,el%t,cove,defcov,      &
+          &                  nore,defnor,el%h_mag,el%g_mag,mass)
+  ENDIF
 
-IF(.not.PRESENT(unit)) CALL filclo(uniout,' ')
+  IF(.not.PRESENT(unit)) CALL filclo(uniout,' ')
 
 END SUBROUTINE write_elems
 

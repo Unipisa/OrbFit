@@ -13,6 +13,8 @@ fitobs.o: \
 	../propag/force_model.mod \
 	../propag/least_squares.mod \
 	../propag/multiple_sol.mod \
+	../propag/tp_trace.mod \
+	../propag/virtual_impactor.mod \
 	../propag/yark_pert.mod \
 	../suit/astrometric_observations.mod \
 	../suit/attributable.mod \
@@ -27,14 +29,24 @@ fitobs_interfaces.o: \
 	../include/parcmc.h90 \
 	../include/pariod.h90 \
 	../include/sysdep.h90 \
+	../propag/close_app.mod \
+	../propag/force_model.mod \
 	../propag/least_squares.mod \
 	../propag/multiple_sol.mod \
+	../propag/obssto.mod \
 	../propag/pred_obs.mod \
+	../propag/propag_state.mod \
+	../propag/ret_analysistp.mod \
+	../propag/tp_trace.mod \
 	../suit/astrometric_observations.mod \
 	../suit/fund_const.mod \
 	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
-	../suit/util_suit.mod 
+	../suit/planet_masses.mod \
+	../suit/reference_systems.mod \
+	../suit/station_coordinates.mod \
+	../suit/util_suit.mod \
+	two_states.o 
 
 identsub.o: \
 	../suit/fund_const.mod 

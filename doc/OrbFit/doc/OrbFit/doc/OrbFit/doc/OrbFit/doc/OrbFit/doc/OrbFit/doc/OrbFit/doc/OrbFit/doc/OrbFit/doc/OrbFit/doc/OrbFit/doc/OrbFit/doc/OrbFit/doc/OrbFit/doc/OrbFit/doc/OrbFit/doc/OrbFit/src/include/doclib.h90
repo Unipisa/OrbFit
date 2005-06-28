@@ -3,4 +3,4 @@
 ! ---------------------------------------------------------------------
 ! Default library directory
       CHARACTER*100 ddocd
-      PARAMETER (ddocd=  '/orbfit/orb325/doc')
+      PARAMETER (ddocd=  '/orbfit/orb33/doc')

@@ -1,51 +1,54 @@
 
+ast2ast_moid.o: \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod \
+	critical_points_shift.o 
+
 choosedeg.o: \
 	../suit/fund_const.mod 
 
-comp_heart_rot.o: \
+comp_heart_ta_shift.o: \
 	../suit/fund_const.mod \
 	../suit/output_control.mod 
 
-compute_minima.o: \
+compute_critical_points_shift.o: \
 	../suit/fund_const.mod \
-	../suit/planet_masses.mod 
+	../suit/output_control.mod \
+	critical_points_shift.o 
 
-compute_statpts.o: \
-	../suit/fund_const.mod 
+compute_minima_ta.o: \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/planet_masses.mod \
+	critical_points_shift.o 
 
-d2eval.o: \
-	../suit/fund_const.mod 
-
-hess.o: \
-	../suit/fund_const.mod 
-
-int_eval.o: \
-	../suit/fund_const.mod 
-
-min_comp.o: \
+critical_points_shift.o: \
 	../suit/fund_const.mod \
 	../suit/output_control.mod 
 
-mutualrefcha.o: \
-	../suit/fund_const.mod 
-
-solvesystem_rot.o: \
+lprsolvesystem_ta.o: \
 	../suit/output_control.mod 
 
-solvpoly.o: \
-	../suit/output_control.mod 
-
-stat_comp.o: \
-	../suit/fund_const.mod 
-
-stat_search.o: \
+mincomp_ta_shift.o: \
 	../suit/fund_const.mod \
-	../suit/output_control.mod 
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod \
+	critical_points_shift.o 
 
-writemin.o: \
+solvpoly_ta.o: \
+	../suit/output_control.mod \
+	critical_points_shift.o 
+
+stat_search_ta_shift.o: \
+	../suit/fund_const.mod \
+	../suit/output_control.mod \
+	critical_points_shift.o 
+
+statcomp_ta_shift.o: \
 	../include/jplhdr.h90 \
 	../suit/fund_const.mod \
-	../suit/planet_masses.mod 
-
-writestat3.o: \
-	../suit/output_control.mod 
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod \
+	../suit/planet_masses.mod \
+	critical_points_shift.o 

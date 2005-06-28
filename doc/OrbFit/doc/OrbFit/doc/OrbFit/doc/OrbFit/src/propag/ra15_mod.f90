@@ -269,7 +269,6 @@ CONTAINS
 ! iteration control based on norm of differences                        
         IF(m.eq.1)goto 175 
         IF(ep(m)/ep(1).lt.eprk_r)then 
-!           WRITE(ipirip,*)tini,tfin,tp
 ! prepare for stepsize determination of next step                       
            IF(.not.nes)then 
 ! if variable stepsize, step size control                               
@@ -281,16 +280,13 @@ CONTAINS
            IF(verb_pro.gt.39)write(ipirip,996)ni,tini+tm+t,ep(1)         &
      &            ,(ep(j)/ep(1),j=2,m)                                  
   996      format('ra15v: good convergence iter ',i3,' time=',f10.2,    &
-     &    ' controls:'/(5d12.4/)) 
-           nsf=.true.                                      
-           goto 176
+     &    ' controls:'/(5d12.4/))                                       
+           goto 176 
         ENDIF 
 ! =========end do on iterations=========================                
   175 continue 
 ! ======================================================                
-! bad convergence of iterations          
-        write(ipirip,998)ni,ep(ni),tp
-998   format('ra15v: no conv. it ',i3,' control=',1p,d12.4,' stepsize=',0p,f10.6)
+! bad convergence of iterations                                         
       IF(verb_pro.gt.19)write(ipirip,997)ni,eprk_r,ep(1)                      &
      &            ,(ep(j)/ep(1),j=2,ni)                                 
   997 format('ra15v: bad convergence iter ',i3,' eprk_r=',d10.2,          &
@@ -316,11 +312,11 @@ CONTAINS
          ELSE 
 ! variable stepsize: compute initial stepsize                           
             tp=(ss/hv)**pw*dir 
-            ! not too quick increase                                                
+! not too quick increase                                                
             IF(tp/t.gt.1.4d0) tp=t*1.4d0 
 ! not too quick decrease                                                
             IF(tp/t.lt.1.d0)then 
-               tp=.8d0*t 
+               tp=.8d0*tp 
                ncount=ncount+1 
                IF(ncount.gt.20) then 
 ! too many shortenings of the stepsize                                  
@@ -341,7 +337,6 @@ CONTAINS
 ! ======================================================                
          IF(iusci.gt.100)write(ipirip,*)' tp ',tp 
       ENDIF 
- 177  CONTINUE
 ! =====================================================                 
       CALL rapred(ncl,x,v,t,t2,f1,b,nv) 
       DO k=1,nv 
@@ -377,9 +372,9 @@ CONTAINS
 ! ================================================================      
 ! close approach control                                                
       IF(iclap.eq.1)THEN 
-! problem: if the integration begins inside a close approach, then the first step
+! problem: if the integration begins inside a clsoe approach, then the f
 ! is done with variable stepsize; will the stepsize adjust automatically
-! to a value close to the true-anomaly controlled one???                
+! to a value clsoe to the true-anomaly controlled one???                
          CALL cloapp(tm+tini,t,x,v,nv,idc,xpla,xldir,dir,nes,cloend) 
 !         IF(cloend.and.variaz)THEN ! changed 18/2/2003 ********* 
          IF(cloend)THEN

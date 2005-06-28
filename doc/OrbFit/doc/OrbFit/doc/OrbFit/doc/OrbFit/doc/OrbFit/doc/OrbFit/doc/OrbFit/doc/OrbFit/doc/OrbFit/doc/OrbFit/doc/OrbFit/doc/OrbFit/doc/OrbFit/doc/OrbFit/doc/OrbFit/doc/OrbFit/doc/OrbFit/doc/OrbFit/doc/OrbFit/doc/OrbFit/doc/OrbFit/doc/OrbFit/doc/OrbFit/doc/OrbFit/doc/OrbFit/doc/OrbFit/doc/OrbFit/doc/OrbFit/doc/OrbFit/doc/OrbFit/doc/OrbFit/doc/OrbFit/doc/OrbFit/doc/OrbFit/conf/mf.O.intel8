@@ -1,0 +1,23 @@
+# Makefile options for the INTEL compiler, optimized
+
+# Fortran compiler
+FC=ifort
+# Options for Fortran compiler:
+FFLAGS= -cm -O -mp1 -save -assume byterecl -Vaxlib -I../include 
+# "ranlib" command: if it is not needed, use "RANLIB=touch"
+RANLIB=ranlib
+VPATH=../include
+
+
+# Implicit rule for compiling .f90 files
+.SUFFIXES: .f90
+
+.f90.mod:
+	$(FC) $(FFLAGS) -c $*.f90 -o $*.o
+
+.o.mod:
+	$(FC) $(FFLAGS) -c $*.f90 -o $*.o 
+
+.f90.o:
+	$(FC) $(FFLAGS) -c $*.f90 -o $*.o 
+

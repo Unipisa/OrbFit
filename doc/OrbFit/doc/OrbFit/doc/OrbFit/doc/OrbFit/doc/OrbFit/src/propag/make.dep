@@ -32,6 +32,9 @@ ephem_prop.o: \
 	pred_obs.o \
 	propag_state.o 
 
+eval_risk.o: \
+	../suit/fund_const.mod 
+
 fitsubs.o: \
 	../include/timespan.h90 \
 	../suit/fund_const.mod \
@@ -74,13 +77,34 @@ multiple_sol.o: \
 	../suit/output_control.mod \
 	../suit/util_suit.mod \
 	least_squares.o \
+	obssto.o \
 	pred_obs.o \
-	propag_state.o 
+	propag_state.o \
+	tp_trace.o 
 
 obs_correl.o: \
 	../suit/astrometric_observations.mod \
 	../suit/fund_const.mod \
 	fcfund.h90 
+
+obssto.o: \
+	../include/parobx.h90 \
+	../include/sysdep.h90 \
+	../suit/astrometric_observations.mod \
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod 
+
+offlov_checktp.o: \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/planet_masses.mod \
+	close_app.o \
+	least_squares.o \
+	multiple_sol.o \
+	obssto.o \
+	propag_state.o \
+	tp_trace.o \
+	virtual_impactor.o 
 
 plocbd.o: \
 	../suit/fund_const.mod \
@@ -119,6 +143,18 @@ ra15_mod.o: \
 	close_app.o \
 	force_model.o 
 
+ret_analysistp.o: \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod \
+	../suit/planet_masses.mod \
+	close_app.o \
+	multiple_sol.o \
+	offlov_checktp.o \
+	propag_state.o \
+	tp_trace.o \
+	virtual_impactor.o 
+
 rmodel.o: \
 	../suit/astrometric_observations.mod \
 	../suit/output_control.mod \
@@ -142,12 +178,22 @@ semi_linear.o: \
 	../suit/orbit_elements.mod \
 	pred_obs.o 
 
+shower_analysistp.o: \
+	tp_trace.o 
+
 tp_trace.o: \
 	../include/nvarx.h90 \
 	../suit/fund_const.mod \
 	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
 	../suit/planet_masses.mod 
+
+virtual_impactor.o: \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/planet_masses.mod \
+	propag_state.o \
+	tp_trace.o 
 
 yark_pert.o: \
 	../include/sysdep.h90 \

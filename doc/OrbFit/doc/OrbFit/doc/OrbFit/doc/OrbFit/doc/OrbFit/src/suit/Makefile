@@ -6,7 +6,7 @@ all: ../lib/libsuit.a
 
 # Observations & Statistics
 OBS_OBJ=station_coordinates.o astrometric_observations.o observ_rms.o \
-         obsvarie.o iorwo_old.o attributable.o very_short_arc.o
+     obsvarie.o iorwo_old.o attributable.o very_short_arc.o obs_simul.o
 
 # Reference systems and IERS time series
 REF_OBJ=reference_systems.o iers_ser.o chebi_pol.o
@@ -27,7 +27,7 @@ FILE_OBJ=file_oper.o fidinam4.o output_control.o name_rules.o
 HNAM_OBJ=header_input.o option_input.o
 
 # Character strings
-CHA_OBJ=char_str.o real2string.o
+CHA_OBJ=char_str.o 
 
 # Time and timescales
 TIME_OBJ=time_scales.o

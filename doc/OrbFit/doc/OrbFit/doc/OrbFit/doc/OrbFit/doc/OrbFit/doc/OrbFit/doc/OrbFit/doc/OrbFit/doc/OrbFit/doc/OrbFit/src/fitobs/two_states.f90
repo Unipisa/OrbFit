@@ -15,7 +15,6 @@ MODULE two_states
   CHARACTER*20 ::  error_model ! weighing model
 ! successful input flags, for observations                              
   LOGICAL obs0,obsp,obstwo,obsflag
-
 ! =====state variables: first arc, second arc, joint, current========   
 ! equinoctal orbital elements, epoch times
   TYPE(orbit_elem) :: el0,elp,el,elc
@@ -30,11 +29,16 @@ MODULE two_states
   DOUBLE PRECISION csino0,csinop,csinor,csinoc
   DOUBLE PRECISION rmsh0,rmshp,rmsh,rmshc 
   INTEGER iob0,iobp,iobtwo,iobc ! number of obs used
+! ============I/O =====================                        
+  CHARACTER*80 elefi0,elefip,eletwo ! elements file names 
+  INTEGER iunel0,iunelp,iunelt,iunelc ! elements logical units
+  CHARACTER*60 rwofi0,rwofip,rwotwo,rwofil,rwofic ! weight file names   
 
 PUBLIC el0,elp,el,elc,unc0,uncp,unc,uncc,ini0,inip,initwo,inic,cov0,covp,covc,covtwo
 PUBLIC delno0,delnop,delnor,delnoc,csino0,csinop,csinor,csinoc,rmsh0,rmshp,rmsh,rmshc
 PUBLIC m,mp,mall,mc,obs,obsw,obsc,obswc,obs0,obsp,obstwo,obsflag,iob0,iobp,iobtwo,iobc,error_model,nobx
 PUBLIC astna0,astnap,astnac,astnaj
+PUBLIC elefi0,elefip,eletwo,iunel0,iunelp,iunelt,iunelc,rwofi0,rwofip,rwotwo,rwofil,rwofic
 ! subroutines
 PUBLIC sta_cop, obs_cop,set_state_def,orb_sel2,orb_sel
 

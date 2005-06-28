@@ -51,7 +51,7 @@ PRIVATE
 
 ! PUBLIC SUBROUTINEs
 PUBLIC :: fdiff_cor, diff_cor, sort_obs, unsort_obs, fit_weight ,difini, rejini
-PUBLIC :: mag_est, min_sol, rms_compute, write_photom, constr_fit
+PUBLIC :: mag_est, min_sol, rms_compute, write_photom, constr_fit, fourdim_fit
 PUBLIC :: blockset
 
 ! PARAMETERs
@@ -152,12 +152,10 @@ END SUBROUTINE errmod_set
 ! =========================================                             
 ! differential corrections interface routine for FITOBS                 
 ! =========INTERFACE=============================                       
-SUBROUTINE fdiff_cor(batch,iarc,obs0,ini0,ok,cov0,               &
-     &     el0,m,obs,obsw,nobs,                             &
-     &     rwofi0,iun20,iun8,elc,uncert,csino0,delno0,rmsh,succ) 
+SUBROUTINE fdiff_cor(batch,iarc,obs0,ini0,ok,cov0,el0,m,obs,obsw,nobs,    &
+     &     rwofi0,elc,uncert,csino0,delno0,rmsh,succ) 
 ! =========INPUT==============================
   USE util_suit
-  IMPLICIT NONE
   LOGICAL, INTENT(IN) :: batch                          
   INTEGER, INTENT(IN) :: iarc ! arc: 1,2 arcs, 3 together; 
 !                         <0 to avoid rwo output
@@ -169,7 +167,6 @@ SUBROUTINE fdiff_cor(batch,iarc,obs0,ini0,ok,cov0,               &
   TYPE(ast_obs),DIMENSION(m), INTENT(IN) :: obs
   TYPE(ast_wbsr),DIMENSION(m), INTENT(INOUT) :: obsw
   character*60, INTENT(IN) :: rwofi0  ! residuals and weights file name    
-  INTEGER, INTENT(IN) :: iun20,iun8 ! output units
 ! ==========INPUT/OUTPUT=============================                   
 ! no. observations used                     
   INTEGER, INTENT(INOUT) :: nobs 
@@ -226,12 +223,10 @@ SUBROUTINE fdiff_cor(batch,iarc,obs0,ini0,ok,cov0,               &
      CALL whicor(interactive,icor,ncor,inew) 
   ENDIF
 ! differential corrections                                              
-  iun_log=iun20
-! to be removed....
   IF(batch)THEN 
-     iunf=-iun20 
+     iunf=-abs(iun_log) 
   ELSE 
-     iunf=iun20 
+     iunf=abs(iun_log)
   ENDIF
   CALL diff_cor(m,obs,obsw,el0,icor,iunf,elc,uncert,csino0,delno0,succ)
   IF(.not.batch) WRITE(*,*)' RMS of weighed residuals is ',csino0
@@ -273,18 +268,18 @@ SUBROUTINE fdiff_cor(batch,iarc,obs0,ini0,ok,cov0,               &
         cov0=.false. 
      ENDIF
 ! output covariance in .fga file, not in batch                          
-     IF(.not.batch.and.verb_dif.gt.9.and.iun8.ge.0)THEN 
+     IF(.not.batch.and.verb_dif.gt.9.and.iun_covar.ge.0)THEN 
         IF(iarc.eq.1)then 
-           WRITE(iun8,*) 'COVARIANCE MATRIX FOR FIRST ARC' 
+           WRITE(iun_covar,*) 'COVARIANCE MATRIX FOR FIRST ARC' 
         ELSEIF(iarc.eq.2)then 
-           WRITE(iun8,*) 'COVARIANCE MATRIX FOR SECOND ARC' 
+           WRITE(iun_covar,*) 'COVARIANCE MATRIX FOR SECOND ARC' 
         ELSEIF(iarc.eq.4)THEN 
-           WRITE(iun8,*)'COVARIANCE MATRIX FOR BOTH ARCS' 
+           WRITE(iun_covar,*)'COVARIANCE MATRIX FOR BOTH ARCS' 
         ENDIF
-        CALL outcov(iun8,icor,uncert%g,uncert%c) 
+        CALL outcov(iun_covar,icor,uncert%g,uncert%c) 
      ENDIF
 ! improved orbital elements are accepted                                
-     el0=elc   ! CALL vcopy(6,eqc,eq0) 
+     el0=elc  
 ! observations used                                                     
      nobs=0 
      DO i=1,m 
@@ -296,7 +291,7 @@ END SUBROUTINE fdiff_cor
 ! Copyright 1998-2004, The Orbfit Consortium                                 
 ! ===================================================================   
 ! FOURDIM_FIT  linearly constrained differential corrector
-!              only for attrubutable elements, fixed r, rdot    
+!              only for attributable elements, fixed r, rdot    
 ! ===================================================================   
 ! version 3.2, 8 November 2004
 !                                        
@@ -313,7 +308,7 @@ END SUBROUTINE fdiff_cor
 ! ============= REMARK ===============================================  
 ! The weights are constant in this routine                              
 ! =============INTERFACE===== ========================================= 
-SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
+SUBROUTINE fourdim_fit(m,obs,obsw,el0,    &
      &       elc,uncert4,uncert,csinor,delnor,rmsh,nused,succ)         
 ! ===================================================================== 
   USE pred_obs
@@ -322,7 +317,6 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
   INTEGER, INTENT(IN) ::  m ! number of observations
   TYPE(ast_obs), DIMENSION(m), INTENT(IN)  :: obs
   TYPE(ast_wbsr), DIMENSION(m), INTENT(INOUT) :: obsw 
-  INTEGER, INTENT(IN) ::  iunf ! unit file to write output  
   TYPE(orbit_elem), INTENT(INOUT) :: el0  ! epoch time, initial elements       
 ! ================output ==========================
   TYPE(orbit_elem), INTENT(INOUT) :: elc  ! corrected elements
@@ -351,7 +345,7 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
 ! to preserve integrity of obs_s
   DOUBLE PRECISION alobs
 ! first derivatives of observations                          
-  DOUBLE PRECISION g(nob2x,6),gr(nob2x,6),gs(nob2x,6)
+  DOUBLE PRECISION g(nob2x,6),gr(nob2x,6)
 !  corr. and residuals norm, their controls                             
   integer ider,icor(6),icor6(6),nsolv 
   DOUBLE PRECISION csino0,csino1,mu,rescov,gam(6,6),c(6,6) 
@@ -370,8 +364,6 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
   INTEGER ir ! index for relaxation loop, to avoid bizarre corrections
 ! unit for output                                                       
   integer iun 
-! scaling LOV
-  DOUBLE PRECISION, DIMENSION(6) :: scales 
 ! ====================================================================  
 ! only for attributable elements
   IF(el0%coo.ne.'ATT')THEN
@@ -379,7 +371,7 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
      STOP
   ENDIF
 ! number of solve-for variables                                         
-  icor(1)=0 
+  icor=0 
   icor(1:4)=1 
   icor6=1 ! for final matrices
   ! ====================================================================  
@@ -394,11 +386,9 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
 ! Initialisation with starting value for elements                       
   elc=el0
 ! ====================================================================  
-  iun=abs(iunf) 
-  if(iunf.gt.0)then 
-     if(verb_dif.gt.19) write(*,*)'starting values ',  el0 
-     if(verb_dif.gt.9)write(iun,*)'starting values ', el0 
-  endif
+  iun=abs(iun_log) 
+  if(verb_dif.gt.9)write(iun,*)'starting values ', el0 
+  if(verb_dif.gt.19) write(*,*)'starting values ',  el0 
 ! ================== main loop ==============================           
 ! iteration control parameters: use default
 ! assign ider 
@@ -419,7 +409,7 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
            CALL alph_del(elc,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
          &           adot,ddot,pha,dis,dsun)
            IF(kill_propag)THEN
-              WRITE(*,*)' constr_fit: kill_propag'
+              WRITE(*,*)' fourdim_fit: kill_propag'
               succ=.false.
               kill_propag=.false.
               RETURN
@@ -429,8 +419,8 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
         ELSEIF(obs_s(j)%type.eq.'R'.or.obs_s(j)%type.eq.'V')THEN 
            CALL r_rdot(elc,tauj,iocj,obs_s(j)%tech,vel,pos,alj,dej,drde,dvde,ider) 
         ELSE 
-           WRITE(*,*)'constr_fit: obs. type ',obs_s(j)%type, ' not known' 
-           STOP 'constr_fit: obstype' 
+           WRITE(*,*)'fourdim_fit: obs. type ',obs_s(j)%type, ' not known' 
+           STOP 'fourdim_fit: obstype' 
         ENDIF
         CALL set_restart(.false.) 
 ! Compute residuals, form matrix g=-d(csi)/d(eq)  
@@ -451,29 +441,13 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
            g(2*j-1,1:6)=0.d0
            g(2*j,1:6)=dvde
         ELSE
-           WRITE(*,*)'constr_fit: obs%type= ',obs_s(j)%type, ' not known'
+           WRITE(*,*)'fourdim_fit: obs%type= ',obs_s(j)%type, ' not known'
         ENDIF
         obsw_s(j)%resc_def=.true.
 61   ENDDO
      no=2*m
-! ===========linear constraint=============================
-     CALL min_sol(obs_s,obsw_s,m,g,icor6,iun,                         &
-     &                uncert%c,deqv,uncert%g,csinor,indp,cond)
-     IF(indp.ne.0) GOTO 9
-! scaling of matrix d (Xi)/dX     
-     IF(scaling_lov)THEN
-        CALL scale_coef(elc%coo,elc%coord,scales)
-        DO i=1,no
-           DO j=1,6
-              gs(i,j)=g(i,j)/scales(j)
-           ENDDO
-        ENDDO
-     ELSE
-        scales=1.d0
-        gs(1:no,1:6)=g(1:no,1:6)
-     ENDIF
 ! reduced design matrix neglecting derivatives w.r. to r,rdot
-     gr(1:no,1:4)=gs(1:no,1:4)
+     gr(1:no,1:4)=g(1:no,1:4)
      gr(1:no,5:6)=0.d0 
 ! ===========one differential corrections step=================         
 ! Compute solution of linear least squares    
@@ -481,29 +455,25 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
 &               csinor,indp,cond)
      IF(indp.ne.0) GOTO 9
      IF(it.eq.1)csino0=csinor
-! convert correction to unscaled coordinates
-     deq=deq/scales
 ! Update solution 
      elc%coord=elc%coord+deq 
 ! norm of the correction: the zeros do not matter!                      
-     delnor=snorm(deq,c,6,6) 
+     delnor=snorm(deq,uncert4%c,6,6) 
      IF(verb_dif.ge.9)write(iun,200)it,csinor,delnor,elc%coord
      IF(verb_dif.ge.19)write(*,200)it,csinor,delnor,elc%coord 
 200  format(' *** iteration ',i3,' RMS residuals =',1p,d12.4,    &
    &        '   norm corr =',d12.4,'  new elem values:'/0p,6f13.7/)   
 ! control against hyperbolic and bizarre orbits                         
      IF(bizarre(elc,ecc))THEN 
-        IF(verb_dif.ge.19)write(*,*)' constr_fit: iter. ',it,' bizarre; e=',ecc
-        IF(verb_dif.ge.9) write(iun,*)' constr_fit: iter. ',it,' bizarre; e=',ecc
+        IF(verb_dif.ge.19)write(*,*)' fourdim_fit: iter. ',it,' bizarre; e=',ecc
+        IF(verb_dif.ge.9) write(iun,*)' fourdim_fit: iter. ',it,' bizarre; e=',ecc
         succ=.false. 
         csinor=csino0
         return 
      ENDIF
 ! Check if we need another iteration                                    
      if(delnor.lt.delcr)then 
-        IF(verb_dif.ge.9)THEN
-             if(iunf.gt.0)write(iun,*)' convergence corrections small' 
-        endif
+        IF(verb_dif.ge.9)write(iun,*)' convergence corrections small' 
         IF(verb_dif.ge.19)write(*,*)' convergence corrections small'
         succ=.true. 
         goto 70 
@@ -521,7 +491,12 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
            itg=itg+1 
         endif
         if(itg.gt.itgmax)then 
-           goto 70 
+           IF(succ)THEN
+              GOTO 70 ! store residuals, normalize covariance, etc. 
+           ELSE
+              csinor=csino0
+              RETURN  ! leave residuals from first iteration
+           ENDIF
         endif
      endif
      csino1=csinor 
@@ -535,7 +510,10 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
         WRITE(iun,*)' non convergent ',it,itg
      ENDIF
   ENDIF
-! =========covariance (and normal matrix) rescaling==============
+! =========covariance (and normal matrix) computing and rescaling==============
+  CALL min_sol(obs_s,obsw_s,m,g,icor6,iun,uncert%c,deqv,uncert%g,csinor,indp,cond)
+  IF(indp.eq.0)uncert%succ=succ
+  uncert%ndim=elc%ndim
   nsolv=6 
   nused=0 
   DO i=1,m 
@@ -547,7 +525,7 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
         ENDIF
      ENDIF
   ENDDO
-  mu=rescov(nsolv,nused,csinor) 
+  mu=rescov(nsolv,nused,csinor)
 ! apply rescaling to both covariance and normal matrix                    
   DO  i=1,6 
      DO  j=1,6 
@@ -557,13 +535,11 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,iunf,    &
         uncert4%c(i,j)=uncert4%c(i,j)/mu**2 
      ENDDO
   ENDDO
-  uncert%succ=succ
-  uncert%ndim=elc%ndim
   uncert4%succ=succ
   uncert4%ndim=elc%ndim
 ! Output final result, with norm of the residuals                            
   IF(verb_dif.ge.9.and.verb_dif.lt.19)write(*,201)it,csinor,delnor 
-201  format(' done constr. iter. ',i3,'  RMS=',1p,d12.4,' last corr. =',d12.4)
+201  format(' done 4-dim fit iter. ',i3,'  RMS=',1p,d12.4,' last corr. =',d12.4)
   IF(verb_dif.lt.9.and.verb_dif.gt.2)write(iun,201)it,csinor,delnor 
 ! reordering the residuals for output                                   
   CALL unsort_obs(iposs,m,obsw_s,obsw)
@@ -595,7 +571,6 @@ END SUBROUTINE fourdim_fit
 !        obs observations
 !        obsw weights/bias
 !        el0 asteroid elements (NOT CHANGED)                           
-!        iunf = unit file for output; if <0, no residuals output        
 ! Output elc corrected orbital elements at same time  
 !        peq vector to which deq must be orthogonal; in input
 !            it is used to give sign        
@@ -606,8 +581,7 @@ END SUBROUTINE fourdim_fit
 ! ============= REMARK ===============================================  
 ! The weights are constant in this routine                              
 ! =============INTERFACE===== ========================================= 
-SUBROUTINE constr_fit(m,obs,obsw,el0,iunf,    &
-     &       peq,elc,uncert,csinor,delnor,rmsh,nused,succ)         
+SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,succ)
 ! ===================================================================== 
   USE pred_obs
   USE close_app, ONLY: kill_propag
@@ -615,7 +589,6 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,iunf,    &
   INTEGER, INTENT(IN) ::  m ! number of observations
   TYPE(ast_obs), DIMENSION(m), INTENT(IN)  :: obs
   TYPE(ast_wbsr), DIMENSION(m), INTENT(INOUT) :: obsw 
-  INTEGER, INTENT(IN) ::  iunf ! unit file to write output  
   TYPE(orbit_elem), INTENT(INOUT) :: el0  ! epoch time, initial elements       
 ! ================output ==========================
   DOUBLE PRECISION, INTENT(INOUT) :: peq(6) !  orthogonal vector
@@ -625,7 +598,7 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,iunf,    &
   INTEGER nused ! no obs. used 
   LOGICAL succ ! success flag 
 ! =============END INTERFACE============================================
-!  TYPE(orbit_elem) elb
+  TYPE(orbit_elem) elb
 ! proper motion, data to compute magnitude
   DOUBLE PRECISION :: adot,ddot,pha,dis,dsun,elo,gallat, appmag 
 ! input data sorted 
@@ -684,11 +657,9 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,iunf,    &
 ! Initialisation with starting value for elements                       
   elc=el0
 ! ====================================================================  
-  iun=abs(iunf) 
-  if(iunf.gt.0)then 
-     if(verb_dif.gt.19) write(*,*)'starting values ',  el0 
-     if(verb_dif.gt.9)write(iun,*)'starting values ', el0 
-  endif
+  iun=abs(iun_log) 
+  if(verb_dif.gt.9)write(iun,*)'starting values ', el0 
+  if(verb_dif.gt.19) write(*,*)'starting values ',  el0 
 ! ================== main loop ==============================           
 ! iteration control parameters: use default
 ! assign ider 
@@ -779,21 +750,21 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,iunf,    &
 ! convert correction to unscaled coordinates
      deq=deq/scales
 ! Update solution 
-     elc%coord=elc%coord+deq 
+!     elc%coord=elc%coord+deq 
 ! relaxation loop
-!     elb=elc
-!     DO ir=1,4
+     elb=elc
+     DO ir=1,4
 ! Update solution 
-!        elb%coord=elc%coord+deq 
-!        IF(bizarre(elb,ecc))THEN
-!           IF(verb_dif.ge.10)WRITE(*,*)' incfit: short step to avoid ecc=',ecc
-!           deq=deq/2.d0
-!           elb%coord=elc%coord+deq 
-!        ELSE
-!           EXIT
-!        ENDIF
-!     ENDDO            
-!     elc=elb   
+        elb%coord=elc%coord+deq 
+        IF(bizarre(elb,ecc))THEN
+           IF(verb_dif.ge.10)WRITE(*,*)' constr_fit: short step to avoid ecc=',ecc
+           deq=deq/2.d0
+           elb%coord=elc%coord+deq 
+        ELSE
+           EXIT
+        ENDIF
+     ENDDO
+     elc=elb   
 ! norm of the correction: the zeros do not matter!                      
      delnor=snorm(deqv,c,6,6) 
      IF(verb_dif.ge.9)write(iun,200)it,csinor,delnor,elc%coord
@@ -806,13 +777,11 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,iunf,    &
         IF(verb_dif.ge.9) write(iun,*)' constr_fit: iter. ',it,' bizarre; e=',ecc
         succ=.false. 
         csinor=csino0
-        return 
+        RETURN
      ENDIF
 ! Check if we need another iteration                                    
      if(delnor.lt.delcr)then 
-        IF(verb_dif.ge.9)THEN
-             if(iunf.gt.0)write(iun,*)' convergence corrections small' 
-        endif
+        IF(verb_dif.ge.9)write(iun,*)' convergence corrections small' 
         IF(verb_dif.ge.19)write(*,*)' convergence corrections small'
         succ=.true. 
         goto 70 
@@ -830,7 +799,12 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,iunf,    &
            itg=itg+1 
         endif
         if(itg.gt.itgmax)then 
-           goto 70 
+           IF(succ)THEN
+              GOTO 70 ! store residuals, normalize covariance, etc. 
+           ELSE
+              csinor=csino0
+              RETURN  ! leave residuals from first iteration
+           ENDIF
         endif
      endif
      csino1=csinor 
@@ -869,7 +843,7 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,iunf,    &
 ! Output final result, with norm of the residuals                            
   IF(verb_dif.ge.9.and.verb_dif.lt.19)write(*,201)it,csinor,delnor 
 201  format(' done constr. iter. ',i3,'  RMS=',1p,d12.4,' last corr. =',d12.4)
-  IF(verb_dif.lt.9.and.verb_dif.gt.2)write(iun,201)it,csinor,delnor 
+!  IF(verb_dif.lt.9.and.verb_dif.gt.2)write(iun,201)it,csinor,delnor 
 ! reordering the residuals for output                                   
   CALL unsort_obs(iposs,m,obsw_s,obsw)
 ! unsort  dmagn, dsunv,disv,phav,adotv,ddotv                      
@@ -912,8 +886,7 @@ END SUBROUTINE constr_fit
 !        obsw contains residuals, chi, selection flags, etc.
 !        succ logical success flag                                      
 ! =============INTERFACE===== ========================================= 
-SUBROUTINE diff_cor(m,obs,obsw,el0,icor,  &
- &    iunf,elc,uncert,csinor,delnor,succ) 
+SUBROUTINE diff_cor(m,obs,obsw,el0,icor,iunf,elc,uncert,csinor,delnor,succ) 
 ! ================input data==========================  
   INTEGER m ! no. observations 
 ! new data types
@@ -974,7 +947,7 @@ SUBROUTINE diff_cor(m,obs,obsw,el0,icor,  &
   elc=el0 
 ! output unit
   iun=abs(iunf) 
-  IF(iunf.gt.19)write(*,220) el0%coo,el0%coord 
+  IF(verb_dif.gt.19)write(*,220) el0%coo,el0%coord 
   IF(iunf.gt.0.and.verb_dif.gt.9)THEN 
      write(iun,220) el0%coo,el0%coord 
 220  format(' starting values ', a3/6f13.7) 
@@ -1028,6 +1001,7 @@ SUBROUTINE diff_cor(m,obs,obsw,el0,icor,  &
         IF(bizarre(elc,ecc))THEN 
            IF(verb_dif.ge.19)write(*,*)' diff_cor: iter. ',it,' bizarre; e=',ecc
            IF(verb_dif.ge.9)write(iun,*)' diff_cor: iter. ',it,' bizarre; e=',ecc
+!           WRITE(iun,*)elc%coo, elc%coord 
            succ=.false. 
 !     return saved rms                                                  
            csinor=csinor0 
@@ -1053,7 +1027,8 @@ SUBROUTINE diff_cor(m,obs,obsw,el0,icor,  &
            itg=itg+1 
            IF(verb_dif.ge.9)write(iun,*)' target function increasing ' 
            IF(verb_dif.ge.19)write(*,*)' target function increasing ' 
-           succ=.false. 
+           succ=.false.
+!           succ=.true. 
         ELSEIF(csinor.gt.csino1*divrat)THEN 
            itg=itg+1 
            IF(verb_dif.ge.9)write(iun,*)' target function paralyzed ' 
@@ -1072,9 +1047,10 @@ SUBROUTINE diff_cor(m,obs,obsw,el0,icor,  &
         csino1=csinor 
 ! +++++++++++++++++++++ End Inner Loop +++++++++++++++++++++++++++++    
      ENDDO 
-     succ=.false. 
+!     succ=.false. 
      IF(verb_dif.ge.19)write(*,*)' too many iterations' 
      IF(verb_dif.ge.9)write(iun,*)' too many iterations' 
+     IF(succ) GOTO 77
 !           Must get computed orbit and selection flags to agree:             
      IF(autrej) CALL sin_cor(m,obs_s,obsw_s,elc,icor,              &
      &           iun,matonly,delnor,csinor,uncert) 
@@ -2628,11 +2604,10 @@ SUBROUTINE mag_est(m,obs,obsw,h0,rmsh)
 !         obs(j)%mag_band=col
      avail(j)=smag.ne.'      '.and.                              &
      & (col.eq.'B'.or.col.eq.'V'.or.col.eq.'R'.or.col.eq.'U'.or.col.eq.'J'.or. &
-     &   col.eq.'I'.or.col.eq.'C'.or.col.eq.'z'.or.col.eq.'i'.or.col.eq.'H'    &
-     &   .or.col.eq.'g'.or.col.eq.' ')    
-     IF(.not.(col.eq.'B'.or.col.eq.'V'.or.col.eq.'R'.or.col.eq.'U'    &
-     &   .or.col.eq.'J'.or.col.eq.'I'.or.col.eq.'C'.or.col.eq.'z'.or.col.eq.'i' &
-     &   .or.col.eq.'H'.or.col.eq.'g'.or.col.eq.' '))THEN   
+     &   col.eq.'I'.or.col.eq.'C'.or.col.eq.'z'.or.col.eq.'i'.or.col.eq.'g'.or.col.eq.'H'.or.col.eq.' ')    
+     IF(.not.(col.eq.'B'.or.col.eq.'V'.or.col.eq.'R'.or.col.eq.'U'.or.col.eq.'J'    &
+     &   .or.col.eq.'I'.or.col.eq.'C'.or.col.eq.'z'.or.col.eq.'i'.or.col.eq.'g' &
+     &   .or.col.eq.'H'.or.col.eq.' '))THEN   
         IF(ierrou.gt.0)THEN 
            WRITE(ierrou,*) 'Unknown Color:',col,' Obs #',j 
            numerr=numerr+1 
@@ -3000,6 +2975,7 @@ LOGICAL FUNCTION bizarre(el,ecc)
         IF(r.ge.1000.d0)THEN
            bizarre=.true.
            ecc=1.d0
+           WRITE(*,*)' bizset: range too large=',r
            RETURN
         ENDIF
      ELSEIF(el%coo.eq.'ATT')THEN

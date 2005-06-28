@@ -18,6 +18,7 @@
 ! julian        calendar to julian date                                 
 !                                                                       
 ! times         barycentric to terrestrial time (for rrdot only)        
+! calendwri     write calendar date 
 !                                                                       
 !                                                                       
 ! Copyright (C) 1997 by Mario Carpino (carpino@brera.mi.astro.it)       
@@ -1059,3 +1060,22 @@
       RETURN 
 !                                                                       
       END                                           
+! ======================================================================
+! calendwri                                                             
+! composes a calendar date in the appropriate format                    
+! for printing                                                          
+! ======================================================================
+SUBROUTINE calendwri(tcl,calend) 
+  IMPLICIT NONE 
+  DOUBLE PRECISION :: tcl             ! input date MJD   
+  CHARACTER(LEN=14) :: calend         ! output string   
+  INTEGER iyear,imonth,iday           ! calendar date variables 
+  DOUBLE PRECISION :: hour,h24
+! ======================================================================= 
+! calendar date                                                         
+  call mjddat(tcl,iday,imonth,iyear,hour) 
+  h24=hour/24.d0 
+  IF(h24.gt.0.999d0)h24=0.999d0 
+  write(calend,'(i4,a1,i2.2,a1,i2.2,f4.3)')                         &
+     &     iyear,'/',imonth,'/',iday,h24                                
+END SUBROUTINE calendwri

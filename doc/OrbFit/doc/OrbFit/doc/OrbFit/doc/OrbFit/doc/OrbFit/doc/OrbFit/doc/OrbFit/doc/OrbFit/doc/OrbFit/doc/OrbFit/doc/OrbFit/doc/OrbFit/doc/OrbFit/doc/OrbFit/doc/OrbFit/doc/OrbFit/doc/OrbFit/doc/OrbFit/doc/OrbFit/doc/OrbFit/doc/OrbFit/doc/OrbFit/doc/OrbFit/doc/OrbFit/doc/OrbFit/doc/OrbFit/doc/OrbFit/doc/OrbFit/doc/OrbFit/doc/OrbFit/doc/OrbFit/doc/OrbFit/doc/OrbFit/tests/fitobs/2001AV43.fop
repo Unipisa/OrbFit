@@ -1,0 +1,22 @@
+! input file for fitobs
+fitobs.
+! first arc
+        .astna0='2001 AV43'    ! full name, first arc
+        .obsdir0='obsdata'    ! directory of observs. file, first arc 
+        .elefi0='2001AV43.eq0' ! first arc elements file
+
+! second arc
+!        .astnap='2004 MN404'    ! full name, second arc
+!        .obsdirp='obsdata'    ! directory of observs. file, second arc 
+
+propag.
+        .iast=3         ! 0=no asteroids with mass n=no. of massive asteroids 
+        .npoint=600     ! minimum number of data points for a deep close appr
+        .dmea=0.1d0     ! min. distance for control of close-app. to Earth only
+        .dter=0.05d0    ! min. distance for control of close-app. to MVM
+
+IERS.
+        .extrapolation=.T. ! extrapolation of Earth rotation
+
+reject.
+        .rejopp=.false.  ! reject entire opposition

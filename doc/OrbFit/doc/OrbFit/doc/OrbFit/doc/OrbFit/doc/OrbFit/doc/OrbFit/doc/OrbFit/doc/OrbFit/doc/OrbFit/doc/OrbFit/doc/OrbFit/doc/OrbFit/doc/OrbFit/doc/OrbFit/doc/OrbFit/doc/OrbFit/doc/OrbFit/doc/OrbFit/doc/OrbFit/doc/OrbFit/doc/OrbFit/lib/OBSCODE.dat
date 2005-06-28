@@ -145,7 +145,7 @@
 144   1.6660 0.65549 +0.75268 Bray et Lu 
 145   4.5597 0.62734 +0.77614 's-Gravenwezel 
 146  10.6673 0.71715 +0.69487 Frignano 
-147   8.5814 0.70043 +0.71139 Osservatorio Astronomico di Suno
+147   8.573910.700430+0.711392Osservatorio Astronomico di Suno
 148   2.0375 0.72481 +0.68667 Guitalens 
 149   4.2236 0.65403 +0.75396 Beine-Nauroy 
 150   2.1572 0.65806 +0.75045 Maisons Laffitte 
@@ -186,7 +186,7 @@
 185   7.4219 0.67876 +0.73200 Observatoire Astronomique Jurassien-Vicques
 186  66.8821 0.77679 +0.62781 Kitab
 187  17.0733 0.61314 +0.78735 Astronomical Observatory, Borowiec
-188  66.88   0.781   +0.622   Shokin Majdanak
+188  66.8964 0.78206 +0.62176 Majdanak
 189   6.1514 0.69340 +0.71823 Geneva (before 1967)
 190  68.68   0.783   +0.619   Gissar
 191  68.7811 0.78306 +0.62006 Dushanbe
@@ -996,7 +996,7 @@ A44  13.6972 0.66609 +0.74346 Altschwendt
 A45   9.3620 0.62525 +0.77786 Karrenkneul 
 A46  16.5825 0.65349 +0.75447 Lelekovice 
 A47  16.6031 0.75962 +0.64829 Matera 
-A48  10.8885 0.70401 +0.70782 Verona 
+A48  10.8885 0.70401 +0.70782 Povegliano Veronese 
 A49  17.6372 0.50372 +0.86098 Uppsala-Angstrom
 A50  28.9973 0.64407 +0.76245 Andrushivka Astronomical Observatory
 A51  18.6667 0.5837  +0.8093  Danzig 
@@ -1022,6 +1022,9 @@ A70  25.2033 0.42654 +0.90144 Lumijoki
 A71  18.4500 0.6647  +0.7446  Stixendorf
 A72  13.6222 0.62904 +0.77481 Radebeul Observatory 
 A73  16.2895 0.66788 +0.74183 Penzing Astrometric Obs., Vienna 
+A74   8.7625 0.64195 +0.76422 Bergen-Enkheim Observatory 
+A75   2.1861 0.75124 +0.65783 Fort Pius Observatory, Barcelona 
+A76  20.8356 0.66948 +0.74037 Andromeda Observatory, Miskolc 
 A83  29.9969 0.45945 +0.88525 Jakokoski Observatory
 A84  30.3333 0.80175 +0.59632 TUBITAK National Observatory
 A85  30.8065 0.68881 +0.72252 Odessa Astronomical Observatory, Kryzhanovka
@@ -1066,6 +1069,7 @@ G75 243.2783 0.8351  +0.5487  Starry Knight Observatory, Coto de Caza
 G76 242.4178 0.83388 +0.55015 Altimira Observatory, Coto de Caza 
 G78 244.3127 0.84158 +0.53832 Desert Wanderer Observatory, El Centro 
 G88 247.8881 0.83064 +0.55514 LAMP Observatory, New River 
+G89 248.3069 0.81933 +0.57197 Kachina Observatory, Flagstaff 
 G90 248.9658 0.84301 +0.53639 Three Buttes Observatory, Tucson 
 G91 249.1154 0.85205 +0.52249 Whipple Observatory, Mt. Hopkins--2MASS
 G92 249.2814 0.84920 +0.52660 Jarnac Observatory, Vail 
@@ -1122,6 +1126,7 @@ I02 289.1941 0.86560 -0.49980 Cerro Tololo Observatory, La Serena--2MASS
 I03 289.2704 0.87346 -0.48603 European Southern Obs., La Silla--ASTROVIRTEL
 I04 289.3152 0.86693 -0.49697 Mamalluca Observatory 
 I05 289.2980 0.87559 -0.48217 Las Campanas Observatory-TIE
+I06 289.8061 0.74801 +0.66147 Werner Schmidt Obs., Dennis-Yarmouth Regional HS
 I10 291.8201 0.92164 -0.38771 CAOS-CampoCatino Austral Observatory Survey
 I30 299.3417 0.83966 -0.54131 Observatorio Geminis Austral
 I31 299.3649 0.83995 -0.54086 Observatorio Astronomico del Colegio Cristo Rey

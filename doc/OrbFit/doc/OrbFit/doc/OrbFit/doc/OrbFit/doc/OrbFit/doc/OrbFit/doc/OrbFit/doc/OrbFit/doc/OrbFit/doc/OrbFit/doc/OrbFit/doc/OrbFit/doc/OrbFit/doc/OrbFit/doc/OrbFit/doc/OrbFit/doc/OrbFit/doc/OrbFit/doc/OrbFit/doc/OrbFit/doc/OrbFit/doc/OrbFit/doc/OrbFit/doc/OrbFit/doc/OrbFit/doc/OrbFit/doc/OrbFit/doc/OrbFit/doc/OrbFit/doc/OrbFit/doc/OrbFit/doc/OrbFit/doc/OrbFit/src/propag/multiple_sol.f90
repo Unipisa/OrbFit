@@ -13,12 +13,27 @@ PRIVATE
 ! PUBLIC ROUTINEs
 PUBLIC :: f_multi, nmulti, mult_input
 PUBLIC :: fmuobs, fmupro, fmuplo, outmul, prop_sig
-
+! former lov_int.mod
+PUBLIC :: lovinit,lovobs,lovmagn,lovinterp
 ! PUBLIC data
-! ====================================
-! parmul.h : maximum number of multiple solutions
-INTEGER, PARAMETER::  mulx=4001
-PUBLIC mulx
+! maximum number of multiple solutions
+  INTEGER, PARAMETER::  mulx=4001
+! first, last, reference solution                            
+  INTEGER imip,imim,imi0
+! multiple solution arrays                                                
+  TYPE(orbit_elem), DIMENSION(mulx) :: elm
+  DOUBLE PRECISION csinom(mulx),delnom(mulx)
+  TYPE(orb_uncert), DIMENSION(mulx) :: unm
+  DOUBLE PRECISION tdt_cat ! common epoch time
+  DOUBLE PRECISION delta_sigma ! step in sigma 
+  DOUBLE PRECISION v_inf(mulx)
+  PUBLIC mulx, imip,imim,imi0,elm,unm,csinom,delnom,v_inf,tdt_cat,delta_sigma
+  DOUBLE PRECISION moid_m(mulx), dnp_m(mulx), dnm_m(mulx) ! moid and nodal dist
+  DOUBLE PRECISION sigq(mulx) ! sigma_Q,
+  INTEGER, DIMENSION(mulx) :: imul ! obsolete copy of indexes, imul(j)=j or 0 
+  PUBLIC moid_m, dnp_m ,dnm_m, sigq,imul
+! common data, not public so far                            
+
 
 CONTAINS                                                                     
 ! PUBLIC ROUTINES                                                       
@@ -54,8 +69,7 @@ CONTAINS
 ! ===============INTERFACE========================                      
 SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
      &     el0,uncert,csinor,delnor,                  &
-     &     mc, obs, obsw,iun20,elm,unm,csinom,delnom,  &
-     &     sigma,imult,imim,imip,imi0,sig1,sig2) 
+     &     mc, obs, obsw,sigma,imult,sig1,sig2) 
 ! ================INPUT===========================                      
   LOGICAL batch ! batch/interactive
   INTEGER mc ! number of observations
@@ -67,27 +81,19 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
 ! normal and covariance matrices, norms of residuals, of last correction
   TYPE(orb_uncert), INTENT(IN) :: uncert ! 
   DOUBLE PRECISION, INTENT(IN) :: csinor,delnor 
-  INTEGER iun20 ! output unit 
   LOGICAL obsc,inic,covc ! logical flags  
 ! ========INPUT, but can also be assigned inside ===================
 ! number of alternate solutions
   INTEGER, INTENT(INOUT) ::  imult 
-! ===============OUTPUT=========================                        
-! multiple solutions elements                                           
-  TYPE(orbit_elem), INTENT(OUT) :: elm(mulx) 
-! normal and covariance matrices  
-  TYPE(orb_uncert), INTENT(OUT) :: unm(mulx)       
-! norms of residuals, of last correction                                
-  DOUBLE PRECISION csinom(mulx),delnom(mulx),sigq(mulx),rescov 
-! no. of sigma along the line                                           
-  DOUBLE PRECISION sigma 
-! first, last, reference solution                                       
-  INTEGER, INTENT(OUT) ::  imim,imip,imi0 
+! max of sigma along the line                                           
+  DOUBLE PRECISION, INTENT(INOUT) ::  sigma 
+! ===============OUTPUT=========================                
 ! success flag                                                          
   LOGICAL, INTENT(OUT) ::  ok 
   DOUBLE PRECISION, INTENT(OUT), OPTIONAL :: sig1,sig2 ! extreme values 
 !               of sigma_Q at imim, imip
-! ==============END INTERFACE=====================                      
+! ==============END INTERFACE===================== 
+  DOUBLE PRECISION rescov  ! function to compute sigma_q
 ! temporary orbit elements
   TYPE(orbit_elem) eltmp
 ! weak direction, rms along it                                          
@@ -102,9 +108,7 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
 ! success flag for diff. correction                                     
   LOGICAL succ 
 ! rms magnitudes                                             
-  DOUBLE PRECISION rmsh 
-! ======== output moid =====================                            
-  DOUBLE PRECISION moid(mulx), dnp(mulx), dnm(mulx) 
+  DOUBLE PRECISION rmsh  
   INTEGER iconv(mulx) 
 ! hack for catalog                                                      
   INTEGER iunctc,le 
@@ -118,17 +122,16 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
   LOGICAl bizarre 
   INTEGER iun,iundump,iunint 
   DOUBLE PRECISION, DIMENSION(6) :: scales
-  iun_log=iun20
-  iun=iabs(iun20) 
-  IF(verb_mul.ge.20)THEN 
-     iundump=abs(iun20) 
+  iun=abs(iun_log) 
+  IF(verb_mul.ge.30)THEN 
+     iundump=abs(iun_log) 
   ELSE 
-     iundump=-abs(iun20) 
+     iundump=-abs(iun_log) 
   ENDIF
-  IF(verb_mul.ge.10)THEN 
-     iunint=abs(iun20) 
+  IF(verb_mul.ge.20)THEN 
+     iunint=abs(iun_log) 
   ELSE 
-     iunint=-abs(iun20) 
+     iunint=-abs(iun_log) 
   ENDIF
 ! ===================================================================== 
 ! check availability of observations and initial condition              
@@ -137,7 +140,7 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
      ok=.false. 
      RETURN 
   ENDIF
-  CALL chereq(2,inic,covc,el0%t,iunint,-1,ok) 
+  CALL chereq(2,inic,covc,el0%t,iunint,ok) 
   IF(.not.ok)THEN 
      WRITE(*,*)' f_multi: no initial data ',inic,covc,el0%t 
      RETURN 
@@ -146,8 +149,7 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
 ! check availability of JPL ephemerides and ET-UT table                 
   CALL chetim(obs(1)%time_tdt,obs(mc)%time_tdt,ok) 
   IF(.not.ok) THEN 
-     WRITE(*,*)' f_multi: no JPL ephem/ET-UT table ',    &
-          &          obs(1)%time_tdt,obs(mc)%time_tdt
+     WRITE(*,*)' f_multi: no JPL ephem/ET-UT table ',obs(1)%time_tdt,obs(mc)%time_tdt
      RETURN 
   ENDIF
 ! ===================================================================== 
@@ -166,7 +168,7 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
      READ(*,*) sigma 
 259  WRITE(*,*)' how many steps on each side?' 
      READ(*,*) imult 
-     WRITE(iun20,*)' sigma=',sigma,'  in ',imult,' steps' 
+     WRITE(iun,*)' sigma=',sigma,'  in ',imult,' steps' 
      IF(2*imult+1.gt.mulx)THEN 
         WRITE(*,*)' too many; max is ',mulx 
         GOTO 259 
@@ -192,16 +194,16 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
         ENDDO
         IF(bizarre(eqf,ecc))THEN 
            dn=dn/ratio 
-           IF(iun20.gt.0)THEN
-              WRITE(iun20,*)' f_multi: shortening to avoid ecc= ',ecc,k,dn
-              IF(verb_mul.gt.19) WRITE(iun20,*)eqf               
-           ENDIF 
+           IF(verb_mul.gt.9)WRITE(iun,*)' f_multi: shortening to avoid ecc= ',ecc,k,dn
+           IF(verb_mul.gt.19) WRITE(iun,*)eqf               
         ELSE 
            GOTO 9 
         ENDIF
      ENDDO
 9    CONTINUE 
   ENDIF
+! store information on stepsize
+  delta_sigma=dn*sigma
 ! ===================================================================== 
 ! nominal solution at the center of the list                            
   imi0=imult+1 
@@ -211,7 +213,7 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
   delnom(imi0)=delnor 
   sigq(imi0)=0.d0 
 ! orbital distance                                                      
-  CALL nomoid(el0%t,elm(imi0),moid(imi0),dnp(imi0),dnm(imi0))
+  CALL nomoid(el0%t,elm(imi0),moid_m(imi0),dnp_m(imi0),dnm_m(imi0))
   iconv(imi0)=0
 ! ===================================================================== 
 ! main loop on number of steps (positive side)                          
@@ -220,44 +222,39 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
      imi=imult+i+1 
      IF(.not.batch)WRITE(*,*)' alternate solution no. ',imi 
      IF(.not.batch)WRITE(iun,*)' alternate solution no. ',imi 
-     CALL prop_sig(batch,elm(imi-1),elc,dn,sigma,                  &
-     &       mc,obs,obsw,iundump,wdir,sdir,fail)                        
+     CALL prop_sig(batch,elm(imi-1),elc,dn,sigma,mc,obs,obsw,wdir,sdir,fail)
 ! check for hyperbolic                                                  
      IF(fail)THEN 
         IF(.not.batch)WRITE(*,*)'step ',imi,' failed' 
         IF(.not.batch)WRITE(*,*)elc 
-        IF(iun20.gt.0)WRITE(iun20,*)'fail in prop_sig, imi= ',imi,dn
+        IF(verb_mul.gt.9)WRITE(iun,*)'fail in prop_sig, imi= ',imi,dn
         imi=imi-1
         GOTO 6 
      ELSEIF(bizarre(elc,ecc))THEN 
         IF(.not.batch)WRITE(*,*)'step ',imi,' bizarre', 'ecc=', ecc 
         IF(.not.batch)WRITE(*,*)elc 
-        IF(iun20.gt.0)WRITE(iun20,*)'bizarre out of  prop_sig, imi= ',imi,ecc,dn
+        IF(verb_mul.gt.9)WRITE(iun,*)'bizarre out of  prop_sig, imi= ',imi,ecc,dn
         imi=imi-1 
         GOTO 6 
      ELSE 
 ! constrained differential corrections:
-         CALL constr_fit(mc,obs,obsw,elc,iundump,    &
-     &       wdir,elm(imi),unm(imi),csinom(imi),delnom(imi),   &
-     &       rmsh,nused,succ)
-!        CALL diff_vin(mc,obs,obsw,elc,wdir,          &
-!     &           iundump,elm(imi),unm(imi),            &
-!     &           csinom(imi),delnom(imi),nused,succ)              
+         CALL constr_fit(mc,obs,obsw,elc,wdir,elm(imi),unm(imi),     &
+     &       csinom(imi),delnom(imi),rmsh,nused,succ)
 ! exit if not convergent                                                
         IF(.not.succ) THEN 
-           IF(iun20.gt.0)WRITE(iun20,*)'fail in constr_fit, imi= ',imi,dn
+           IF(verb_mul.gt.19)WRITE(iun,*)'fail in constr_fit, imi= ',imi,dn
            imi=imi-1 
            GOTO 6 
         ENDIF
 ! orbital distance                                                      
-        CALL nomoid(elm(imi)%t,elm(imi),moid(imi),dnp(imi),dnm(imi))
+        CALL nomoid(elm(imi)%t,elm(imi),moid_m(imi),dnp_m(imi),dnm_m(imi))
         iconv(imi)=0
 ! check for sigQ.le.sigma                                               
         sigq(imi)=sqrt(abs(csinom(imi)**2-csinom(imi0)**2)*nused)/   &
      &             rescov(6,nused,csinor)  
         IF(csinom(imi).lt.csinom(imi0))sigq(imi)=-sigq(imi)
         IF(batch.and.sigq(imi).gt.sigma)THEN 
-           IF(iun20.gt.0)WRITE(iun20,*)'too large sigma_q ',imi,sigq(imi)
+           IF(verb_mul.gt.19)WRITE(iun,*)'too large sigma_q ',imi,sigq(imi)
            IF(sigq(imi).gt.sigma*1.1d0) imi=imi-1
            GOTO 6 
         ENDIF
@@ -273,48 +270,41 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
 ! ===================================================================== 
      imi=imult-i+1 
      IF(.not.batch)WRITE(*,*)' alternate solution no. ',imi 
-     IF(.not.batch)WRITE(iun20,*)' alternate solution no. ',imi 
+     IF(.not.batch)WRITE(iun,*)' alternate solution no. ',imi 
      sigmam=-sigma 
-     CALL prop_sig(batch,elm(imi+1),elc,dn,sigmam,                 &
-     &       mc,obs,obsw,iundump,wdir,sdir,fail)                        
+     CALL prop_sig(batch,elm(imi+1),elc,dn,sigmam,mc,obs,obsw,wdir,sdir,fail) 
 ! check for hyperbolic                                                  
      IF(fail)THEN 
         IF(.not.batch)WRITE(*,*)'step ',imi,' failed' 
         IF(.not.batch)WRITE(*,*)elc 
-        IF(iun20.gt.0)WRITE(iun20,*)'fail in prop_sig, imi= ',imi,dn
+        IF(verb_mul.gt.19)WRITE(iun,*)'fail in prop_sig, imi= ',imi,dn
         imi=imi+1 
         GOTO 8 
      ELSEIF(bizarre(elc,ecc))THEN 
         IF(.not.batch)WRITE(*,*)'step ',imi,' bizarre' 
         IF(.not.batch)WRITE(*,*)elc
-        IF(iun20.gt.0)WRITE(iun20,*)'bizarre out of prop_sig, imi= ',imi,ecc,dn
+        IF(verb_mul.gt.19)WRITE(iun,*)'bizarre out of prop_sig, imi= ',imi,ecc,dn
         imi=imi+1 
         GOTO 8 
      ELSE 
 ! differential corrections:                                             
-        iun=-iun20 
-! for verbose        iun=iun20  
 ! constrained differential corrections:
-         CALL constr_fit(mc,obs,obsw,elc,iundump,    &
-     &       wdir,elm(imi),unm(imi),csinom(imi),delnom(imi),   &
-     &       rmsh,nused,succ)           
-!        CALL diff_vin(mc,obs,obsw,elc,wdir,      &
-!     &           iundump,elm(imi),unm(imi),            &
-!     &           csinom(imi),delnom(imi),nused,succ)              
+         CALL constr_fit(mc,obs,obsw,elc,wdir,elm(imi),unm(imi),     &
+     &       csinom(imi),delnom(imi),rmsh,nused,succ)           
 ! exit if not convergent                                                
         IF(.not.succ)THEN 
-           IF(iun20.gt.0)WRITE(iun20,*)'fail in constr_fit, imi= ',imi,dn
+           IF(verb_mul.gt.19)WRITE(iun,*)'fail in constr_fit, imi= ',imi,dn
            imi=imi+1 
            GOTO 8 
         ENDIF
 ! orbital distance                                                      
-        CALL nomoid(elm(imi)%t,elm(imi),moid(imi),dnp(imi),dnm(imi))
+        CALL nomoid(elm(imi)%t,elm(imi),moid_m(imi),dnp_m(imi),dnm_m(imi))
         iconv(imi)=0
         sigq(imi)=sqrt(abs(csinom(imi)**2-csinom(imi0)**2)*nused)/   &
      &             rescov(6,nused,csinor)  
         IF(csinom(imi).lt.csinom(imi0))sigq(imi)=-sigq(imi)
         IF(batch.and.sigq(imi).gt.sigma)THEN 
-           IF(iun20.gt.0)WRITE(iun20,*)'too large sigma_q ',imi,sigq(imi)
+           IF(verb_mul.gt.19)WRITE(iun,*)'too large sigma_q ',imi,sigq(imi)
            IF(sigq(imi).gt.sigma*1.1d0) imi=imi+1
            GOTO 8 
         ENDIF
@@ -327,44 +317,37 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
 ! extreme values of sigma_Q
   IF(PRESENT(sig1))sig1=sigq(imim)
   IF(PRESENT(sig2))sig2=sigq(imip)
+! catalog reference time
+  tdt_cat=el0%t
   IF(batch)RETURN 
-  CALL tee(iun20,'SUMMARY OF MULTIPLE SOLUTIONS=') 
-  CALL tee(iun20,                                                   &
-     &  'no       a      h      k      p      q      lambda=')          
+  CALL tee(iun,'SUMMARY OF MULTIPLE SOLUTIONS=') 
+  CALL tee(iun,'no       a      h      k      p      q      lambda=')          
   CALL filopn(iunctc,'mult.ctc','unknown') 
   CALL wromlh(iunctc,'ECLM','J2000') 
   DO i=imim,imip 
      WRITE(*,144)i,elm(i)%coord 
-     WRITE(iun20,144)i,elm(i)%coord
+     WRITE(iun,144)i,elm(i)%coord
 144  FORMAT(i5,5f12.8,f15.8) 
   ENDDO
-  CALL tee(iun20,'no  RMS ,lastcor,  magn,  MOID ,nod+,nod-, sigQ=') 
+  CALL tee(iun,'no  RMS ,lastcor,  magn,  MOID ,nod+,nod-, sigQ=') 
   DO i=imim,imip 
-     WRITE(*,145)i,csinom(i),delnom(i),elm(i)%h_mag                 &
-     &                    ,moid(i),dnp(i),dnm(i),iconv(i),sigq(i)       
-     WRITE(iun20,145)i,csinom(i),delnom(i),elm(i)%h_mag             &
-     &                    ,moid(i),dnp(i),dnm(i),iconv(i),sigq(i)       
-145  FORMAT(i5,1x,1p,e13.5,e11.3,2x,0p,f5.2,1x,                     &
-     &              f8.5,1x,f8.5,1x,f8.5,1x,i2,1x,f7.3)                 
+     WRITE(*,145)i,csinom(i),delnom(i),elm(i)%h_mag,moid_m(i),dnp_m(i),dnm_m(i),iconv(i),sigq(i)       
+     WRITE(iun,145)i,csinom(i),delnom(i),elm(i)%h_mag,moid_m(i),dnp_m(i),dnm_m(i),iconv(i),sigq(i)
+145  FORMAT(i5,1x,1p,e13.5,e11.3,2x,0p,f5.2,1x,f8.5,1x,f8.5,1x,f8.5,1x,i2,1x,f7.3)                 
      WRITE(astna0,111)i 
 111  FORMAT('mult_',i4) 
      CALL rmsp(astna0,le) 
      CALL write_elems(elm(i),astna0(1:le),'ML',' ',iunctc,unm(i))
-!     CALL wromlr(iunctc,astna0(1:le),elm(i),'EQU',tc,gm(1,1,i),    &
-!     &    .true.,cm(1,1,i),.true.,hmu(i),gmag,0.d0)                     
   ENDDO
   CALL filclo(iunctc,' ') 
-  RETURN 
 END  SUBROUTINE f_multi
 ! =======================================                               
 !  NMULTI interface to (distribution) f_multi                            
 ! =======================================                               
 ! multiple solutions for a differential correction problem              
 ! ===============INTERFACE========================                      
-SUBROUTINE nmulti(nam0,                                  &
-     &     elc,uncert,csinor,delnor,                     &
-     &     mc,obs,obsw,iun20,imult,sigma,                &
-     &     imim,imip,moid_min) 
+SUBROUTINE nmulti(nam0,elc,uncert,csinor,delnor,            &
+     &     mc,obs,obsw,imult,sigma,moid_min) 
 ! ================INPUT=========================== 
   USE name_rules, ONLY: name_len
 ! number of observations
@@ -381,25 +364,16 @@ SUBROUTINE nmulti(nam0,                                  &
   TYPE(orb_uncert), INTENT(IN) :: uncert ! includes gc(6,6),cc(6,6)
 ! norms of residuals, of last correction
   DOUBLE PRECISION, INTENT(IN) ::  csinor,delnor 
-! output unit                                                           
-  INTEGER, INTENT(IN) ::  iun20 
 ! options for generation of multiple solutions                          
 ! number of multiple sol. is 2*imult+1                                  
   INTEGER, INTENT(IN) :: imult 
   INTEGER :: imult1 ! to avoid intent problems
 ! interval on LOV from -sigma to +sigma                                 
-  DOUBLE PRECISION sigma 
+  DOUBLE PRECISION, INTENT(INOUT) ::  sigma 
 ! ==========OUTPUT==============                                        
   DOUBLE PRECISION, INTENT(OUT) ::  moid_min 
 ! first, last of the multiple solution indexes                          
-  INTEGER, INTENT(OUT) ::  imim,imip 
-! ===============INTERFACE WITH FMULTI=========================         
-! multiple solutions elements                                           
-  TYPE(orbit_elem), DIMENSION(mulx) ::  elm
-! normal and covariance matrices  
-  TYPE(orb_uncert), DIMENSION(mulx) :: unm !  gm(6,6,mulx),cm(6,6,mulx) 
-! norms of residuals, of last correction                                
-  DOUBLE PRECISION csinom(mulx),delnom(mulx),sigq(mulx) 
+!  INTEGER, INTENT(OUT) ::  imimout,imipout 
 ! renormalization factor                                                
   DOUBLE PRECISION rescov 
 ! reference solution                                                    
@@ -410,9 +384,7 @@ SUBROUTINE nmulti(nam0,                                  &
 ! loop indexes                                                          
   INTEGER i 
   LOGICAL batch ! batch control
-! ======== output moid =====================                            
-  DOUBLE PRECISION moid(mulx), dnp(mulx), dnm(mulx) 
-  INTEGER iconv(mulx) 
+  INTEGER iconv(mulx) ! obsolete moid flag 
 ! catalog obj name (with underscore)                                    
   CHARACTER*20 astna0 
   INTEGER le,nscal,j
@@ -431,10 +403,7 @@ SUBROUTINE nmulti(nam0,                                  &
   imult1=imult
 ! ******************                                                    
 ! call to f_multi, distribution version, but with batch mode             
-  CALL f_multi(batch,obsc,inic,ok,covc,                         &
-     &     elc,uncert,csinor,delnor,                                &
-     &     mc,obs,obsw,iun20,elm,unm,csinom,delnom,           &
-     &           sigma,imult1,imim,imip,imi0)                            
+  CALL f_multi(batch,obsc,inic,ok,covc,elc,uncert,csinor,delnor,mc,obs,obsw,sigma,imult1)
 ! ================================================                      
 ! output                                                                
 ! multiple solutions catalog: multiline format                          
@@ -459,9 +428,9 @@ SUBROUTINE nmulti(nam0,                                  &
   moid_min=1.d3 
   DO i=imim,imip 
 ! orbital distance                                                      
-     CALL nomoid(elc%t,elm(i),moid(i),dnp(i),dnm(i)) 
+     CALL nomoid(elc%t,elm(i),moid_m(i),dnp_m(i),dnm_m(i)) 
      iconv(i)=0
-     moid_min=min(moid(i),moid_min) 
+     moid_min=min(moid_m(i),moid_min) 
 ! warning: assumption that scalar obs=2*no.obs may be invalid for radar
      nscal=0
      DO j=1,mc
@@ -478,7 +447,7 @@ SUBROUTINE nmulti(nam0,                                  &
         sigq(i)=0.d0 
      ENDIF
      WRITE(iunrep,145)i,csinom(i),delnom(i),elm(i)%h_mag             &
-     &                    ,moid(i),dnp(i),dnm(i),iconv(i),sigq(i)       
+     &                    ,moid_m(i),dnp_m(i),dnm_m(i),iconv(i),sigq(i)       
 145  FORMAT(i5,1x,1p,e13.5,e11.3,2x,0p,f5.2,1x,                      &
      &              f8.5,1x,f10.5,1x,f10.5,1x,i2,1x,f7.3)                 
      astna0=' '
@@ -503,24 +472,19 @@ END SUBROUTINE nmulti
 ! =======================================                               
 ! mult_input initializes storage of multiple solution data              
 ! =======================================                               
-SUBROUTINE mult_input(catname,elm,unm,m1,m2,m0,vel_inf,ok)  
+SUBROUTINE mult_input(catname,ok)  
   USE name_rules
 ! ------------INPUT------------------                                   
 ! file with catalog of multiple solutions                               
   CHARACTER*160, INTENT(IN) :: catname 
 ! ------------OUTPUT-----------------                                   
-! multiple output arrays 
-  TYPE(orbit_elem) :: elm(mulx)
-  TYPE(orb_uncert) :: unm(mulx)                                             
-  DOUBLE PRECISION tcat
-! index range of multiple solution                                      
-  INTEGER, INTENT(OUT) :: m1,m2,m0 
-! velocity at infinite with respect to Earth (circular approx)          
-  DOUBLE PRECISION, INTENT(OUT) :: vel_inf
-  DOUBLE PRECISION v_infty
+
 ! succesful input                                                       
   LOGICAL, INTENT(OUT) :: ok 
-! ------------END INTERFACE---------                                    
+! ------------END INTERFACE--------- 
+! index range of multiple solution
+  INTEGER :: m1,m2,m0 
+  DOUBLE PRECISION v_infty 
 ! -----for call to rdorb----                                            
 ! names                                                                 
   CHARACTER*(idname_len) name0 
@@ -543,7 +507,7 @@ SUBROUTINE mult_input(catname,elm,unm,m1,m2,m0,vel_inf,ok)
 ! indexes of multiple solutions                                         
   INTEGER imul(mulx),norb,j 
 ! velocity w.r.to Earth for each orbit                                  
-  DOUBLE PRECISION v_inf(mulx),v_max,v_min 
+  DOUBLE PRECISION v_max,v_min 
 ! temporary input arrays                                                
   DOUBLE PRECISION eq(6) 
   DOUBLE PRECISION g(6,6),c(6,6),h 
@@ -571,10 +535,10 @@ SUBROUTINE mult_input(catname,elm,unm,m1,m2,m0,vel_inf,ok)
      ENDIF
 ! control on time                                                       
      IF(i.eq.1)THEN 
-        tcat=t 
+        tdt_cat=t 
      ELSE 
-        IF(t.ne.tcat)THEN 
-           WRITE(*,*)'mult_input: time discrepancy from tcat=',tcat 
+        IF(t.ne.tdt_cat)THEN 
+           WRITE(*,*)'mult_input: time discrepancy from tcat=',tdt_cat 
            WRITE(*,*)'mult_input: at record ',i,' t=',t 
            ok=.false. 
            RETURN 
@@ -614,24 +578,23 @@ SUBROUTINE mult_input(catname,elm,unm,m1,m2,m0,vel_inf,ok)
      v_min=min(v_min,v_inf(i)) 
      v_max=max(v_max,v_inf(i)) 
   ENDDO
-! increase nmax                                                         
+! increase mulx                                                        
   WRITE(*,*)'mult_input: increase mulx, file is longer than',mulx 
 2 CONTINUE 
   norb=i-1 
   ok=norb.gt.0 
-  m1=imul(1) 
-  m2=imul(norb) 
+  imim=imul(1) 
+  imip=imul(norb) 
   WRITE(*,*)' mult_input: input of ',norb,' multiple solutions' 
-  WRITE(*,*)' indexes between ', m1, ' and ', m2 
+  WRITE(*,*)' indexes between ', imim, ' and ', imip 
   WRITE(*,*)' max of v_infty ',v_max,' min ',v_min 
-  vel_inf=v_min 
 3 WRITE(*,*)' which one is the nominal?' 
-  READ(*,*)m0 
-  IF(m0.lt.m1.or.m0.gt.m2)THEN 
-     WRITE(*,*)' OUT OF RANGE ',m1,m2 
+  READ(*,*)imi0 
+  IF(imi0.lt.imim.or.imi0.gt.imip)THEN 
+     WRITE(*,*)' OUT OF RANGE ',imim,imip 
      GOTO 3 
   ELSE 
-     WRITE(*,*)' nominal is ',m0 
+     WRITE(*,*)' nominal is ',imi0 
   ENDIF
 END SUBROUTINE mult_input
 !
@@ -640,13 +603,9 @@ END SUBROUTINE mult_input
 ! =======================================                               
 ! output of multiple observations                                       
 ! ===============INTERFACE========================                      
-SUBROUTINE fmuobs(type,ids,t1,tut1,sigma,elm,         &
-     &     aobs,dobs,iff,imim,imip,imi0,titnam,filnam,iun20) 
+SUBROUTINE fmuobs(type,ids,t1,tut1,sigma,         &
+     &     aobs,dobs,iff,titnam,filnam,iun20) 
   USE pred_obs   
-! first last, and reference index of multiple orbits                    
-  INTEGER, INTENT(IN) ::  imim,imip,imi0 
-! multiple orbit elements        
-  TYPE(orbit_elem), DIMENSION(imip), INTENT(IN):: elm 
 ! sigma value                   
   DOUBLE PRECISION sigma 
 ! actual observations                                                   
@@ -715,45 +674,29 @@ SUBROUTINE fmuobs(type,ids,t1,tut1,sigma,elm,         &
 ! output multiple prediction of observations                            
   CALL outmul(titnam,filnam,tut1,sigma,alpha,delta,                 &
      &        alm,dem,amagn,imim,imip,imi0,iff,aobs,dobs,type)            
-END SUBROUTINE fmuobs                                           
+END SUBROUTINE fmuobs 
+
 !                                                                       
 ! ====================================================                  
 ! FMUPRO multiple state propagation for FITOBS                          
 ! ====================================================                  
-SUBROUTINE fmupro(iun20,imim,imip,elm,unm,tr,el1,unm1) 
-! =================INPUT=========================================       
+SUBROUTINE fmupro(iun20,tr) 
   USE propag_state
-! min and max index of alternate orbits                                 
-  INTEGER, INTENT(IN) :: imim,imip 
-! multiple orbit elements        
-  TYPE(orbit_elem), DIMENSION(imip-imim+1), INTENT(IN) :: elm 
-! normal and covariance matrices  
-  TYPE(orb_uncert), DIMENSION(imip-imim+1), INTENT(IN)  :: unm 
-! requirements on covariance: assumed available in gm,cm                
-! output units                                                          
-  INTEGER, INTENT(IN) :: iun20 
-! target time                                               
-  DOUBLE PRECISION, INTENT(IN) ::tr 
-! ================OUTPUT=================================               
-! elements, covariance and normal matrix at epoch tr  
-! multiple orbit elements        
-  TYPE(orbit_elem), DIMENSION(imip-imim+1), INTENT(out) :: el1 
-! normal and covariance matrices  
-  TYPE(orb_uncert), DIMENSION(imip-imim+1), INTENT(out) :: unm1
+! =================INPUT========================================= 
+  INTEGER, INTENT(IN) :: iun20! output units
+  DOUBLE PRECISION, INTENT(IN) ::tr ! target time
 ! ================END INTERFACE==========================               
 ! ======== output moid =====================                            
-  DOUBLE PRECISION moid(mulx), dnp(mulx), dnm(mulx) 
-  INTEGER iconv(mulx) 
-! loop indexes                                                          
-  INTEGER j,i 
+  INTEGER iconv(mulx)  ! obsolete, for compatibility with old nomoid
+  INTEGER j,i ! loop indexes        
 ! ===================================================================== 
 ! main loop                                                             
 ! propagation to time tr                                                
   DO j=imim,imip 
      WRITE(*,*)' orbit ',j 
-     CALL pro_ele(elm(j),tr,el1(j),unm(j),unm1(j)) 
+     CALL pro_ele(elm(j),tr,elm(j),unm(j),unm(j)) 
 ! orbital distance                                                      
-     CALL nomoid(tr,el1(j),moid(j),dnp(j),dnm(j))
+     CALL nomoid(tr,elm(j),moid_m(j),dnp_m(j),dnm_m(j))
      iconv(j)=0
   ENDDO
 ! ===================================================================== 
@@ -766,14 +709,14 @@ SUBROUTINE fmupro(iun20,imim,imip,elm,unm,tr,el1,unm1)
   CALL tee(iun20,                                                   &
      &  'no.,     a      h      k      p      q      lambda=')          
   DO i=imim,imip 
-     WRITE(*,144)i,el1(i)%coord 
+     WRITE(*,144)i,elm(i)%coord 
 144  FORMAT(i3,6f12.8) 
-     WRITE(iun20,144)i,el1(i)%coord
+     WRITE(iun20,144)i,elm(i)%coord
   ENDDO
   CALL tee(iun20,'no.,  magn,  MOID ,  nod+  ,  nod-=') 
   DO i=imim,imip 
-     WRITE(*,145)i,(i),moid(i),dnp(i),dnm(i),iconv(i) 
-     WRITE(iun20,145)i,el1(i)%h_mag,moid(i),dnp(i),dnm(i),iconv(i) 
+     WRITE(*,145)i,(i),moid_m(i),dnp_m(i),dnm_m(i),iconv(i) 
+     WRITE(iun20,145)i,elm(i)%h_mag,moid_m(i),dnp_m(i),dnm_m(i),iconv(i) 
 145  FORMAT(i3,2x,f5.2,1x,f8.5,1x,f8.5,1x,f8.5,1x,i2) 
   ENDDO
 END SUBROUTINE fmupro
@@ -783,19 +726,16 @@ END SUBROUTINE fmupro
 ! =======================================                               
 ! graphic output of multiple orbits                                     
 ! ===============INTERFACE========================                      
-SUBROUTINE fmuplo(elm,numb,elc,titnam,sigma) 
+SUBROUTINE fmuplo(titnam,sigma) 
   USE util_suit
-  INTEGER,INTENT(IN) :: numb 
-  TYPE(orbit_elem), INTENT(IN), DIMENSION(numb) :: elm
-  TYPE(orbit_elem), INTENT(IN) :: elc
   CHARACTER*80, INTENT(IN) :: titnam 
   DOUBLE PRECISION, INTENT(IN) :: sigma
 ! ============END INTERFACE==================                           
   DOUBLE PRECISION a(mulx),e(mulx),aa,ee ,q,qg,enne
-  INTEGER i, fail_flag
+  INTEGER i,j,k, fail_flag
   TYPE(orbit_elem) :: elcom
   CHARACTER*3 coo
-  INTEGER icoo
+  INTEGER icoo,numb
   CHARACTER*60 xlab,ylab
   CHARACTER*20 menunam ! characters for menu
 ! ===========================================
@@ -805,6 +745,7 @@ SUBROUTINE fmuplo(elm,numb,elc,titnam,sigma)
      &      'cometary q,e=',                                           &
      &      'attributable r, rdot=')   
   IF(icoo.eq.0)RETURN
+  numb=imip-imim+1
   coo=elm(1)%coo
   IF(icoo.eq.1)THEN      
      xlab='Semimajor axis (AU)'
@@ -812,21 +753,24 @@ SUBROUTINE fmuplo(elm,numb,elc,titnam,sigma)
 ! a-e plot of multiple solutions
      IF(coo.eq.'EQU')THEN
         DO i=1,numb 
-           a(i)=elm(i)%coord(1) 
-           e(i)=sqrt(elm(i)%coord(2)**2+elm(i)%coord(3)**2) 
+           j=i+imim-1
+           a(i)=elm(j)%coord(1) 
+           e(i)=sqrt(elm(j)%coord(2)**2+elm(j)%coord(3)**2) 
         ENDDO
-        aa=elc%coord(1)
-        ee=sqrt(elc%coord(2)**2+elc%coord(3)**2) 
+        aa=elm(imi0)%coord(1)
+        ee=sqrt(elm(imi0)%coord(2)**2+elm(imi0)%coord(3)**2) 
      ELSEIF(coo.eq.'KEP')THEN
         DO i=1,numb 
-           a(i)=elm(i)%coord(1) 
-           e(i)=elm(i)%coord(2)
+           j=i+imim-1
+           a(i)=elm(j)%coord(1) 
+           e(i)=elm(j)%coord(2)
         ENDDO
-        aa=elc%coord(1)
-        ee=elc%coord(2)
+        aa=elm(imi0)%coord(1)
+        ee=elm(imi0)%coord(2)
      ELSE
         DO i=1,numb 
-           CALL coo_cha(elm(i),'COM',elcom,fail_flag)
+           j=i+imim-1
+           CALL coo_cha(elm(j),'COM',elcom,fail_flag)
            IF(fail_flag.le.10.and.fail_flag.ne.4)THEN
               e(i)=elcom%coord(2)
               a(i)=abs(elcom%coord(1)/(1.d0-e(i)))
@@ -835,7 +779,7 @@ SUBROUTINE fmuplo(elm,numb,elc,titnam,sigma)
               RETURN
            ENDIF
         ENDDO
-        CALL coo_cha(elc,'COM',elcom,fail_flag)
+        CALL coo_cha(elm(imi0),'COM',elcom,fail_flag)
         IF(fail_flag.le.10.and.fail_flag.ne.4)THEN
            ee=elcom%coord(2)
            aa=abs(elcom%coord(1)/(1.d0-ee))
@@ -848,7 +792,8 @@ SUBROUTINE fmuplo(elm,numb,elc,titnam,sigma)
      xlab='Perihelion distance (AU)'
      ylab='Eccentricity'     
      DO i=1,numb 
-        CALL coo_cha(elm(i),'COM',elcom,fail_flag)
+        j=i+imim-1
+        CALL coo_cha(elm(j),'COM',elcom,fail_flag)
         IF(fail_flag.le.10.and.fail_flag.ne.4)THEN
            e(i)=elcom%coord(2)
            a(i)=elcom%coord(1)
@@ -857,27 +802,28 @@ SUBROUTINE fmuplo(elm,numb,elc,titnam,sigma)
            RETURN
         ENDIF
      ENDDO
-     CALL coo_cha(elc,'COM',elcom,fail_flag)
+     CALL coo_cha(elm(imi0),'COM',elcom,fail_flag)
      aa=elcom%coord(1)
      ee=elcom%coord(2)
   ELSEIF(icoo.eq.3)THEN
      xlab='Geocentric distance (AU)'
      ylab='Geocentric range rate (AU/d)'     
-     DO i=1,numb 
-        CALL coo_cha(elm(i),'ATT',elcom,fail_flag)
+     DO k=1,numb 
+        j=k+imim-1
+        CALL coo_cha(elm(j),'ATT',elcom,fail_flag)
         IF(fail_flag.le.10.and.fail_flag.ne.4)THEN
-           e(i)=elcom%coord(6)
-           a(i)=elcom%coord(5)
+           e(k)=elcom%coord(6)
+           a(k)=elcom%coord(5)
         ELSE
            WRITE(*,*)' fmuplo: conversion failure ', fail_flag
            RETURN
         ENDIF
      ENDDO
-     CALL coo_cha(elc,'ATT',elcom,fail_flag)
+     CALL coo_cha(elm(imi0),'ATT',elcom,fail_flag)
      ee=elcom%coord(6)
      aa=elcom%coord(5)
   ENDIF
-  CALL ploae(elc%t,a,e,aa,ee,sigma,numb,titnam,xlab,ylab)
+  CALL ploae(elm(imi0)%t,a,e,aa,ee,sigma,numb,titnam,xlab,ylab)
    
 END SUBROUTINE fmuplo 
 ! ===================================================================== 
@@ -885,91 +831,86 @@ END SUBROUTINE fmuplo
 ! ===================================================================== 
 ! output multiple observations                                          
 ! =============INTERFACE=============================================== 
-      SUBROUTINE outmul(titnam,filnam,t1,sigma,alpha,delta,             &
-     &     alm,dem,hmagn,imim,imip,imi0,iff,aobs,dobs,type)             
-      IMPLICIT NONE 
+SUBROUTINE outmul(titnam,filnam,t1,sigma,alpha,delta,             &
+     &     alm,dem,hmagn,imloc,iploc,i0loc,iff,aobs,dobs,type)
 ! =============INPUT=================================================== 
 ! file name                                                             
-      CHARACTER*80 titnam 
-      CHARACTER*60 filnam 
-! first and last index of existing multiple solutions,                  
-! index of reference one, control for closed curve,obs type             
-      INTEGER imim,imip,imi0,iff
-      CHARACTER*(1) type
+  CHARACTER*80,INTENT(IN) :: titnam 
+  CHARACTER*60,INTENT(IN) ::  filnam 
+! first, last and central index control for closed curve,obs type             
+  INTEGER,INTENT(IN) ::  imloc,iploc,i0loc, iff
+  CHARACTER*(1), INTENT(OUT) :: type
 ! observation time MJD, sigma value, nominal prediction                 
-      DOUBLE PRECISION t1,sigma,alpha,delta 
+  DOUBLE PRECISION,INTENT(IN) :: t1,sigma,alpha,delta 
 ! observation: predicted  value alpha, delta, magnitude, actual         
-      DOUBLE PRECISION alm(imip),dem(imip),hmagn(imip),aobs,dobs 
+  DOUBLE PRECISION,INTENT(IN) ::  alm(iploc),dem(iploc),hmagn(iploc),aobs,dobs 
 ! =============END INTERFACE=========================================== 
 ! conversion to sessagesimal                                            
-      DOUBLE PRECISION seca,secd 
-      INTEGER inta,mina,intd,mind 
-      CHARACTER*1 siga,sigd 
+  DOUBLE PRECISION seca,secd 
+  INTEGER inta,mina,intd,mind 
+  CHARACTER*1 siga,sigd 
 ! conversion of time                                                    
-      INTEGER iy,imo,iday 
-      DOUBLE PRECISION hour 
+  INTEGER iy,imo,iday 
+  DOUBLE PRECISION hour 
 ! scalar temporaries, differences                                       
-      DOUBLE PRECISION dee,daa,ado,ddo 
+  DOUBLE PRECISION dee,daa,ado,ddo 
 ! file name                                                             
-      INTEGER le 
-      CHARACTER*80 file 
+  INTEGER le 
+  CHARACTER*90 file, filnam1 
 ! loop indexes, units                                                   
-      INTEGER n,iun7 
+  INTEGER n,iun7 
 ! ======================================================================
-! open output file                                                      
-      CALL rmsp(filnam,le) 
-      file=filnam(1:le)//'.cbd' 
-      CALL filopn(iun7,file,'unknown') 
+! open output file
+  filnam1=filnam                                                      
+  CALL rmsp(filnam1,le) 
+  file=filnam1(1:le)//'.cbd' 
+  CALL filopn(iun7,file,'unknown') 
 ! date and sigma value                                                  
-      CALL mjddat(t1,iday,imo,iy,hour) 
-      WRITE(iun7,297)iday,imo,iy,hour,sigma 
-  297 FORMAT(i3,i3,i5,f8.4,f5.2) 
+  CALL mjddat(t1,iday,imo,iy,hour) 
+  WRITE(iun7,297)iday,imo,iy,hour,sigma 
+297 FORMAT(i3,i3,i5,f8.4,f5.2) 
 ! line of variations                                                    
-      DO n=imim,imip 
-        daa=alpha+alm(n) 
-        daa=mod(daa,dpig) 
-        IF(daa.lt.0.d0)daa=daa+dpig 
-        IF(daa.gt.dpig)daa=daa-dpig 
-        daa=daa*degrad/15 
-        IF(daa.lt.0.d0.or.daa.gt.24.d0)THEN 
-           WRITE(*,*)' outmul: daa out of range ', daa 
-        ENDIF 
-        CALL sessag(daa,siga,inta,mina,seca) 
-        dee=(delta+dem(n))*degrad 
-        CALL sessag(dee,sigd,intd,mind,secd) 
+  DO n=imloc,iploc 
+     daa=alpha+alm(n) 
+     daa=mod(daa,dpig) 
+     IF(daa.lt.0.d0)daa=daa+dpig 
+     IF(daa.gt.dpig)daa=daa-dpig 
+     daa=daa*degrad/15 
+     IF(daa.lt.0.d0.or.daa.gt.24.d0)THEN 
+        WRITE(*,*)' outmul: daa out of range ', daa 
+     ENDIF
+     CALL sessag(daa,siga,inta,mina,seca) 
+     dee=(delta+dem(n))*degrad 
+     CALL sessag(dee,sigd,intd,mind,secd) 
 ! proper motion in arcsec/hour                                          
 !        ado=adotm(n)*secrad/24.d0 
 !        ddo=ddotm(n)*secrad/24.d0 
 ! output                                                                
-        IF(siga.eq.'+')siga=' ' 
-        WRITE(iun7,396)n,siga,inta,mina,seca,sigd,intd,mind,secd,hmagn(n)
+     IF(siga.eq.'+')siga=' ' 
+     WRITE(iun7,396)n,siga,inta,mina,seca,sigd,intd,mind,secd,hmagn(n)
 !     &       disv(n),ado,ddo,hmagn(n)                                   
-  396   FORMAT(i3,1x,a1,i2,1x,i2,1x,f4.1,2x,a1,i2,1x,i2,1x,f4.1,1x,f5.2)
+396  FORMAT(i3,1x,a1,i2,1x,i2,1x,f4.1,2x,a1,i2,1x,i2,1x,f4.1,1x,f5.2)
 !     &       1x,f8.5,1x,f8.2,1x,f8.2,                           
-      ENDDO 
-      CALL filclo(iun7,' ') 
+  ENDDO
+  CALL filclo(iun7,' ') 
 ! graphics output                                                       
-      IF(iff.eq.1)THEN 
-         CALL plocbd(titnam,alpha,delta,sigma,t1,                       &
-     &         alm(imim),dem(imim),imip-imim+1,type)                    
-      ELSEIF(iff.eq.2)THEN 
-         CALL ploobs(titnam,alpha,delta,sigma,t1,                       &
-     &         alm(imim),dem(imim),imip-imim+1,                         &
-     &                 aobs,dobs)                                       
-      ENDIF 
-      RETURN 
-      END SUBROUTINE outmul                                          
+  IF(iff.eq.1)THEN 
+     CALL plocbd(titnam,alpha,delta,sigma,t1,                       &
+          &         alm(imloc),dem(imloc),iploc-imloc+1,type)
+  ELSEIF(iff.eq.2)THEN 
+     CALL ploobs(titnam,alpha,delta,sigma,t1,                       &
+     &         alm(imloc),dem(imloc),iploc-imloc+1, aobs,dobs)
+  ENDIF
+END SUBROUTINE outmul
 ! =========================================                             
 ! PROP_SIG                                                               
 ! propagator in sigma space                                             
-SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,      &
-     &       iun20,wdir,sdir,fail) 
+SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,wdir,sdir,fail)
 ! ==============input================= 
   LOGICAL batch ! batch control
 ! current elements and epoch; stepsize factor, target sigma 
   TYPE(orbit_elem), INTENT(IN) :: el1            
   DOUBLE PRECISION, INTENT(IN) :: dn,sigma 
-  INTEGER, INTENT(IN) ::  iun20 ! output unit 
 ! ======observations====                                                
   INTEGER, INTENT(IN) :: mc ! number of obs
 ! new data types
@@ -996,9 +937,9 @@ SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,      &
   wdir0=wdir
   hh=dn*sigma 
   IF(.not.batch.and.verb_mul.ge.9)THEN 
-     iun=abs(iun20) 
+     iun=abs(iun_log) 
   ELSE 
-     iun=-abs(iun20) 
+     iun=-abs(iun_log) 
   ENDIF
 ! 1=Euler 2= RK2                                                        
   imint=2 
@@ -1188,6 +1129,300 @@ SUBROUTINE int_step(el0,el1,hh,imint,                              &
   ENDIF
 !     write(*,*)'int_step: at exit ',fail, (eq1(j),j=1,3)                
 END SUBROUTINE int_step
+
+! =================lov_int.mod===================================
+! Created by Giacomo Tommei, 25 November 2002    
+! Last changes, 17 December 2002                       
+! ==================================================================
+! LIST OF PUBLIC ENTITIES:
+!
+!  SUBROUTINES:                                                          
+!                 lovinit                                                    
+!                 lovobs                                                     
+!                 lovmagn                                                    
+!                 lovinterp: 
+! ==================================================================
+! ======================================================
+!  lovinit 
+! initializes storage of multiple solution data                 
+! ======================================================
+SUBROUTINE lovinit(astname,mulsodir,obsdir,progna,iunout,        &
+       &     succ,vel_inf,imult,sigmax)
+  USE obssto
+  USE least_squares 
+  USE tp_trace, ONLY: imul0                      
+! ==================INPUT==============================  
+  CHARACTER(LEN=9), INTENT(IN) :: astname           ! asteroid name 
+  CHARACTER(LEN=80), INTENT(IN) ::  obsdir,mulsodir ! obs and mult. sol. 
+                                                      ! directory  name 
+  INTEGER, INTENT(IN) ::  iunout                    ! output file 
+  CHARACTER(LEN=*), INTENT(IN) ::  progna           ! program name
+!==================OUTPUT=============================
+  LOGICAL, INTENT(OUT) :: succ             ! success flag 
+  DOUBLE PRECISION, INTENT(OUT) :: vel_inf ! velocity at infinite 
+                                             ! with respect to Earth (circular approx)
+  INTEGER, INTENT(OUT) :: imult            ! multiple solution specifications       
+  DOUBLE PRECISION, INTENT(OUT) :: sigmax 
+! ===============OUTPUT THROUGH MODULE MULTIPLE_SOL===============
+! time of initial conditions 
+! index range of multiple solution, of nominal solution  
+! =============for call to read_elems=============================
+  CHARACTER(LEN=160) :: catname,repname,file   ! names 
+  INTEGER iuncat 
+  CHARACTER(LEN=19) :: name0 
+  CHARACTER(LEN=9) :: name1 
+  INTEGER :: le,iunrep, imtmp, iconv, norb
+  DOUBLE PRECISION hmagn,tcat
+  TYPE(orbit_elem) :: eltmp
+  TYPE(orb_uncert) :: unctmp
+  INTEGER :: j                            ! VA number 
+  LOGICAL :: eof                          ! end of file  
+  DOUBLE PRECISION :: v_infty,v_max,v_min ! velocity w.r.to Earth max and min
+  CHARACTER(LEN=60) :: rwofi0             ! residuals and weights file name   
+  LOGICAL :: obs0!,precob,change           ! logical flag et al
+  CHARACTER(LEN=20) :: error_model ! error model file 
+  INTEGER :: iun20                        ! unit 
+  INTEGER :: i,ii                       ! loop indexes  
+  INCLUDE 'sysdep.h90'                    ! system dependencies      
+!===========================================================
+  v_min=100.d0 
+  v_max=0.d0 
+  imul=0 ! flag to find if the elements have been read
+! opening and reading multiple solution catalog                         
+  succ=.false. 
+  catname=mulsodir//dircha//astname//'.ctc' 
+  CALL rmsp(catname,le)
+  CALL filopn(iuncat,catname(1:le),'old')
+  file=' '
+  CALL oporbf(file,iuncat) 
+! multiple solution report file                                         
+  repname=mulsodir//dircha//astname//'.mrep' 
+  CALL rmsp(repname,le) 
+  CALL filopn(iunrep,repname(1:le),'old') 
+  READ(iunrep,199)imult,sigmax 
+199 FORMAT(34x,i4,10x,f5.2) 
+  WRITE(iunout,200)imult, sigmax
+200 FORMAT(' imult, sigma x ',i4,10x,f5.2) 
+  READ(iunrep,299)scaling_lov,second_lov
+299 FORMAT(12x,L1/12x,L1)
+  WRITE(iunout,300)scaling_lov,second_lov
+300 FORMAT(' scaling_lov ',L1,' second_lov ',L1)
+  READ(iunrep,*) 
+  WRITE(*,*) ' imult, sigmax from neomult ', imult,sigmax 
+  imi0=imult+1 
+  imul0=imi0 ! align tp_trace with multiple_sol
+! read orbit one by one                                                 
+  DO i=1,mulx 
+     CALL read_elems(eltmp,name0,eof,file,iuncat,unctmp)
+     IF(eof) GOTO 2 
+! check consistency of epoch times
+     IF(i.eq.1)THEN 
+        tcat=eltmp%t 
+     ELSE 
+        IF(eltmp%t.ne.tcat)THEN 
+           WRITE(*,*)'lovinit: time discrepancy from tcat=',tcat 
+           WRITE(*,*)'lovinit: at record ',i,' t=',eltmp%t 
+           STOP 
+        ENDIF
+     ENDIF
+! control on elements type NO!!! 
+! availability of covariance                                            
+     IF (.NOT.(unctmp%succ)) THEN 
+        WRITE(*,*)'lovinit:',  name0, ' matrices not avalaible' 
+        STOP
+     ENDIF
+! handling of name; but note that the multiple solutions are assumed to 
+! and with consecutive indexes!!! that is imul(i)=imul(1)+i-1           
+     CALL splinam(name0,name1,j) 
+     IF(j.gt.0.and.j.le.mulx)THEN
+        imul(j)=j
+     ELSEIF(j.lt.0)THEN
+        WRITE(*,*)'lovinit: VA with negative index', j
+        STOP
+     ELSE
+        WRITE(*,*)'lovinit: VA with index too large=',j,' increase mulx=',mulx
+        STOP
+     ENDIF
+! note that the multiple solutions are assumed to be written
+! with consecutive indexes!!! 
+     IF(i.gt.1)THEN 
+        IF(imul(j-1).eq.0)THEN
+           WRITE(*,*)'lovinit: indexes not in order: VA ',j,' at record ',i,' missing ',j-1
+        ENDIF
+     ENDIF
+! ok, copy in multiple_sol.mod
+     elm(j)=eltmp
+     unm(j)=unctmp
+     READ(iunrep,145)ii,csinom(j),delnom(j),hmagn                   &
+            &                    ,moid_m(j),dnp_m(j),dnm_m(j),iconv,sigq(j)
+145  FORMAT(i5,1x,1p,e13.5,e11.3,2x,0p,f5.2,1x,                     &
+            &              f8.5,1x,f10.5,1x,f10.5,1x,i2,1x,f6.3)
+     IF(ii.ne.j)WRITE(*,*)'lovinit: discrepancy between mrep and ctc files'
+! v_infinity computation                                                
+     v_inf(j)=v_infty(elm(j)) 
+     v_min=min(v_min,v_inf(j)) 
+     v_max=max(v_max,v_inf(j)) 
+! nominal solution                                                      
+!     IF(j.eq.imi0)csinor=csinom(j) 
+  ENDDO
+! increase mulx                                                        
+  WRITE(*,*)'lovinit: increase nmax, file is longer than',mulx 
+2   CONTINUE 
+  CALL clorbf 
+  CALL filclo(iunrep,' ') 
+  norb=i-1 
+  imim=imul(1) 
+  imip=imul(norb) 
+  WRITE(iunout,*)' lovinit: input of ',norb,' multiple solutions' 
+  WRITE(iunout,*)' lovinit: max of v_infty ',v_max,' minimum ',v_min 
+  vel_inf=v_min 
+  tdt_cat=tcat
+! input observation data                                                
+!    precob=.false. 
+  iun20=iunout 
+! to get error_model from rwo file; does not work with .obs file
+  CALL retinobs(obsdir,astname,obs0,error_model,rms_m,rmsmag_m)
+  CALL errmod_set(error_model)
+! forces the error_model, but can use .obs file
+  IF(m_m.gt.0.and.obs0)succ=.true. 
+END SUBROUTINE lovinit
+! =====================================================                  
+! LOVMAGN                                                               
+! provides magnitude and v_inty for the VA nearest to the               
+! real index x; also velocity at infinity                       
+! =====================================================                  
+SUBROUTINE lovmagn(x,v_i,h) 
+! ================INPUT===============================
+  DOUBLE PRECISION, INTENT(IN) :: x       ! fractional index 
+! ================OUTPUT==============================           
+  DOUBLE PRECISION, INTENT(OUT) :: v_i    ! velocity at 
+                                            ! infinity (U in au/day)
+  DOUBLE PRECISION, INTENT(OUT) :: h      ! H magnitude 
+! =============END INTERFACE===========================                 
+  INTEGER :: j                            ! loops index
+! ===================================================
+  DO j=imim,imip 
+     IF(x.lt.j)THEN 
+        v_i=v_inf(j) 
+        h=elm(j)%h_mag 
+        GOTO 2 
+     ENDIF
+  ENDDO
+  h=elm(imip)%h_mag 
+  v_i=v_inf(imip) 
+2 CONTINUE 
+END SUBROUTINE lovmagn
+
+! ===================================================                    
+! LOVINTERP                                                             
+! provides an interpolated orbit along the LOV                          
+! (with non-integer index rindex)                                       
+! ===================================================   
+                 
+SUBROUTINE lovinterp(rindex,deltasig,el0,unc0,succ)
+  USE obssto
+  USE least_squares
+! ====================INPUT=============================      
+  DOUBLE PRECISION, INTENT(IN) :: deltasig      ! interval in sigma 
+                                                  ! between solutions
+  DOUBLE PRECISION, INTENT(IN) ::  rindex       ! real index
+! ====================OUTPUT============================ 
+  TYPE(orbit_elem), INTENT(OUT) :: el0          ! elements     
+  TYPE(orb_uncert), INTENT(OUT) :: unc0  ! normal and covariance matrices
+                                                  ! corresponding to rindex
+  LOGICAL, INTENT(OUT) :: succ                  ! success flag  
+! ==================END INTERFACE=============================
+  LOGICAL :: batch                              ! batch control
+! ================LOV INTERPOLATION===========================
+  DOUBLE PRECISION :: wdir(6),sdir,h0,diff(6) 
+  LOGICAL :: fail, bizarre 
+!  INTEGER :: iun20 
+  DOUBLE PRECISION :: csinew,delnew,rmshnew    ! for constr_fit   
+  INTEGER :: nused 
+  TYPE(orbit_elem) :: elc                ! corrected 
+! =============LOOP INDEXES, LOV INDEXES=======================
+  INTEGER :: j,i,imu,ir 
+  DOUBLE PRECISION :: s, ecc 
+! =============================================================
+! failure case ready                                                    
+  succ=.false. 
+! interpolate elements                                                  
+  ir=rindex
+! extrapolation?                                                        
+! WARNING: will result in failure if extrapolation is by a              
+! long step beyond the end of the LOV string already computed           
+  IF(ir.lt.imim)THEN 
+     WRITE(*,*)'lovinterp: extrapolation rindex=',rindex,           &
+            &        ' beyond ',imim                                        
+     imu=imim 
+  ELSEIF(ir.gt.imip)THEN 
+     WRITE(*,*)'lovinterp: extrapolation rindex=',rindex,           &
+            &        ' beyond ',imip                                     
+     imu=imip 
+  ELSE 
+     imu=ir 
+  ENDIF
+! linear interpolation between the two consecutive ones                 
+  s=rindex-imu 
+!  iun20=-1  
+  CALL weak_dir(unm(imu)%g,wdir,sdir,-1,elm(imu)%coo,elm(imu)%coord) 
+! anti reversal check
+  IF(imu.lt.imip)THEN
+     diff=elm(imu+1)%coord-elm(imu)%coord
+  ELSE
+     diff=elm(imu)%coord-elm(imu-1)%coord
+  ENDIF
+  IF(DOT_PRODUCT(diff,wdir).lt.0.d0)wdir=-wdir
+! nonlinear interpolation   
+  CALL prop_sig(batch,elm(imu),el0,s,deltasig,m_m,obs_m,obsw_m,wdir,sdir,fail)        
+! check for hyperbolic                                                  
+  IF(fail)THEN 
+     WRITE(*,*)'step ',rindex,' hyperbolic' 
+     WRITE(*,*)el0%coo,el0%coord 
+     RETURN 
+  ELSEIF(bizarre(el0,ecc))THEN 
+     WRITE(*,*)'step ',rindex,' byzarre' 
+     WRITE(*,*) el0%coo,el0%coord, ecc
+     RETURN 
+  ENDIF
+! constrained corrections: 
+  CALL constr_fit(m_m,obs_m,obsw_m,el0,wdir,elc,unc0,csinew,delnew,rmshnew,nused,succ)
+! exit if not convergent                                                
+  IF(.not.succ) THEN 
+     WRITE(*,*)'lovinterp: diff_vin failed for ',rindex 
+     RETURN 
+  ELSE
+     el0=elc 
+     succ=.true. 
+  ENDIF
+END SUBROUTINE lovinterp
+
+! ====================================================                  
+! LOVOBS                                                                
+! ====================================================                  
+! provides number and arc of observational data                         
+SUBROUTINE lovobs(m0,nrej,calend1,calend2) 
+  USE obssto
+! ======================OUTPUT==========================
+  INTEGER, INTENT(OUT) :: m0,nrej   ! number of obs., number rejected
+  CHARACTER(LEN=14), INTENT(OUT) :: calend1,calend2 ! calendar dates of first 
+                                                      ! and last
+! =====================================================
+!  INCLUDE 'parobx.h90'
+  INTEGER :: j, ind(nobx)  ! loop index, sort index      
+! =====================================================   
+! calendar date
+  CALL heapsort(obs_m(1:m_m)%time_tdt,m_m,ind)
+  CALL calendwri(obs_m(ind(1))%time_tdt,calend1) 
+  CALL calendwri(obs_m(ind(m_m))%time_tdt,calend2) 
+  m0=m_m 
+  nrej=0 
+  DO j=1,m_m 
+     IF(obsw_m(j)%sel_coord.eq.0)THEN
+         nrej=nrej+1
+     ENDIF
+  ENDDO
+END SUBROUTINE lovobs
 
 END MODULE multiple_sol
 ! ====================================================================  

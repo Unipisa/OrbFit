@@ -408,7 +408,8 @@ CONTAINS
 ! hidden input:  JPL header
      include 'jplhdr.h90' 
 ! end interface
-     double precision et0(2),rot(3,3),pv(6,12),pnut(4),xx(3),xxp(3) ! Workspace for state call
+! Workspace for state call
+     double precision et0(2),rot(3,3),pv(6,12),pnut(4),xx(3),xxp(3) 
      INTEGER, PARAMETER:: memx=30 ! stored planets array 
      DOUBLE PRECISION xp(6,nmassx,memx) 
      double precision xast(3,nbepx),vast(3,nbepx) ! positions of the massive asteroids
@@ -433,20 +434,20 @@ CONTAINS
         DO 9 i=1,npla                                    
            IF(itarg(i).eq.13)THEN                                  
               if(istate.eq.2)xxp(1:3)=pv(4:6,3)                       
-              xx(1:3)=pv(1:3,3)                                                     
+              xx(1:3)=pv(1:3,3)
            ELSEIF(itarg(i).eq.10)THEN   
-              if(istate.eq.2) xxp(1:3)=pv(4:6,10)*emrat/(1.d0+emrat)+pv(4:6,3)   
-              xx(1:3)=pv(1:3,10)*emrat/(1.d0+emrat)+pv(1:3,3)                                                    
+              if(istate.eq.2) xxp(1:3)=pv(4:6,10)*emrat/(1.d0+emrat)+pv(4:6,3)
+              xx(1:3)=pv(1:3,10)*emrat/(1.d0+emrat)+pv(1:3,3)
            ELSEIF(itarg(i).eq.3)THEN  
               if(istate.eq.2)xxp(1:3)=pv(4:6,3)-pv(4:6,10)/(1.d0+emrat)
               xx(1:3)=pv(1:3,3)-pv(1:3,10)/(1.d0+emrat)  
            ELSE
               xx(1:3)=pv(1:3,itarg(i))
-              if(istate.eq.2)xxp(1:3)=pv(4:6,itarg(i))                                  
+              if(istate.eq.2)xxp(1:3)=pv(4:6,itarg(i))
            ENDIF
-! Change of reference system EQUM00 ---> ECLM00                                           
+! Change of reference system EQUM00 ---> ECLM00
            xp(1:3,i,imem)=MATMUL(roteqec,xx)
-           IF(istate.eq.2)xp(4:6,i,imem)=MATMUL(roteqec,xxp)                                                      
+           IF(istate.eq.2)xp(4:6,i,imem)=MATMUL(roteqec,xxp)
 9       ENDDO
 ! ===========================================================           
         IF(iatrue.gt.0)THEN                                            
@@ -460,8 +461,7 @@ CONTAINS
 ! ========================================================              
 ! copy into output array                                                
      xpla(1:3,1:nmass)=xp(1:3,1:nmass,imem)
-     if(istate.eq.2)xpla(4:6,1:nmass)=xp(4:6,1:nmass,imem)                                                         
-     RETURN                                                            
+     if(istate.eq.2)xpla(4:6,1:nmass)=xp(4:6,1:nmass,imem)
    END SUBROUTINE planast
                                                                         
 ! ***************************************************************       

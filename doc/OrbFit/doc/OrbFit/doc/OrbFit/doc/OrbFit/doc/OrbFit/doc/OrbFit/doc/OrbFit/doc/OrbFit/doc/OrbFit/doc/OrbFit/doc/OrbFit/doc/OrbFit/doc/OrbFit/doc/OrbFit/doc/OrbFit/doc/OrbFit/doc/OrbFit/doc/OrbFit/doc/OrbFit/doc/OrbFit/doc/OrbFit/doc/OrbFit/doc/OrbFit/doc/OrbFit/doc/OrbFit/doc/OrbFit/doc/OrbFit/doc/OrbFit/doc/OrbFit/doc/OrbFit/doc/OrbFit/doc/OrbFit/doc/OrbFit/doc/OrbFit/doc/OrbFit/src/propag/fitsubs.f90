@@ -57,18 +57,18 @@ END SUBROUTINE whicor
 ! checking the availability of the required data, for propagation       
 ! and preciction of observations                                        
 ! ====================================================================  
-SUBROUTINE chereq(icov,ini,cov,t,iun20,iun8,ok) 
+SUBROUTINE chereq(icov,ini,cov,t,iunout,ok) 
   implicit none 
   integer icov 
   logical ini,cov 
-  integer iun20,iun8 
+  integer iunout
   double precision t 
   logical ok 
 ! ===================================================================   
 ! logical check: initial conditions available                           
 ! ===================================================================   
   if(ini)then 
-     IF(iun20.gt.0)write(iun20,222) t 
+     IF(iunout.gt.0)write(iunout,222) t 
      ok=.true. 
   else 
      write(*,*)' initial conditions not available' 
@@ -82,9 +82,6 @@ SUBROUTINE chereq(icov,ini,cov,t,iun20,iun8,ok)
      if(.not.cov)then 
         write(*,*)' initial covariance not available' 
         ok=.false. 
-     elseif(iun8.gt.0)THEN 
-        write(iun8,*) 
-        write(iun8,222)t 
      endif
   endif
   222 format('  Initial epoch (MJD): ',f8.1) 
@@ -183,98 +180,105 @@ END SUBROUTINE seleph
 !  for ICOV.ne.4 also station code ids and obs. type iob1               
 !        have to be assigned by the user                                
 ! ====================================================                  
-      SUBROUTINE asstim(icov,typ,tau,tut,idsta,m,mall,im,              &
-     &       type1,t1,tut1,ids)                                          
-      USE util_suit
-      IMPLICIT NONE 
-      INTEGER m,mall
+SUBROUTINE asstim(icov,typ,tau,tut,idsta,m,mall,im,type1,t1,tut1,ids)
+  USE util_suit
+  IMPLICIT NONE 
+  INTEGER m,mall
 ! ==============input=============  
-      INTEGER icov,mp,idsta(mall)
-      CHARACTER*(1) typ(mall)                                   
-      DOUBLE PRECISION tau(mall),tut(mall) 
+  INTEGER icov,mp,idsta(mall)
+  CHARACTER*(1) typ(mall)                                   
+  DOUBLE PRECISION tau(mall),tut(mall) 
 ! ==============output=============                                     
-      INTEGER im,ids
-      CHARACTER*(1) type1
+  INTEGER im,ids
+  CHARACTER*(1) type1
 ! end interface
-      INTEGER iob1
-      DOUBLE PRECISION t1,tut1 
+  INTEGER iob1
+  DOUBLE PRECISION t1,tut1 
 ! time conversion                                                       
-      INTEGER mjd1,mjd2
-      DOUBLE PRECISION sec1,sec2 
+  INTEGER mjd1,mjd2
+  DOUBLE PRECISION sec1,sec2 
 ! characters for menu                                                   
-      CHARACTER*20 menunam 
+  CHARACTER*20 menunam 
+! calendar to MJD conversion
+  INTEGER iy,imo,iday 
+  DOUBLE PRECISION hr,tjm1
 ! ===================================================================   
-      if(mall.lt.m)then 
-         write(*,*)'asstim: this should not happen, m,mall ',m,mall 
-         mp=0 
-      else 
-         mp=mall-m 
-      endif 
+  if(mall.lt.m)then 
+     write(*,*)'asstim: this should not happen, m,mall ',m,mall 
+     mp=0 
+  else 
+     mp=mall-m 
+  endif
 ! assign observation time                                               
-      if(icov.eq.4)then 
+  if(icov.eq.5)then 
 ! compare confidence boundary with observations                         
-1        write(*,*)' observed arcs: from, to, no. obs' 
-         write(*,182)tau(1),tau(m),m 
-  182    format('arc 1: ',2f8.1,i6) 
-         IF(mall.gt.m)THEN 
-            write(*,183)tau(m+1),tau(mall),mp 
-  183       format('arc 2: ',2f8.1,i6) 
-         ENDIF 
-         write(*,*)' observation number?   ' 
-         read(*,*)im 
-         if(im.lt.0.or.im.gt.mall)then 
-            write(*,*)' observation no. im=',im,' not available' 
-            goto 1 
-         endif 
-         t1=tau(im) 
-         tut1=tut(im) 
-         ids=idsta(im)
-         type1=typ(im) 
-      else 
+1    write(*,*)' observed arcs: from, to, no. obs' 
+     write(*,182)tau(1),tau(m),m 
+182  format('arc 1: ',2f8.1,i6) 
+     IF(mall.gt.m)THEN 
+        write(*,183)tau(m+1),tau(mall),mp 
+183     format('arc 2: ',2f8.1,i6) 
+     ENDIF
+     write(*,*)' observation number?   ' 
+     read(*,*)im 
+     if(im.lt.0.or.im.gt.mall)then 
+        write(*,*)' observation no. im=',im,' not available' 
+        goto 1 
+     endif
+     t1=tau(im) 
+     tut1=tut(im) 
+     ids=idsta(im)
+     type1=typ(im) 
+  else 
 ! dummy obs. number (not used, to avoid out of bounds)                  
-         im=1 
-! assign arbitrary time                                                 
-         write(*,*)' give time of prediction (MJD)   ' 
-         read(*,*)t1 
+     im=1 
+! assign arbitrary time   
+     WRITE(*,*)'simulated obs. UTC calendar date, year, month, day, hour (with fraction)?' 
+     READ(*,*)iy,imo,iday,hr 
+     tut1= tjm1(iday,imo,iy,hr)
+!     write(*,*)' give time of prediction (MJD)   ' 
+!     read(*,*)t1 
 ! universal time of the required observation                            
-         mjd1=FLOOR(t1) 
-         sec1=(t1-float(mjd1))*86400.d0 
-         CALL cnvtim(mjd1,sec1,'TDT',mjd2,sec2,'UTC') 
-         tut1=sec2/86400.d0+float(mjd2) 
+     mjd1=FLOOR(tut1) 
+     sec1=(tut1-float(mjd1))*86400.d0 
+     CALL cnvtim(mjd1,sec1,'UTC',mjd2,sec2,'TDT') 
+     t1=sec2/86400.d0+float(mjd2) 
 !         write(*,*)t1,tut1                                             
 ! assign observation type     
-         menunam='predtype'                                          
- 2       CALL menu(iob1,menunam,4,'Observation type?=',                 &
+     menunam='predtype'                                          
+2    CALL menu(iob1,menunam,5,'Observation type?=',                 &
      &      'optical (alpha, delta)=',                                  &
-     &      'radar (range, range rate)=',                               &
+     &      'radar range=',                                     &
+     &      'radar range rate=',                               &
      &      'satellite (alpha,delta)=',                                 &
-     &      'propr motion (adot, ddot)=')
-          IF(iob1.eq.0)THEN
-            WRITE(*,*) 'please select observation type'
-            GOTO 2
-         ENDIF
+     &      'proper motion (adot, ddot)=')
+     IF(iob1.eq.0)THEN
+        WRITE(*,*) 'please select observation type'
+        GOTO 2
+     ENDIF
 ! convert code to type
-         IF(iob1.eq.1)THEN
-            type1='O'
-         ELSEIF(iob1.eq.2)THEN
-            type1='R'
-         ELSEIF(iob1.eq.3)THEN
-            type1='S'
-         ELSEIF(iob1.eq.4)THEN
+     IF(iob1.eq.1)THEN
+        type1='O'
+     ELSEIF(iob1.eq.2)THEN
+        type1='R'
+     ELSEIF(iob1.eq.3)THEN
+        type1='V'
+     ELSEIF(iob1.eq.4)THEN
+        type1='S'
+     ELSEIF(iob1.eq.5)THEN
 ! type P does not exist, but is udes by fobpre to predict proper motion
-            type1='P'
-         ENDIF
+        type1='P'
+     ENDIF
 ! assign observatory code                                               
-         write(*,*) 
-         write(*,*)' observatory code (geocenter=500)?   ' 
-         read(*,*) ids 
+     write(*,*) 
+     write(*,*)' observatory code (geocenter=500)?   ' 
+     read(*,*) ids 
 ! secret nationalistic feature                                          
-         if(ids.lt.0)then 
-            ids=599 
-         endif 
-      endif 
-      return 
-      END SUBROUTINE asstim                                          
+     if(ids.lt.0)then 
+        ids=599 
+     endif
+  endif
+END SUBROUTINE asstim
                                                                         
 ! ===================================================================   
 !  ASSCBD                                                               

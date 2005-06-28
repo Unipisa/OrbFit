@@ -8,3 +8,4 @@ FFLAGS= --chk -g --warn   -I../include
 # "ranlib" command: if it is not needed, use "RANLIB=touch"
 RANLIB=ranlib
 VPATH=../include
+

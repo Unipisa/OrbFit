@@ -1,0 +1,45 @@
+-----------------------------------------------------------------
+DIRECTORY INFO
+In this directory we develop the computation of the moid using the
+true anomalies.  
+The resultant is factorized in a product o a 4 degree pol. by a 16
+degree pol.
+
+-----------------------------------------------------------------
+MAIN PROGRAMS:
+
+***********************
+min_comp_ta_shift.f90
+***********************
+This program tests the routine compute_minima_ta.f90,
+that is used in src/propag by moid_compute.f90 and by clo_app.f90 
+the main is also used in th test performed tests/moid/ 
+
+***********************
+statcomp_ta_shift.f90
+***********************
+This program compute the MOID between an orbit, given with cometary
+elements, and the orbit of the Earth.
+The elements of the asteroid/comet are given in the file comelems.dat
+having this format q e Inc Omnod omega
+the flag wri_mat allows to write the result on the flat file stat_data
+HINT! the time t1 of the elements is given by hand in the main program
+
+******************
+ast2ast_moid.f90
+******************
+This program computes the MOID between pairs of asteroid orbits
+
+************************** 
+stat_search_ta_shift.f90
+************************** 
+Needed for large scale numerical experiments, allows to compute the
+MOID between two whatever orbits, whose cometary elements are given in
+the file orbit_cometary.dat
+
+***************
+statcomp3.f90 
+***************
+This program is used by NEODyS to compute the MOID between an asteroid
+orbit and the orbit of the Earth. It uses as input the elements in the
+epoch/ directory

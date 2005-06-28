@@ -1,13 +1,11 @@
 include ../make.flags
 include modules.flags
 
-all: libmoid.a min_comp.x stat_comp.x stat_search.x
+all: libmoid.a  min_comp.x statcomp_ta_shift.x stat_search_ta_shift.x ast2ast_moid.x 
 
-STATCOMP= writemin.o writestat3.o compute_minima.o compute_statpts.o \
-	mutualrefcha.o aical.o comp_heart_rot.o matrixdat_rot.o \
-	clevcompsylv.o rvfft.o decode_out.o code_inp.o irvfft.o \
-	solvpoly.o solvesystem_rot.o hess.o int_eval.o d2eval.o \
-	choosedeg.o sortd2.o 
+STATCOMP= compute_minima_ta.o \
+	compute_critical_points_shift.o solvpoly_ta.o critical_points_shift.o \
+	rvfft.o decode_out.o code_input.o irvfft.o choosedeg.o
 
 CDET= cdetcomp.o zgetf2.o izamax.o dcabs1.o zscal.o \
 	zswap.o zgeru.o xerbla.o
@@ -19,28 +17,34 @@ libmoid.a: $(STATCOMP) $(CDET)
 
 LIBDEPS= ../lib/libprop.a ../lib/libmoid.a ../lib/libgauss.a ../lib/libsuit.a
 
-# test program
+# programs
 
-min_comp.x:min_comp.o  $(LIBDEPS)
-	$(FC) $(FFLAGS) min_comp.o  $(LIBDEPS) \
+min_comp.x:mincomp_ta_shift.o  $(LIBDEPS)
+	$(FC) $(FFLAGS) mincomp_ta_shift.o  $(LIBDEPS) \
 	-o min_comp.x
 
-stat_comp.x:stat_comp.o  $(LIBDEPS)
-	$(FC) $(FFLAGS) stat_comp.o  $(LIBDEPS) \
-	-o stat_comp.x
+statcomp_ta_shift.x:statcomp_ta_shift.o  $(LIBDEPS)
+	$(FC) $(FFLAGS) statcomp_ta_shift.o  $(LIBDEPS) \
+	-o statcomp_ta_shift.x
 
-#stat_search.x: statsearch.o $(LIBDEPS) optpro.o 
-#	$(FC) $(FFLAGS) statsearch.o $(LIBDEPS) optpro.o -o stat_search.x
-stat_search.x: stat_search.o $(LIBDEPS) 
-	$(FC) $(FFLAGS) stat_search.o $(LIBDEPS) -o stat_search.x
+stat_search_ta_shift.x:stat_search_ta_shift.o $(LIBDEPS)
+	$(FC) $(FFLAGS) stat_search_ta_shift.o $(LIBDEPS) \
+	-o stat_search_ta_shift.x
 
+ast2ast_moid.x:ast2ast_moid.o $(LIBDEPS)
+	$(FC) $(FFLAGS) ast2ast_moid.o $(LIBDEPS) \
+	-o ast2ast_moid.x
+
+#statcomp3.x:statcomp3.o  $(LIBDEPS)
+#	$(FC) $(FFLAGS) statcomp3.o  $(LIBDEPS) \
+#	-o statcomp3.x
 
 depend:
 	../../bin/mkdep90 -I../include -L../suit *.f *.f90 *.h *.h90 > make.dep
 	../../bin/mkmoddep -f ../.compiler ../suit > modules.flags
 
 clean:
-	-(rm -f *.x *.o ../lib/libmoid.a *% *~  core work.pc*)
+	-(rm -f *.x *.o *.mod ../lib/libmoid.a *% *~ core work.pc*)
 
 distclean: clean
 	../lib/deinst_src
@@ -59,7 +63,5 @@ winclean:
 	@del *.pdb
 	@del ..\lib\moid.lib
 
-
 # Dependencies
 include make.dep
-

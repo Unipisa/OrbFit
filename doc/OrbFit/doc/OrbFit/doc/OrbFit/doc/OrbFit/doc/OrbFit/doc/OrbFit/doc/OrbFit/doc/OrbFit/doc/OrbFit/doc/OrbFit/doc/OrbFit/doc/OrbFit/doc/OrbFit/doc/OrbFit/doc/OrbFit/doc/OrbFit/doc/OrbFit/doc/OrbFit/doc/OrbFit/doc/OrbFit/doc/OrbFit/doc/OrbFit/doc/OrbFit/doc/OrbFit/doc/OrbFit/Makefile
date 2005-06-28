@@ -26,8 +26,8 @@ distclean:
 	@ exit 1
 
 distribution: distclean notar
-	tar -cvf ../OrbFit3.2.5.tar -X notar . ; \
-	gzip ../OrbFit3.2.5.tar
+	tar -cvf ../OrbFit3.3.tar -X notar . ; \
+	gzip ../OrbFit3.3.tar
 
 doctar:
 	tar -cvf ../doc.tar --exclude-from notar ./doc; gzip ../doc.tar
@@ -37,7 +37,7 @@ additional_doc:
 
 nondistribute: 
 	cd src; make nondistclean; cd .. 
-	tar -T notar -cvf ../OrbFitwork325.tar ; gzip ../OrbFitwork325.tar
+	tar -T notar -cvf ../OrbFitwork33.tar ; gzip ../OrbFitwork33.tar
 
 starcat:
 	cd ../starcat; make clean; cd ../skymap; make clean; cd ../..;
@@ -47,5 +47,5 @@ nondistclean:
 	cd src; make nondistclean
 
 patch: 
-	tar -T patchlist -cvf ../patch3.2.6.tar ; gzip ../patch3.2.6.tar
+	tar -T patchlist -cvf ../patch3.3.1.tar ; gzip ../patch3.3.1.tar
 
