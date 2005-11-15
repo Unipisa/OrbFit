@@ -1,8 +1,8 @@
 ! LIBRARY OBSVARIE contains
 ! iaucod        computes IAU official designations from MPC-style packed
-!               CAN BE REMOVED
-! iaucod2       computes IAU official designations from MPC-style packed
 !               with alphamumeric numbers
+! iaucod2       computes IAU official designations from MPC-style packed
+!               with alphamumeric numbers, padding with 'w'
 ! mpcpds	computes MPC-style packed designation from official IAU code   
 !               also with alphanumeric codes
 ! nights        number of nights of observations; 
@@ -15,6 +15,113 @@
 ! f90 version September 2003 A. Milani
 ! expanded to include obssta, quality October 2004 A. Milani   
 ! --------------------------------------------------------------------- 
+!  *****************************************************************    
+!  *                                                               *    
+!  *                         I A U C O D N E W                     *    
+!  *                                                               *    
+!  * Computes official IAU code from MPC new packed designation    *    
+!  *                                                               *    
+!  *****************************************************************    
+!                                                                       
+! INPUT:    MPCCOD    -  MPC-style code as used in observation archives 
+!                        7 characters for number, 9 characters for      
+!                        packed provisional designation, 10 for
+!                        comets and satellites                 
+!                                                                       
+! OUTPUT:   IAUDES    -  IAU code                                       
+!           ERROR     -  Error flag (cannot understand input code)      
+!                                                                       
+      SUBROUTINE iaucodnew(mpccod,iaudes,error)
+      USE name_rules 
+      IMPLICIT NONE 
+      CHARACTER*(name_len), INTENT(OUT) :: iaudes
+      CHARACTER*(*), INTENT(IN) :: mpccod 
+      LOGICAL, INTENT(OUT) :: error 
+! ---------END INTERFACE--------------------
+      INTEGER ln,i,temp 
+      CHARACTER*2 head 
+      CHARACTER*3 tail 
+      INTEGER lench, number 
+      LOGICAL isnum 
+      EXTERNAL lench,isnum 
+      CHARACTER numfield*7, desfield*9 
+! ================================================
+      error=.false. 
+      iaudes=' '                                                     
+      ln=lench(mpccod) 
+      IF(ln.LE.0) GOTO 10 
+! check if numbered                                                                        
+      numfield=mpccod(1:7) 
+      CALL rmsp(numfield,ln)                                
+      IF(ln.ne.0) THEN
+! Numbered asteroids  
+         IF(isnum(numfield(1:1)))THEN
+! standard number: remove zeros
+            iaudes=numfield
+! remove leading zeros
+            DO i=1,ln-1 
+               IF (iaudes(i:i).eq.'0') THEN 
+                  iaudes(i:i)=' ' 
+               ELSE 
+                  EXIT 
+               ENDIF
+            ENDDO
+            RETURN ! successfull parsing of numbered asteroid
+         ELSE
+! alphanumeric asteroid number
+            WRITE(*,*)' iaucodnew: alphamnumeric asteroid number? ', mpccod
+            STOP
+         ENDIF         
+      ENDIF
+                                                                        
+! Unnumbered asteroids                                                  
+      desfield=mpccod(8:16) 
+                                                                        
+      if(desfield(3:3).eq.'S')then 
+! Survey Asteroid                                                       
+         iaudes=desfield(6:9)//desfield(1:1)//'-'//desfield(2:2) 
+                                                                        
+      elseif (desfield(1:1).eq.'I' .or.                                 &
+     &        desfield(1:1).eq.'J' .or.                                 &
+     &        desfield(1:1).eq.'K')then                                 
+! Temporary designation       
+         tail=' '                                          
+         if(desfield(5:8).eq.'0000')then 
+!           1999AA = J99A0000A  
+         elseif(desfield(5:7).eq.'000')then 
+!           1999AA1 = J99A0001A 
+            tail=desfield(8:8)
+          elseif(desfield(5:6).eq.'00')then 
+!           1999AA12 = J99A0012A
+            tail=desfield(7:8)
+         elseif(desfield(5:5).eq.'0')then 
+!           1999AA123 = J99A0123A
+            tail=desfield(6:8)
+         else
+!           1999AA1234 = J99A1234A
+            IF(name_len.lt.10)THEN !PROBLEM: 1999AA1234 cannot be accomodated in 9 characters
+               WRITE(*,*)' iaucodnew: 10 character IAU designation? ', mpccod
+               STOP
+            ELSE
+               tail=desfield(5:8)
+            ENDIF
+         endif 
+         temp=ichar(desfield(1:1))-55 
+         write(head,103) temp 
+  103    format(I2) 
+         iaudes=head//desfield(2:3)//desfield(4:4)//desfield(7:7)//tail 
+      else 
+! Unknown type                                                          
+         write(*,*)'cannot understand MPC designation: ',mpccod 
+         goto 10 
+      endif 
+      return 
+                                                                        
+   10 CONTINUE 
+      iaudes=mpccod 
+      error=.true. 
+                                                                        
+    END SUBROUTINE iaucodnew
 !                                                                       
 !  *****************************************************************    
 !  *                                                               *    
@@ -52,7 +159,7 @@
                                                                         
       ln=lench(mpccod) 
       IF(ln.LE.0) GOTO 10 
-! check if numbered                                                                        
+! check if numbered 
       numfield=mpccod(1:5) 
       CALL rmsp(numfield,ln)                                
       IF(ln.ne.0) THEN

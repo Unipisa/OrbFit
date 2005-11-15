@@ -733,9 +733,13 @@ CALL rdncha('IERS.ccor.','file',flcier,.false.,     &
     2 CONTINUE 
       nr=nr+1 
       READ(uniier,100,ERR=20) rec 
-      IF(rec(1:10).NE.'  YEAR ==>') GOTO 2 
-      READ(rec(11:),*) year 
-      IF(year.LT.1900 .OR. year.GT.2100) GOTO 20 
+!     IF(rec(1:10).NE.'  YEAR ==>') GOTO 2 
+!     READ(rec(11:),*) year 
+!     IF(year.LT.1900 .OR. year.GT.2100) GOTO 20 
+!
+! Skip file header and records until JAN-18-1972, when TAI-UTC.dat has data available
+! and to avoid warning messages from itaiut if we start reading records from JAN-1-1972
+      IF(rec(18:22).NE.'41334') GOTO 2
   
 ! Read and store data records   
     3 CONTINUE 
@@ -743,8 +747,11 @@ CALL rdncha('IERS.ccor.','file',flcier,.false.,     &
       READ(uniier,100,ERR=20,END=9) rec 
       lr=lench(rec) 
       IF(lr.LE.0) GOTO 3 
-      READ(rec,101,ERR=20) cm3,day,mjd,x,y,dt1,dlod,dpsi,deps 
-  101 FORMAT(2X,A3,1X,I3,2X,I5,2F9.5,F10.6,2X,F10.6,2X,2F9.5) 
+!     READ(rec,101,ERR=20) cm3,day,mjd,x,y,dt1,dlod,dpsi,deps 
+! 101 FORMAT(2X,A3,1X,I3,2X,I5,2F9.5,F10.6,2X,F10.6,2X,2F9.5) 
+      READ(rec,101,ERR=20) year,cm3,day,mjd,x,y,dt1,dlod,dpsi,deps
+  101 FORMAT(2X,I4,2X,A3,1X,I3,2X,I5,2F9.6,F10.7,2X,F10.7,2X,2F9.6)
+      IF(year.LT.1900 .OR. year.GT.2100) GOTO 20
 ! Check on MJD value  
       month=chmo2i(cm3) 
       IF(month.LE.0) GOTO 20 

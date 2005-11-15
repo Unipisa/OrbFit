@@ -197,6 +197,8 @@ END SUBROUTINE rdelem
 !                            Andrea Milani (milani@dm.unipi.it)         
 !                                                                       
 ! Version: February 12, 1999                                            
+! Revised by Genny on 5 November 2005 to deal with the new format of 
+! astorb.dat to include numbered objects > 99999
 ! --------------------------------------------------------------------- 
 !                                                                       
 !  *****************************************************************    
@@ -290,16 +292,16 @@ SUBROUTINE oefdet(unit,filnam,form)
       END IF                                                               
 ! Format 3 (BA2)                                                        
       IF(poss(3)) THEN 
-         IF(lr.NE.266) poss(3)=.false. 
-         b4(1:1)=rec(6:6) 
-         b4(2:2)=rec(25:25) 
-         b4(3:3)=rec(41:41) 
-         b4(4:4)=rec(47:47) 
+         IF(lr.NE.267) poss(3)=.false. 
+         b4(1:1)=rec(7:7) 
+         b4(2:2)=rec(26:26) 
+         b4(3:3)=rec(42:42) 
+         b4(4:4)=rec(48:48) 
          IF(b4.NE.'    ') poss(3)=.false. 
-         p4(1:1)=rec(118:118) 
-         p4(2:2)=rec(129:129) 
-         p4(3:3)=rec(140:140) 
-         p4(4:4)=rec(150:150) 
+         p4(1:1)=rec(119:119) 
+         p4(2:2)=rec(130:130) 
+         p4(3:3)=rec(141:141) 
+         p4(4:4)=rec(151:151) 
          IF(p4.NE.'....') poss(3)=.false. 
       END IF                                                               
 ! Format 4 (MPC-A)                                                      
@@ -354,6 +356,8 @@ SUBROUTINE oefdet(unit,filnam,form)
 
 ! Copyright (C) 1997-1999 by Mario Carpino (carpino@brera.mi.astro.it)  
 ! Version: February 12, 1999                                            
+! Revised by Genny on 5 November 2005 to deal with the new format of 
+! astorb.dat to include numbered objects > 99999
 ! --------------------------------------------------------------------- 
 !                                                                       
 !  *****************************************************************    
@@ -403,7 +407,7 @@ SUBROUTINE rdast2(unit,filnam,objnam,nobj,deforb,defcn,           &
   LOGICAL deforb(nobj),defcn(nobj)                                                                       
   INTEGER ln,nr,lf,nrem,k,flags(6),year,month,day,lc 
   DOUBLE PRECISION el1(6) 
-  CHARACTER n1*5,n2*18,name*18,hc*5,gc*5,krc*10                                                   
+  CHARACTER n1*6,n2*18,name*18,hc*5,gc*5,krc*10                                                   
   INTEGER lench 
   DOUBLE PRECISION tjm1 
   EXTERNAL lench,tjm1                                                                 
@@ -435,7 +439,7 @@ SUBROUTINE rdast2(unit,filnam,objnam,nobj,deforb,defcn,           &
      IF(name.EQ.objnam(k)) THEN 
         BACKSPACE(unit) 
         READ(unit,100) n1,n2,hc,gc,flags,year,month,day,el1 
-100     FORMAT(A5,1X,A18,17X,A5,1X,A5,17X,6I4,12X,I4,2I2,1X,              &
+100     FORMAT(A6,1X,A18,17X,A5,1X,A5,17X,6I4,12X,I4,2I2,1X,              &
      &       3(F10.6,1X),F9.6,1X,F10.8,1X,F12.8)    
         deforb(k)=.true. 
         defcn(k)=.false. 
@@ -542,7 +546,8 @@ SUBROUTINE rdmpca(unit,filnam,objnam,nobj,deforb,defcn,           &
 1 CONTINUE 
   READ(unit,100,END=2) nmpc1 
 100 FORMAT(A7,A5,2X,A5,1X,A5,1X,F9.5,2X,F9.5,2X,F9.5,2X,F9.5,         &
-     &       2X,F9.7,13X,F11.7)                           
+     &       2X,F9.7,13X,F11.7)
+! handling alphanumeric asteroid number
   nr=nr+1                                                               
   DO 3 k=1,nobj 
      IF(deforb(k)) GOTO 3 
@@ -999,7 +1004,7 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
 !                                                                       
 ! OUTPUT:   NAME      -  Name of planet/asteroid/comet                  
 !           ELEM(6)   -  Orbital element vector                         
-!           ELTYPE    -  Type of orbital elements (KEP/EQU/CAR/COM/ATT)         
+!           ELTYPE    -  Type of orbital elements (KEP/EQU/CAR/COM/ATT)
 !           T0        -  Epoch of orbital elements (MJD, TDT)           
 !           COVE      -  Covariance matrix of orbital elements          
 !           DEFCOV    -  Tells whether the covariance matrix is defined 
@@ -1103,7 +1108,7 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
          noep=.false. 
       ELSEIF(rec(1:4).EQ.' MAG') THEN 
          READ(rec(5:),*,ERR=20) h,g 
-      ELSEIF(rec(1:4).EQ.'STA')THEN ! station code for ATT only
+      ELSEIF(rec(1:4).EQ.' STA')THEN ! station code for ATT only
          READ(rec(5:),*,ERR=20) obscod
       ELSEIF(rec(1:4).EQ.' MAS') THEN 
          READ(rec(5:),*,ERR=20) mass 
@@ -1521,171 +1526,7 @@ SUBROUTINE wromlh(unit,rsys,epoch)
      &       'refsys  = ',A,1X,A,A,A,' default reference system'/       &
      &       'END_OF_HEADER')   
 END SUBROUTINE wromlh
-! Copyright (C) 1997-1998 by Mario Carpino (carpino@brera.mi.astro.it)  
-! Modified by Andrea Milani, vers. 1.8.3, January 1999                  
-! --------------------------------------------------------------------- 
-!                                                                       
-!  *****************************************************************    
-!  *                                                               *    
-!  *                         W R O M L R                           *    
-!  *                                                               *    
-!  *  Writes an orbital element record in an orbital element file  *    
-!  *                     (multi-line format)                       *    
-!  *                                                               *    
-!  *****************************************************************    
-!                                                                       
-! OUTPUT:   UNIT      -  Output FORTRAN unit                            
-!           NAME0      -  Name of planet/asteroid/comet                  
-!           ELEM(6)   -  Orbital element vector                         
-!           ELTYPE    -  Type of orbital elements (KEP/EQU/CAR)         
-!           T0        -  Epoch of orbital elements (MJD, TDT)           
-!           COVE      -  Covariance matrix of orbital elements          
-!           DEFCOV    -  Tells whether the covariance matrix is defined 
-!           NORE      -  Normal matrix of orbital elements              
-!           DEFNOR    -  Tells whether the normal matrix is defined     
-!           H         -  H absolute magnitude (if <-100, missing)       
-!           G         -  G slope parameter                              
-!           MASS      -  Mass (solar masses)                            
-!                                                                       
-! WARNING: the routine does not write the header of the file: this      
-!          must be generated by calling subroutine wromlh               
-!                                                                       
-SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,           &
-     &                  nore,defnor,h,g,mass)    
-  USE fund_const  
-  USE output_control
-  USE name_rules  
-  USE io_elems, ONLY: obscod   
-  IMPLICIT NONE
-  INTEGER unit 
-  DOUBLE PRECISION elem(6),t0,h,g,cove(6,6),nore(6,6),mass 
-  CHARACTER*(*), INTENT(IN):: name0,eltype 
-  LOGICAL defcov,defnor 
-  CHARACTER*(idnamvir_len) name
-  INCLUDE 'parcmc.h90'
-  INTEGER l1,ln,i,k 
-  DOUBLE PRECISION cnv(6),std(6)
-  INTEGER lench 
-  EXTERNAL lench 
-! eigenvalues, eigenvectors                                             
-  DOUBLE PRECISION eigvec(6,6),eigval(6),fv1(6),fv2(6) 
-  INTEGER ierr 
-! Name
-  name=' '
-  name=name0                                                                  
-  ln=lench(name) 
-  IF(ln.LE.0) THEN 
-     name='????' 
-     ln=4 
-  END IF
-  l1=1 
-  IF(name(l1:l1).EQ.' ') THEN 
-     DO 1 l1=1,ln 
-        IF(name(l1:l1).NE.' ') GOTO 2 
-1    CONTINUE 
-2    CONTINUE 
-     IF(l1.GT.ln) THEN 
-        name='????' 
-        ln=4 
-     END IF
-  END IF 
-  WRITE(unit,100) name(l1:ln) 
-100 FORMAT(A)
-! Orbital elements                                                      
-  cnv=1.d0 
-  IF(eltype.EQ.'KEP') THEN 
-     cnv(3:6)=degrad 
-     if(elem(6).lt.0.d0)elem(6)=elem(6)+dpig 
-     if(elem(5).lt.0.d0)elem(5)=elem(5)+dpig 
-     if(elem(4).lt.0.d0)elem(4)=elem(4)+dpig 
-     WRITE(unit,201) comcha 
-  201 FORMAT(A,' Keplerian elements: a, e, i, long. node,', &
-           &         ' arg. peric., mean anomaly')  
-     WRITE(unit,101) (elem(i)*cnv(i),i=1,6) 
-101  FORMAT(' KEP ',1P,E22.14,0P,F18.15,4F18.13) 
-  ELSEIF(eltype.EQ.'CAR') THEN 
-     WRITE(unit,202) comcha 
-202  FORMAT(A,' Cartesian position and velocity vectors') 
-     WRITE(unit,102) elem 
-102  FORMAT(' CAR ',1P,6E22.14) 
-  ELSEIF(eltype.EQ.'EQU') THEN 
-     cnv(6)=degrad 
-     IF(elem(6).lt.0.d0)THEN 
-        IF(verb_io.ge.9) WRITE(*,*) ' wromlr: negative mean longitude', elem(6)*cnv(6) 
-        elem(6)=elem(6)+dpig 
-     ENDIF
-     WRITE(unit,203) comcha 
-  203 FORMAT(A,' Equinoctial elements: a, e*sin(LP), e*cos(LP),',       &
-     &         ' tan(i/2)*sin(LN), tan(i/2)*cos(LN), mean long.') 
-     WRITE(unit,103) (elem(i)*cnv(i),i=1,6) 
-  103 FORMAT(' EQU ',1P,E22.14,0P,2(1x,f19.15),2(1x,f20.15),1x,F17.13) 
-  ELSEIF(eltype.EQ.'COM') THEN 
-     cnv(3:5)=degrad 
-     if(elem(5).lt.0.d0)elem(5)=elem(5)+dpig 
-     if(elem(4).lt.0.d0)elem(4)=elem(4)+dpig 
-     WRITE(unit,204) comcha 
-  204 FORMAT(A,' Cometary elements: q, e, i, long. node,', &
-           &         ' arg. peric., pericenter time')  
-     WRITE(unit,114) (elem(i)*cnv(i),i=1,6) 
-114  FORMAT(' COM ',1P,E22.14,0P,1x,F18.15,1x,3(F18.13,1x),F18.10) 
-  ELSEIF(eltype.eq.'ATT') THEN
-     cnv(1:4)=degrad
-     IF(elem(1).lt.0.d0)elem(1)=elem(1)+dpig
-          WRITE(unit,205) comcha 
-  205 FORMAT(A,' Attributable elements: R.A., DEC, R.A.dot, DECdot, r, rdot,', &
-           &         ' auxiliary information on observer needed')  
-     WRITE(unit,115) (elem(i)*cnv(i),i=1,6) 
-115  FORMAT(' ATT ',2(F18.13,1x),2(F18.13,1x),2(F18.13,1x)) 
-     WRITE(unit,116) ' STA ',obscod
-116  FORMAT(A5,A3)
-  ELSE
-     WRITE(*,*)  '**** wromlr: unsupported orbital element type ****', eltype
-     STOP '**** wromlr: unsupported orbital element type ****' 
-  END IF
-! Epoch                                                                 
-  WRITE(unit,104) t0 
-104 FORMAT(' MJD ',F19.9,' TDT')                                                                     
-! Mass                                                                  
-  IF(mass.NE.0.d0) WRITE(unit,105) mass 
-105 FORMAT(' MAS ',1P,E20.12)                                              
-! Magnitudes                                                            
-  IF(h.GT.-100.d0) WRITE(unit,106) h,g 
-106 FORMAT(' MAG ',2F7.3)                                                 
-! Covariance matrix                                                     
-  IF(defcov) THEN 
-     DO i=1,6 
-        std(i)=SQRT(cove(i,i))
-     ENDDO 
-! eigenvalues                                                           
-     CALL rs(6,6,cove,eigval,1,eigvec,fv1,fv2,ierr) 
-     DO i=1,6 
-        IF(eigval(i).gt.0.d0)THEN 
-           eigval(i)=sqrt(eigval(i)) 
-        ELSE 
-           IF(eigval(i).lt.-1.d-10)THEN
-              WRITE(*,*)'wromlr: zero/negative eigenvalue', eigval(i) 
-              WRITE(*,*) '  for asteroid ',name(l1:ln)
-           ENDIF 
-           eigval(i)=-sqrt(-eigval(i)) 
-        ENDIF
-     ENDDO
-! RMS, eigenvalues and weak direction are so far commented              
-     WRITE(unit,107) comcha,(std(i)*cnv(i),i=1,6) 
-107  FORMAT(A1,' RMS ',1P,6E14.5) 
-     WRITE(unit,111) comcha,eigval 
-111  FORMAT(A1,' EIG',1P,6E14.5) 
-     WRITE(unit,110) comcha,(eigvec(i,6),i=1,6) 
-110  FORMAT(A1,' WEA',6F10.5) 
-! covariance matrix is given uncommented, to be readable                
-     WRITE(unit,108) ((cove(i,k)*cnv(i)*cnv(k),k=i,6),i=1,6) 
-108  FORMAT(' COV ',1P,3E23.15) 
-  END IF                                                                      
-! Normal matrix                                                         
-  IF(defnor) THEN 
-     WRITE(unit,109) ((nore(i,k)/(cnv(i)*cnv(k)),k=i,6),i=1,6) 
-109  FORMAT(' NOR ',1P,3E23.15) 
-  END IF
-END SUBROUTINE wromlr
+
 ! ===============================================================
 ! CONVERSIONS
 ! ===============================================================

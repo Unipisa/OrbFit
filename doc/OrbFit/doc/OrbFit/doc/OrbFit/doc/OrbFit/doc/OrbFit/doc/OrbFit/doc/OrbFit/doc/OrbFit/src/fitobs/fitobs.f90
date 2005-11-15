@@ -65,6 +65,9 @@ PROGRAM fitobs
 ! ===========close approach analysis======================
   INTEGER iclan 
   DOUBLE PRECISION tlim 
+  CHARACTER*120 helpfi,ddocd1 
+  INTEGER ll,iunit,lench
+  INCLUDE 'doclib.h90' 
 ! ===============to change coord=================
   DOUBLE PRECISION, DIMENSION(6,6) :: dee !partials
   CHARACTER*3 cooy ! target type
@@ -101,7 +104,7 @@ PROGRAM fitobs
   LOGICAL init,init2 
 ! asteroids with mass                                                   
   LOGICAL found 
-  INTEGER nfound,lench 
+  INTEGER nfound 
 ! ======== loop indexes =====================                           
 !  ii=subset of 1,6 etc,j=1,6,i=1,m                                     
   INTEGER j,ii,i 
@@ -135,7 +138,7 @@ PROGRAM fitobs
   verb_mul=10 
   verb_rej=20
   verb_io=10
-  verb_moid=20 
+  verb_moid=1 
 ! setting of logical flags: nothing is available at the beginning
   CALL set_state_def
   inide=.false. 
@@ -366,776 +369,782 @@ PROGRAM fitobs
      ENDIF
 ! initialisation of Yarkovski after acquiring elements                  
 ! (the physical model of the first asteroid is assumed)                  
-       IF(ini0) CALL yarkinit(astna0,el0) 
+     IF(ini0) CALL yarkinit(astna0,el0) 
 ! ===================================================================== 
-    ELSEIF(ifun.eq.3)THEN 
-       CALL tee(iun_log,' DIFFERENTIAL CORRECTIONS=') 
+  ELSEIF(ifun.eq.3)THEN 
+     CALL tee(iun_log,' DIFFERENTIAL CORRECTIONS=') 
 ! =================MENU 3: DIFFERENTIAL CORRECTIONS==================== 
-53     CALL orb_sel2(.false.,iarc)
-       IF(iarc.eq.0)GOTO 50
-       CALL obs_cop(1,iarc) ! copy observations to obsc, obswc
-       IF(iarc.eq.1)THEN
-          rwofic=rwofi0 ! ARC 1
-          iunelc=iunel0
-       ELSEIF(iarc.eq.2)THEN
-          rwofic=rwofip ! ARC 2
-          iunelc=iunelp
-       ELSEIF(iarc.eq.3)THEN
-          rwofic=rwotwo ! ARCS IDENTIFIED
-          iunelc=iunelt
-       ENDIF
+53   CALL orb_sel2(.false.,iarc)
+     IF(iarc.eq.0)GOTO 50
+     CALL obs_cop(1,iarc) ! copy observations to obsc, obswc
+     IF(iarc.eq.1)THEN
+        rwofic=rwofi0 ! ARC 1
+        iunelc=iunel0
+     ELSEIF(iarc.eq.2)THEN
+        rwofic=rwofip ! ARC 2
+        iunelc=iunelp
+     ELSEIF(iarc.eq.3)THEN
+        rwofic=rwotwo ! ARCS IDENTIFIED
+        iunelc=iunelt
+     ENDIF
 ! =========== select mode======================
-       menunam='difcomod' 
-       CALL menu(idif,menunam,5,' select correction and reject mode=',&
+     menunam='difcomod' 
+     CALL menu(idif,menunam,5,' select correction and reject mode=',&
      &      'correct all, autoreject=',                                 &
      &      'correct all, no rejections=',                              &
      &      'constrained solution on LOV (no rejections)=',             &
      &      'correct only some elements (no rejections)=',              &
      &      'compute residuals and covariance (no correction)=')
-       IF(idif.eq.0) GOTO 50 
-       itsav=itmax 
-       IF(idif.eq.5)itmax=0 
+     IF(idif.eq.0) GOTO 50 
+     itsav=itmax 
+     IF(idif.eq.5)itmax=0 
 ! auto/manual reject                                                    
-       IF(idif.eq.1)THEN 
-          autrej=.true. 
-       ELSE 
-          autrej=.false. 
-       ENDIF
+     IF(idif.eq.1)THEN 
+        autrej=.true. 
+     ELSE 
+        autrej=.false. 
+     ENDIF
 ! which elements to correct                                             
-       IF(idif.ne.4)THEN 
-          interactive=0 
-       ELSE 
-          interactive=1 
-       ENDIF
+     IF(idif.ne.4)THEN 
+        interactive=0 
+     ELSE 
+        interactive=1 
+     ENDIF
 ! ====================constrained solution=========================== 
-       IF(idif.eq.3)THEN
+     IF(idif.eq.3)THEN
 ! check availability of observations and initial condition              
-          CALL cheobs(obsflag,inic,ok) 
-          IF(.not.ok) GOTO 53
+        CALL cheobs(obsflag,inic,ok) 
+        IF(.not.ok) GOTO 53
 ! check availability of JPL ephemerides and ET-UT table                 
-          CALL chetim(obsc(1)%time_tdt,obsc(m)%time_tdt,ok) 
-          IF(.not.ok) GOTO 53
-          IF(iope.eq.1)THEN 
-681          WRITE(*,*)' use scaling, 1=yes, 0=no?'
-             READ(*,*)iscal
-             IF(iscal.eq.0)THEN
-                scaling_lov=.false.
-             ELSEIF(iscal.eq.1)THEN
-                scaling_lov=.true.
-             ELSE
-                WRITE(*,*)' answer ', iscal, ' not understood'
-                GOTO 681
-             ENDIF
-682          WRITE(*,*)' which LOV, 1=largest eigenv., 2=second'
-             READ(*,*)iscal
-             IF(iscal.eq.1)THEN
-                second_lov=.false.
-             ELSEIF(iscal.eq.2)THEN
-                second_lov=.true.
-             ELSE
-                WRITE(*,*)' answer ', iscal, ' not understood'
-                GOTO 682
-             ENDIF
-          ENDIF
-          CALL tee(iun_log,' CONSTRAINED DIFFERENTIAL CORRECTIONS=') 
-          CALL constr_fit(mc,obsc,obswc,elc,peq,elc,uncc,csinoc,delnoc,rmshc,iobc,succ)
+        CALL chetim(obsc(1)%time_tdt,obsc(m)%time_tdt,ok) 
+        IF(.not.ok) GOTO 53
+681     WRITE(*,*)' use scaling, 1=yes, 0=no?'
+        READ(*,*)iscal
+        IF(iscal.eq.0)THEN
+           scaling_lov=.false.
+        ELSEIF(iscal.eq.1)THEN
+           scaling_lov=.true.
+        ELSE
+           WRITE(*,*)' answer ', iscal, ' not understood'
+           GOTO 681
+        ENDIF
+682     WRITE(*,*)' which LOV, 1=largest eigenv., 2=second'
+        READ(*,*)iscal
+        IF(iscal.eq.1)THEN
+           second_lov=.false.
+        ELSEIF(iscal.eq.2)THEN
+           second_lov=.true.
+        ELSE
+           WRITE(*,*)' answer ', iscal, ' not understood'
+           GOTO 682
+        ENDIF
+        CALL tee(iun_log,' CONSTRAINED DIFFERENTIAL CORRECTIONS=') 
+        CALL constr_fit(mc,obsc,obswc,elc,peq,elc,uncc,csinoc,delnoc,rmshc,iobc,succ)
 ! =========================full solution=============================
-       ELSE 
-          CALL tee(iun_log,' FULL DIFFERENTIAL CORRECTIONS=') 
-          CALL fdiff_cor(batch,1,obsflag,inic,ok,covc,elc,mc,obsc,obswc,iobc,    &
+     ELSE 
+        CALL tee(iun_log,' FULL DIFFERENTIAL CORRECTIONS=') 
+        CALL fdiff_cor(batch,1,obsflag,inic,ok,covc,elc,mc,obsc,obswc,iobc,    &
       &         rwofic,elc,uncc,csinoc,delnoc,rmshc,succ)
-       ENDIF
+     ENDIF
 ! availability of observations, initial condition, JPL and ET-UT data   
-       IF(.not.ok.or..not.succ) GOTO 50 
+     IF(.not.ok.or..not.succ) GOTO 50 
 ! output new elements  
-       CALL write_elems(elc,astnac,'ML',dummyfile,iunelc,uncc)
-       CALL nomoid(elc%t,elc,moid0,dnp0,dnm0) 
-       write(*,199)moid0,0,dnp0,dnm0 
-199    format('orb.dist.      dist.n+  dist.n-'/                &
-            &              f8.5,1x,i4,1x,f8.5,1x,f8.5)                         
-       write(*,*) 
-       write(iunelc,198)moid0,0,dnp0,dnm0 
-198    format('!MOID ',f8.5,1x,i4/'!NODES ',f8.5,1x,f8.5) 
+     CALL write_elems(elc,astnac,'ML',dummyfile,iunelc,uncc)
+     CALL nomoid(elc%t,elc,moid0,dnp0,dnm0) 
+     write(*,199)moid0,0,dnp0,dnm0 
+199  format('orb.dist.      dist.n+  dist.n-'/                &
+          &              f8.5,1x,i4,1x,f8.5,1x,f8.5)                         
+     write(*,*) 
+     write(iunelc,198)moid0,0,dnp0,dnm0 
+198  format('!MOID ',f8.5,1x,i4/'!NODES ',f8.5,1x,f8.5) 
 ! restore state 
-       icop=2
-       CALL sta_cop(icop,iarc)
-       CALL obs_cop(icop,iarc)
-       itmax=itsav
+     icop=2
+     CALL sta_cop(icop,iarc)
+     CALL obs_cop(icop,iarc)
+     itmax=itsav
 ! ===================================================================== 
-    ELSEIF(ifun.eq.4)THEN 
+  ELSEIF(ifun.eq.4)THEN 
 ! ===================================================================== 
 ! check availability of JPL ephemerides and ET-UT table                 
-       CALL chetim(obs(1)%time_tdt,obs(mall)%time_tdt,ok) 
-       IF(.not.ok) GOTO 50 
+     CALL chetim(obs(1)%time_tdt,obs(mall)%time_tdt,ok) 
+     IF(.not.ok) GOTO 50 
 ! ok, go on with arc                                                    
-       CALL tee(iun_log,' FIRST GUESS FOR IDENTIFICATION=') 
+     CALL tee(iun_log,' FIRST GUESS FOR IDENTIFICATION=') 
 ! ==================MENU 4: FIRST GUESS=======================          
-54     menunam='firstgue' 
-       CALL menu(igue,menunam,4,' which initial guess?=',             &
-     &      'use averages, fit longitudes=',                            &
-     &      'use elements of arc 1=',                                   &
-     &      'use elements of arc 2=',                                   &
+54   menunam='firstgue' 
+     CALL menu(igue,menunam,4,' which initial guess?=',             &
+     &      'use averages, fit longitudes=',                        &
+     &      'use elements of arc 1=',                               &
+     &      'use elements of arc 2=',                               &
      &      'recompute ident=')
-       IF(igue.eq.0)GOTO 50 
+     IF(igue.eq.0)GOTO 50 
 ! ===================================================================== 
-       IF(igue.eq.1)THEN 
+     IF(igue.eq.1)THEN 
 ! ===================================================================== 
 ! first guess of a unique solution for both arcs, with averages         
 !   and fit to longitudes                                               
 !  =====================================================================
 ! check availability of observations and initial condition              
-          iniboth=ini0.and.inip 
-          CALL cheobs(obstwo,iniboth,ok) 
-          IF(.not.ok) GOTO 54 
+        iniboth=ini0.and.inip 
+        CALL cheobs(obstwo,iniboth,ok) 
+        IF(.not.ok) GOTO 54 
 ! can be done                                                           
-          CALL tee(iun_log,' GUESS FROM LONGITUDE FIT=') 
+        CALL tee(iun_log,' GUESS FROM LONGITUDE FIT=') 
 ! ===================================================================== 
 ! epoch time in the middle, unless they are too close                   
-          IF(abs(el0%t-elp%t).lt.1.d0)THEN 
-             WRITE(*,*)' initial times ',el0%t,elp%t,' too close' 
-             GOTO 54 
-          ENDIF
+        IF(abs(el0%t-elp%t).lt.1.d0)THEN 
+           WRITE(*,*)' initial times ',el0%t,elp%t,' too close' 
+           GOTO 54 
+        ENDIF
 ! ===================================================================== 
 ! magnitude is the one of the first (not knowing any better)
-          el=el0
-          el%t=(el0%t+elp%t)/2.d0 
-          WRITE(iun_log,123) el%t 
-          WRITE(*,123) el%t 
-123       FORMAT(1x,'tm =',f8.1) 
-          WRITE(iun_log,*) 
+        el=el0
+        el%t=(el0%t+elp%t)/2.d0 
+        WRITE(iun_log,123) el%t 
+        WRITE(*,123) el%t 
+123     FORMAT(1x,'tm =',f8.1) 
+        WRITE(iun_log,*) 
 ! ===================================================================== 
 ! use as first guess linear interpolation for h,k,p,q                   
-          el%coord(2:5)=(el0%coord(2:5)+elp%coord(2:5))/2.d0 
+        el%coord(2:5)=(el0%coord(2:5)+elp%coord(2:5))/2.d0 
 ! Estimate of the mean motion (hence semimajor axis)                    
 ! allowing to combine two arcs                                          
-          CALL start(el0,elp,1,ng,enm,el%coord(1),el%coord(6),ok)
-          IF(ok)THEN 
-             initwo=.true. 
-             CALL wriequ(iun_log,astna0,el%t,el%coord) 
-             WRITE(*,*)' INITIAL COND. AVAILABLE, NOW USE DIFF. CORR.'
-          ENDIF 
+        CALL start(el0,elp,1,ng,enm,el%coord(1),el%coord(6),ok)
+        IF(ok)THEN 
+           initwo=.true. 
+           CALL wriequ(iun_log,astna0,el%t,el%coord) 
+           WRITE(*,*)' INITIAL COND. AVAILABLE, NOW USE DIFF. CORR.'
+        ENDIF
 ! ===================================================================== 
-       ELSEIF(igue.eq.2)THEN 
+     ELSEIF(igue.eq.2)THEN 
 ! ===================================================================== 
-          CALL cheobs(obstwo,ini0,ok) 
-          IF(.not.ok) GOTO 54 
+        CALL cheobs(obstwo,ini0,ok) 
+        IF(.not.ok) GOTO 54 
 ! can be done                                                           
-          CALL tee(iun_log,' USE ELEMENTS OF ARC 1=')  
-          el=el0 ! magnitude from first arc 
-          initwo=.true. 
-          WRITE(*,*)' INITIAL COND. AVAILABLE, NOW USE DIFF. CORR.' 
+        CALL tee(iun_log,' USE ELEMENTS OF ARC 1=')  
+        el=el0 ! magnitude from first arc 
+        initwo=.true. 
+        WRITE(*,*)' INITIAL COND. AVAILABLE, NOW USE DIFF. CORR.' 
 ! ===================================================================== 
-       ELSEIF(igue.eq.3)THEN 
+     ELSEIF(igue.eq.3)THEN 
 ! ===================================================================== 
-          CALL cheobs(obstwo,inip,ok) 
-          IF(.not.ok) GOTO 54 
+        CALL cheobs(obstwo,inip,ok) 
+        IF(.not.ok) GOTO 54 
 ! can be done                                                           
-          CALL tee(iun_log,' USE ELEMENTS OF ARC 2=') 
-          el=elp ! magnitude from second arc 
-          initwo=.true. 
-          WRITE(*,*)' INITIAL COND. AVAILABLE, NOW USE DIFF. CORR.' 
+        CALL tee(iun_log,' USE ELEMENTS OF ARC 2=') 
+        el=elp ! magnitude from second arc 
+        initwo=.true. 
+        WRITE(*,*)' INITIAL COND. AVAILABLE, NOW USE DIFF. CORR.' 
 ! ===================================================================== 
-       ELSEIF(igue.eq.4)THEN 
+     ELSEIF(igue.eq.4)THEN 
 ! ===================================================================== 
 ! recompute first guess with the identif algorithm                      
 ! ===================================================================== 
-          IF(el0%coo.ne.'EQU'.or.elp%coo.ne.'EQU')THEN
-             WRITE(*,*)'not possible unless EQU, given ', el0%coo, elp%coo
-             GOTO 54
-          ENDIF
-          CALL fident(6,cov0,covp,el0,elp,unc0,uncp,elide,ff)
-          IF(ff)THEN 
-             el=elide 
-             initwo=.true. 
-             WRITE(*,*)' INITIAL COND. AVAILABLE, NOW USE DIFF. CORR.' 
-          ELSE 
-             GOTO 54 
-          ENDIF
+        IF(el0%coo.ne.'EQU'.or.elp%coo.ne.'EQU')THEN
+           WRITE(*,*)'not possible unless EQU, given ', el0%coo, elp%coo
+           GOTO 54
+        ENDIF
+        CALL fident(6,cov0,covp,el0,elp,unc0,uncp,elide,ff)
+        IF(ff)THEN 
+           el=elide 
+           initwo=.true. 
+           WRITE(*,*)' INITIAL COND. AVAILABLE, NOW USE DIFF. CORR.' 
+        ELSE 
+           GOTO 54 
+        ENDIF
 ! ===================================================================== 
-       ENDIF
+     ENDIF
 ! ===================================================================== 
-    ELSEIF(ifun.eq.5)THEN 
+  ELSEIF(ifun.eq.5)THEN 
 ! ===================================================================== 
 ! Computation of asteroid elements at a required time                   
-       CALL tee(iun_log,' PROPAGATION OF ELEMENTS=') 
+     CALL tee(iun_log,' PROPAGATION OF ELEMENTS=') 
 ! ================= MENU 5: PROPAGATION =======================         
-55     menunam='propagat' 
-       CALL menu(iprop,menunam,8,'what to propagate?=',               &
-     &      'propagate arc 1, variable time=',                          &
-     &      'propagate arc 2, variable time=',                          &
-     &      'propagate identified orbit, variable time=',               &
-     &      'propagate arc 1, weighted center of observations=',        &
-     &      'propagate arc 2, weighted center of observations=',        &
-     &      'generate time history of orbital elements, arc 1=',        &
-     &      'generate time history of orbital elements, arc 2=',        &
+55   menunam='propagat' 
+     CALL menu(iprop,menunam,8,'what to propagate?=',               &
+     &      'propagate arc 1, variable time=',                      &
+     &      'propagate arc 2, variable time=',                      &
+     &      'propagate identified orbit, variable time=',           &
+     &      'propagate arc 1, weighted center of observations=',    &
+     &      'propagate arc 2, weighted center of observations=',    &
+     &      'generate time history of orbital elements, arc 1=',    &
+     &      'generate time history of orbital elements, arc 2=',    &
      &   'generate time history of orbital elements, identified orbit=')
-       IF(iprop.eq.0) GOTO 50 
+     IF(iprop.eq.0) GOTO 50 
 ! ===================================================================== 
 ! state vector only? also covariance? (not meaningful for ephemerides)  
 ! ===================================================================== 
-       IF(iprop .le. 5)THEN 
-          menunam='null' 
-          CALL menu(icov,menunam,2,'What is required?=',              &
-     &           'orbital elements only=',                              &
+     IF(iprop .le. 5)THEN 
+        menunam='null' 
+        CALL menu(icov,menunam,2,'What is required?=',              &
+     &           'orbital elements only=',                          &
      &           'also covariance matrix=')                              
-          IF(icov.eq.0) GOTO 55 
-       ELSE 
-          icov=1 
-       ENDIF
+        IF(icov.eq.0) GOTO 55 
+     ELSE 
+        icov=1 
+     ENDIF
 ! ===================================================================== 
 ! selection of target epoch                                             
 ! ===================================================================== 
-       IF(iprop.eq.4)THEN 
-          tr= meanti(obs(1:m)%time_tdt,obsw(1:m)%rms_coord(1),        &
+     IF(iprop.eq.4)THEN 
+        tr= meanti(obs(1:m)%time_tdt,obsw(1:m)%rms_coord(1),        &
      &           obsw(1:m)%rms_coord(2),m) 
-       ELSEIF(iprop.eq.5)THEN 
-          tr= meanti(obs(m+1:m+mp)%time_tdt,obsw(m+1:m+mp)%rms_coord(1),&
+     ELSEIF(iprop.eq.5)THEN 
+        tr= meanti(obs(m+1:m+mp)%time_tdt,obsw(m+1:m+mp)%rms_coord(1),&
      &           obsw(m+1:m+mp)%rms_coord(2),mp) 
-       ELSEIF(iprop.ge.6.and. iprop.le.8)THEN 
-          WRITE(*,*)' Current time is : ',el0%t,'(MJD).' 
-          WRITE(*,*)' begin ephemerides from epoch (MJD)?   ' 
-          READ(*,*)tr 
-          WRITE(*,*)' end ephemerides from epoch (MJD)?   ' 
-          READ(*,*)tf 
-          WRITE(*,*)' time step in days?' 
-          READ(*,*)step 
-          WRITE(*,*) 'Is data correct? (y/n)' 
-          READ(*,*)ans 
-          IF(ans(1:1).eq.'n' .or. ans(1:1).eq.'N') GOTO 55 
+     ELSEIF(iprop.ge.6.and. iprop.le.8)THEN 
+        WRITE(*,*)' Current time is : ',el0%t,'(MJD).' 
+        WRITE(*,*)' begin ephemerides from epoch (MJD)?   ' 
+        READ(*,*)tr 
+        WRITE(*,*)' end ephemerides from epoch (MJD)?   ' 
+        READ(*,*)tf 
+        WRITE(*,*)' time step in days?' 
+        READ(*,*)step 
+        WRITE(*,*) 'Is data correct? (y/n)' 
+        READ(*,*)ans 
+        IF(ans(1:1).eq.'n' .or. ans(1:1).eq.'N') GOTO 55 
 !   determine number of steps before t0                         
-          IF(tf .lt. el0%t)THEN 
-             interv=tf-tr 
-          ELSEIF(tr .gt. el0%t)THEN 
-             interv=0 
-          ELSE 
-             interv=el0%t-tr 
-          ENDIF
-          numsav=interv/step+10 
+        IF(tf .lt. el0%t)THEN 
+           interv=tf-tr 
+        ELSEIF(tr .gt. el0%t)THEN 
+           interv=0 
+        ELSE 
+           interv=el0%t-tr 
+        ENDIF
+        numsav=interv/step+10 
 ! determine type of elements output                                     
-          menunam='coord' 
-          call menu(icoord,menunam,5,'What type of elements?=',         &
-     &           'KEPlerian=', 'EQUinoctial=',                          &
+        menunam='coord' 
+        call menu(icoord,menunam,5,'What type of elements?=',         &
+     &           'KEPlerian=', 'EQUinoctial=',                        &
      &           'CARtesian=', 'COMetary=','ATTributable=')              
-          IF(icoord.eq.0)THEN 
-             goto 55 
-          ELSE
-             cooy=cootyp(icoord)
-          ENDIF
+        IF(icoord.eq.0)THEN 
+           goto 55 
+        ELSE
+           cooy=cootyp(icoord)
+        ENDIF
 ! warning: funny result if mp=0; check obsp?                            
-       ELSE 
-          WRITE(*,*)' propagate to epoch (MJD)?   ' 
-          READ(*,*)tr 
-       ENDIF
+     ELSE 
+        WRITE(*,*)' propagate to epoch (MJD)?   ' 
+        READ(*,*)tr 
+     ENDIF
 ! ===================================================================== 
 ! propagation                                                           
 ! ===================================================================== 
-       IF(iprop.eq.1.or.iprop.eq.4)THEN
-          iarc=1
-          iunelc=iunel0
-       ELSEIF(iprop.eq.2.or.iprop.eq.5)THEN 
-          iarc=2
-          iunelc=iunelp
-       ELSEIF(iprop.eq.3)THEN 
-          iarc=3
-          iunelc=iunelt
-       ENDIF
-       CALL orb_sel2(.true.,iarc)
-       CALL fstpro(.false.,icov,inic,covc,iun_log,iun_covar,ok,       &
+     IF(iprop.eq.1.or.iprop.eq.4)THEN
+        iarc=1
+        iunelc=iunel0
+     ELSEIF(iprop.eq.2.or.iprop.eq.5)THEN 
+        iarc=2
+        iunelc=iunelp
+     ELSEIF(iprop.eq.3)THEN 
+        iarc=3
+        iunelc=iunelt
+     ENDIF
+     CALL orb_sel2(.true.,iarc)
+     CALL fstpro(.false.,icov,inic,covc,iun_log,iun_covar,ok,       &
      &         elc,uncc,tr,elc,uncc)                               
-       IF(ok)THEN 
+     IF(ok)THEN 
 ! problem with name for identification; used arc 1, but...  
-          CALL write_elems(elc,astnac,'ML',dummyfile,iunelc,uncc)
-          CALL nomoid(elc%t,elc,moid0,dnp0,dnm0) 
-          write(*,199)moid0,0,dnp0,dnm0 
-          write(iunelc,198)moid0,0,dnp0,dnm0 
+        CALL write_elems(elc,astnac,'ML',dummyfile,iunelc,uncc)
+        CALL nomoid(elc%t,elc,moid0,dnp0,dnm0) 
+        write(*,199)moid0,0,dnp0,dnm0 
+        write(iunelc,198)moid0,0,dnp0,dnm0 
 ! copy into the right state
-          CALL sta_cop(2,iarc)
-       ENDIF
-       GOTO 50
+        CALL sta_cop(2,iarc)
+     ENDIF
+     GOTO 50
 ! ===================================================================== 
 ! ephemerides (orbital elements) generation                             
 ! ===================================================================== 
-       IF(iprop.eq.6)THEN 
-          iarc=1
-       ELSEIF(iprop.eq.7)THEN 
-          iarc=2
-       ELSEIF(iprop.eq.8)THEN 
-          astnaj=astna0//'joint' 
-          iarc=3
-       ENDIF
-       CALL orb_sel2(.true.,iarc)
-       CALL fsteph(astnac,'.',inic,ok,elc,                &
+     IF(iprop.eq.6)THEN 
+        iarc=1
+     ELSEIF(iprop.eq.7)THEN 
+        iarc=2
+     ELSEIF(iprop.eq.8)THEN 
+        astnaj=astna0//'joint' 
+        iarc=3
+     ENDIF
+     CALL orb_sel2(.true.,iarc)
+     CALL fsteph(astnac,'.',inic,ok,elc,                &
      &           tr,tf,step,numsav,.true.,cooy,.true.) 
 ! if some data are not available, this cannot be done                   
-       IF(.not.ok)THEN 
-          WRITE(iun_log,*)'    DATA NOT AVAILABLE' 
-          GOTO 55 
-       ENDIF
+     IF(.not.ok)THEN 
+        WRITE(iun_log,*)'    DATA NOT AVAILABLE' 
+        GOTO 55 
+     ENDIF
 ! ===================================================================== 
-    ELSEIF(ifun.eq.6)THEN 
+  ELSEIF(ifun.eq.6)THEN 
 ! ===================================================================== 
 ! prediction of observations                                            
-       CALL tee(iun_log,' PREDICTION OF OBSERVATIONS=') 
+     CALL tee(iun_log,' PREDICTION OF OBSERVATIONS=') 
 ! MENU 6: PREDICTIONS                                                   
-56     CALL orb_sel2(.false.,iarc)                                            
-       IF(iarc.eq.0) GOTO 50 
+56   CALL orb_sel2(.false.,iarc)                                            
+     IF(iarc.eq.0) GOTO 50 
 ! setup title string for graphics output                                
-       CALL titast(iarc,astna0,astnap,titnam,filnam,lnam)
+     CALL titast(iarc,astna0,astnap,titnam,filnam,lnam)
 ! ===================================================================== 
 ! observations vector only? also covariance?                            
 ! ==================================================================   
 ! move to fobpre???
-       menunam='predicbd' 
-       CALL menu(iprob,menunam,6,'What is required?=',                &
-     &      'observations (alpha, delta) only=',                      &
-     &      'use simulated observation=',                             &
-     &      'also covariance matrix=',                                &
-     &      'confidence boundary=',                                   &
-     &      'compare CB with observations=',                          &
+     menunam='predicbd' 
+     CALL menu(iprob,menunam,6,'What is required?=',                &
+     &      'observations (alpha, delta) only=',                    &
+     &      'use simulated observation=',                           &
+     &      'also covariance matrix=',                              &
+     &      'confidence boundary=',                                 &
+     &      'compare CB with observations=',                        &
      &      'ephemerides (on the sky)=')
-       ok=.true. 
-       IF(iprob.eq.0)GOTO 50 
+     ok=.true. 
+     IF(iprob.eq.0)GOTO 50 
 ! ===================================================================   
 ! assign observation time                                               
-556    IF(iprob.le.5)THEN 
-          CALL asstim(iprob,obs(1:mall)%type,obs(1:mall)%time_tdt,    &
-    &        obs(1:mall)%time_utc,obs(1:mall)%obscod_i,m,mall,im,     &
+556  IF(iprob.le.5)THEN 
+        CALL asstim(iprob,obs(1:mall)%type,obs(1:mall)%time_tdt,    &
+     &       obs(1:mall)%time_utc,obs(1:mall)%obscod_i,m,mall,im,   &
      &       type1,t1,tut1,ids)                                          
-       ELSE 
-          CALL seleph(tut1,t1,tut2,t2,dt,ids) 
-          im=1 
-       ENDIF
+     ELSE 
+        CALL seleph(tut1,t1,tut2,t2,dt,ids) 
+        im=1 
+     ENDIF
 ! ===================================================================   
 ! predict                                                               
 ! ===================================================================== 
-       CALL fobpre(iprob,inic,covc,ok,                &
+     CALL fobpre(iprob,inic,covc,ok,                &
      &           titnam,filnam,elc,uncc,ids,type1,t1,        &
      &           tut1,obs(im)%coord(1),obs(im)%coord(2),t2,dt,astnac)
 ! if some data are not available, this cannot be done                   
-       IF(.not.ok)THEN 
-          WRITE(iun_log,*)'    DATA NOT AVAILABLE' 
-          GOTO 56 
-       ENDIF
-       IF(iprob.eq.2)THEN
-          WRITE(*,*)'more simulated observations? 0=no'
-          READ(*,*)iyes
-          IF(iyes.ne.0)GOTO 556
-       ENDIF
+     IF(.not.ok)THEN 
+        WRITE(iun_log,*)'    DATA NOT AVAILABLE' 
+        GOTO 56 
+     ENDIF
+     IF(iprob.eq.2)THEN
+        WRITE(*,*)'more simulated observations? 0=no'
+        READ(*,*)iyes
+        IF(iyes.ne.0)GOTO 556
+     ENDIF
 ! ===================================================================== 
-    ELSEIF(ifun.eq.7)THEN 
+  ELSEIF(ifun.eq.7)THEN 
 ! ===================================================================== 
 ! search for alternate solutions                                        
-       CALL tee(iun_log,'MULTIPLE SOLUTIONS=') 
+     CALL tee(iun_log,'MULTIPLE SOLUTIONS=') 
 ! MENU 7: MULTIPLE SOLUTIONS                                            
 ! choice of arc                                                         
-58     menunam='multisol' 
-       CALL menu(marc,menunam,5,'which orbit?=',                      &
-     &      'arc 1=','arc 2=',                                          &
-     &      'joint computed orbit=',                                    &
-     &      'use already computed=',                                    &
+58   menunam='multisol' 
+     CALL menu(marc,menunam,5,'which orbit?=',                   &
+     &      'arc 1=','arc 2=',                                   &
+     &      'joint computed orbit=',                             &
+     &      'use already computed=',                             &
      &      'input from file=')
-       IF(marc.eq.0) GOTO 50
-       IF(iope.eq.1)THEN 
-581    WRITE(*,*)' use scaling, 1=yes, 0=no?'
-       READ(*,*)iscal
-       IF(iscal.eq.0)THEN
-          scaling_lov=.false.
-       ELSEIF(iscal.eq.1)THEN
-          scaling_lov=.true.
-       ELSE
-          WRITE(*,*)' answer ', iscal, ' not understood'
-          GOTO 581
-       ENDIF 
-582    WRITE(*,*)' which LOV, 1=largest eigenv., 2=second'
-       READ(*,*)iscal
-       IF(iscal.eq.1)THEN
-          second_lov=.false.
-       ELSEIF(iscal.eq.2)THEN
-          second_lov=.true.
-       ELSE
-          WRITE(*,*)' answer ', iscal, ' not understood'
-          GOTO 582
-       ENDIF 
-       ENDIF
+     IF(marc.eq.0) GOTO 50
+581  WRITE(*,*)' use scaling, 1=yes, 0=no?'
+     READ(*,*)iscal
+     IF(iscal.eq.0)THEN
+        scaling_lov=.false.
+     ELSEIF(iscal.eq.1)THEN
+        scaling_lov=.true.
+     ELSE
+        WRITE(*,*)' answer ', iscal, ' not understood'
+        GOTO 581
+     ENDIF
+582  WRITE(*,*)' which LOV, 1=largest eigenv., 2=second'
+     READ(*,*)iscal
+     IF(iscal.eq.1)THEN
+        second_lov=.false.
+     ELSEIF(iscal.eq.2)THEN
+        second_lov=.true.
+     ELSE
+        WRITE(*,*)' answer ', iscal, ' not understood'
+        GOTO 582
+     ENDIF
 ! ===================================================================== 
-! check availability of initial conditions (also covariance for icov>1) 
-! and compute multiple solutions                                        
-! ===================================================================== 
-! compute multiple solutions                                            
-       IF(marc.ge.1.and.marc.le.3)THEN
-          CALL orb_sel2(.true.,marc)
-          CALL obs_cop(1,marc) ! copy observations to obsc, obswc
-          CALL tee(iun_log,'COMPUTE MULTIPLE SOL=') 
-          CALL f_multi(batch,obsflag,inic,ok,covc, &
+! compute multiple solutions   
+! =====================================================================
+     IF(marc.ge.1.and.marc.le.3)THEN
+        CALL orb_sel2(.true.,marc)
+        CALL obs_cop(1,marc) ! copy observations to obsc, obswc
+        CALL tee(iun_log,'COMPUTE MULTIPLE SOL=') 
+        CALL f_multi(batch,obsflag,inic,ok,covc, &
      &           elc,uncc,csinoc,delnoc,mc,obsc,obswc,sigma,imult)         
-       ELSEIF(marc.eq.4)THEN 
-          CALL tee(iun_log,'USE THE ALREADY COMPUTED ONES=') 
-          ok=imip-imim.gt.0 
+     ELSEIF(marc.eq.4)THEN 
+        CALL tee(iun_log,'USE THE ALREADY COMPUTED ONES=') 
+        ok=imip-imim.gt.0 
 ! input from file                                                       
-       ELSEIF(marc.eq.5)THEN 
-          CALL tee(iun_log,'INPUT MULTIPLE SOL. FROM FILE=') 
-          WRITE(*,*)' File name?' 
-          READ(*,*)catname 
-          CALL mult_input(catname,ok)
-       ENDIF
-       IF(.not.ok)GOTO 58 
-       nmult=imip-imim+1 
-       WRITE(*,*)' number of multiple sol. available', nmult 
-       IF(nmult.le.0)THEN 
-          CALL tee(iun_log,'FAILED MULTIPLE SOLUTIONS') 
-          GOTO 58 
-       ENDIF
+     ELSEIF(marc.eq.5)THEN 
+        CALL tee(iun_log,'INPUT MULTIPLE SOL. FROM FILE=') 
+        WRITE(*,*)' File name?' 
+        READ(*,'(A)')catname 
+        CALL mult_input(catname,ok)
+        WRITE(*,*)' Assign delta_sigma (interval in sigma space between multiple sols.)'
+        READ(*,*) delta_sigma
+        WRITE(*,*)' Assign max sigma (maximum of interval in sigma space)'
+        READ(*,*) sigma
+        CALL orb_sel2(.false.,marc)
+        CALL obs_cop(1,marc) ! copy observations to obsc, obswc
+     ENDIF
+     IF(.not.ok)GOTO 58 
+     nmult=imip-imim+1 
+     WRITE(*,*)' number of multiple sol. available', nmult 
+     IF(nmult.le.0)THEN 
+        CALL tee(iun_log,'FAILED MULTIPLE SOLUTIONS') 
+        GOTO 58 
+     ENDIF
 ! ======================================================                
 ! how to use multiple solutions?                                        
 ! ======================================================                
-145    menunam='multiuse' 
-       CALL menu(ifff,menunam,5,'what to do?=',                       &
+145  menunam='multiuse' 
+     CALL menu(ifff,menunam,5,'what to do?=',                       &
      &      'plot of multiple solutions=',                          &
      &      'multiple predicted observations=',                         &
      &      'adopt one of the above solution=',                         &
      &      'propagate multiple solutions=',                            &
      &      'close approach analysys=')
-       IF(ifff.eq.0) GOTO 50 
+     IF(ifff.eq.0) GOTO 50 
 ! ================================================================= 
-       CALL orb_sel2(.false.,iarc) 
+     CALL orb_sel2(.false.,iarc) 
 ! setup title string for graphics output                                
-       CALL titast(iarc,astna0,astnap,titnam,filnam,lnam) 
+     CALL titast(iarc,astna0,astnap,titnam,filnam,lnam) 
 ! ======================================================                
-       IF(ifff.eq.1)THEN 
+     IF(ifff.eq.1)THEN 
 ! ======================================================                
 ! a-e plot of multiple solutions                                        
-          IF(marc.ge.4) elc=elm(imi0)
-          CALL fmuplo(titnam,sigma)
+        IF(marc.ge.4) elc=elm(imi0)
+        CALL fmuplo(titnam,sigma)
 ! ======================================================                
-       ELSEIF(ifff.eq.2)THEN 
+     ELSEIF(ifff.eq.2)THEN 
 ! ======================================================                
 ! multiple predicted observation                                        
-          menunam='null' 
-          CALL menu(iff,menunam,2,'What is required?=',               &
-     &      'observations (alpha, delta) only=',                        &
-     &      'compare with observations=')
-          IF(iff.eq.0) GOTO 145 
+        menunam='null' 
+        CALL menu(iff,menunam,2,'What is required?=',               &
+     &      'predicted observations (alpha, delta) only=',          &
+     &      'compare with actual observations=')
+        IF(iff.eq.0) GOTO 145 
 ! ===================================================================== 
 ! assign observation time 
-          IF(iff.eq.2)iffat=5 
-          IF(iff.eq.1)iffat=3                                             
-          CALL asstim(iff+2,obs%type,obs%time_tdt,obs%time_utc,           &
+        IF(iff.eq.2)iffat=5 
+        IF(iff.eq.1)iffat=3                                             
+        CALL asstim(iff+2,obs%type,obs%time_tdt,obs%time_utc,           &
      &           obs%obscod_i,m,mall,im,type1,t1,tut1,ids)
 ! ===================================================================== 
 ! check availability of JPL ephemerides and ET-UT table                 
-          CALL chetim(t1,t1,ok) 
-          IF(.not.ok) GOTO 145 
+        CALL chetim(t1,t1,ok) 
+        IF(.not.ok) GOTO 145 
 ! can be done                                                           
-          CALL tee(iun_log,'MULTIPLE PREDICTED OBSERVATIONS=') 
+        CALL tee(iun_log,'MULTIPLE PREDICTED OBSERVATIONS=') 
 ! =================================================                     
 ! only alpha, delta, magnitude                                          
-          CALL fmuobs(type1,ids,t1,tut1,sigma,     &
+        CALL fmuobs(type1,ids,t1,tut1,sigma,     &
      &      obs(im)%coord(1),obs(im)%coord(2),iff, &
      &            titnam,filnam,iun_log)
 ! ======================================================                
-       ELSEIF(ifff.eq.3)THEN 
+     ELSEIF(ifff.eq.3)THEN 
 ! ======================================================                
 ! adopt alternate solution                                              
-          WRITE(*,*)' which one to keep? 0=none' 
-          READ(*,*) imi 
-          IF(imi.ge.imim.and.imi.le.imip)THEN 
-             CALL tee(iun_log,'ALTERNATE SOLUTION ADOPTED=') 
-             WRITE(*,*)' NUMBER ',imi 
-             WRITE(iun_log,*)' NUMBER ',imi 
-             WRITE(iun_log,*) 
-             WRITE(*,144)imi,elm(imi)%coord,csinom(imi) 
-144          FORMAT(i3,6f12.8,1p,e13.5,e12.3) 
+        WRITE(*,*)' which one to keep? 0=none' 
+        READ(*,*) imi 
+        IF(imi.ge.imim.and.imi.le.imip)THEN 
+           CALL tee(iun_log,'ALTERNATE SOLUTION ADOPTED=') 
+           WRITE(*,*)' NUMBER ',imi 
+           WRITE(iun_log,*)' NUMBER ',imi 
+           WRITE(iun_log,*) 
+           WRITE(*,144)imi,elm(imi)%coord,csinom(imi) 
+144        FORMAT(i3,6f12.8,1p,e13.5,e12.3) 
 ! copy state vector and matrices, norms                                 
-             icop=2 
+           icop=2 
 ! handle case in which the multiple solutions do not come from arc      
-             IF(iarc.eq.4.or.iarc.eq.5)THEN 
-147             WRITE(*,*)' for which arc? 1,2=arcs, 3=joint' 
-                READ(*,*)iarm 
-                IF(iarm.ge.1.and.iarm.le.3)THEN 
-                   iarc=iarm 
-                ELSE 
-                   WRITE(*,*)' must be 1,2,3' 
-                   GOTO 147 
-                ENDIF
-             ENDIF
-             IF(iarc.eq.1)THEN 
-                CALL stacop(icop,el0,unc0,csino0,delno0,             &
+           IF(iarc.eq.4.or.iarc.eq.5)THEN 
+147           WRITE(*,*)' for which arc? 1,2=arcs, 3=joint' 
+              READ(*,*)iarm 
+              IF(iarm.ge.1.and.iarm.le.3)THEN 
+                 iarc=iarm 
+              ELSE 
+                 WRITE(*,*)' must be 1,2,3' 
+                 GOTO 147 
+              ENDIF
+           ENDIF
+           IF(iarc.eq.1)THEN 
+              CALL stacop(icop,el0,unc0,csino0,delno0,             &
      &               elm(imi),unm(imi),csinom(imi),delnom(imi))
-             ELSEIF(iarc.eq.2)THEN 
-                CALL stacop(icop,elp,uncp,csinop,delnop,             &
+           ELSEIF(iarc.eq.2)THEN 
+              CALL stacop(icop,elp,uncp,csinop,delnop,             &
      &               elm(imi),unm(imi),csinom(imi),delnom(imi))
-             ELSEIF(iarc.eq.3)THEN 
-                CALL stacop(icop,el,unc,csinor,delnor,                &
+           ELSEIF(iarc.eq.3)THEN 
+              CALL stacop(icop,el,unc,csinor,delnor,                &
      &               elm(imi),unm(imi),csinom(imi),delnom(imi)) 
-             ELSE 
-                WRITE(*,*)' iarm=',iarm,' not understood' 
-                GOTO 145 
-             ENDIF
-          ELSE 
-             CALL tee(iun_log,'BACK TO THE ORIGINAL SOLUTION=') 
-          ENDIF
-       ELSEIF(ifff.eq.4)THEN 
+           ELSE 
+              WRITE(*,*)' iarm=',iarm,' not understood' 
+              GOTO 145 
+           ENDIF
+        ELSE 
+           CALL tee(iun_log,'BACK TO THE ORIGINAL SOLUTION=') 
+        ENDIF
+     ELSEIF(ifff.eq.4)THEN 
 ! ===================================================================== 
 ! select propagation time                                               
-          CALL tee(iun_log,'MULTIPLE PROPAGATION=') 
-          tcmult=elm(imi0)%t
-          WRITE(*,*)' Current time is : ',tcmult,'(MJD).' 
-          WRITE(*,*)' propagate to epoch (MJD)?   ' 
-          READ(*,*)trmult 
+        CALL tee(iun_log,'MULTIPLE PROPAGATION=') 
+        tcmult=elm(imi0)%t
+        WRITE(*,*)' Current time is : ',tcmult,'(MJD).' 
+        WRITE(*,*)' propagate to epoch (MJD)?   ' 
+        READ(*,*)trmult 
 ! check availability of JPL ephemerides                                 
-          CALL chetim(tcmult,trmult,ok) 
-          IF(.not.ok)GOTO 145 
+        CALL chetim(tcmult,trmult,ok) 
+        IF(.not.ok)GOTO 145 
 ! propagation                                                           
-          CALL fmupro(iun_log,trmult)
+        CALL fmupro(iun_log,trmult)
 ! close approach analysis on multiple solutions (as in CLOMON2)         
-       ELSEIF(ifff.eq.5)THEN 
-          CALL tee(iun_log,'CLOSE APPROACH ANALYSIS=')
-          filnam=run//'.vis' 
-          CALL rmsp(filnam,le) 
-          call filopn(iunvi,filnam(1:le),'UNKNOWN')           
+     ELSEIF(ifff.eq.5)THEN 
+        CALL tee(iun_log,'CLOSE APPROACH ANALYSIS=')
+        ddocd1=ddocd 
+        ll=lench(ddocd1) 
+        helpfi=ddocd1(1:ll)//'/'//'closapan' 
+        CALL rmsp(helpfi,ll) 
+        helpfi=helpfi(1:ll)//'.help' 
+        CALL filopn(iunit,helpfi,'OLD') 
+        CALL filcat(iunit) 
+        CALL filclo(iunit,' ') 
+        filnam=run//'.vis' 
+        CALL rmsp(filnam,le) 
+        CALL filopn(iunvi,filnam(1:le),'UNKNOWN')           
 ! select interval in index (and sigma) space                            
-146       WRITE(*,*)' SELECT INTERVAL, between ',imim,' and ',imip 
-          READ(*,*)m1,m2 
-          IF(m1.lt.imim.or.m2.gt.imip.or.m1.ge.m2)THEN 
-             WRITE(*,*)'must be ',imim,' <= ',m1,' < ',m2,' <= ',imip 
-             WRITE(*,*)' try again' 
-             GOTO 146 
-          ENDIF 
-          WRITE(iun_log,*)' VA interval between m1=',m1,' m2=',m2
+146     WRITE(*,*)' SELECT INTERVAL, between ',imim,' and ',imip 
+        READ(*,*)m1,m2 
+        IF(m1.lt.imim.or.m2.gt.imip.or.m1.ge.m2)THEN 
+           WRITE(*,*)'must be ',imim,' <= ',m1,' < ',m2,' <= ',imip 
+           WRITE(*,*)' try again' 
+           GOTO 146 
+        ENDIF
+        WRITE(iun_log,*)' VA interval between m1=',m1,' m2=',m2
 ! select final time                                                     
-          WRITE(*,*)' search for close approaches until time (MJD)?' 
-          READ(*,*) tmcla 
-          WRITE(iun_log,*)' search until time',tmcla,' MJD'
-          CALL fclomon2(progna,mc,obsc,obswc,m1,m2,tmcla)          
-          IF(num_vi.le.0)THEN
-             CALL filclo(iunvi,'DELETE')
-             GOTO 145
-          ENDIF
-          DO nvi=1,num_vi
-             CALL wri_tppoint(vis(nvi)%tp,iunvi,.true.)
-             CALL write_elems(vis(nvi)%ele,astnac,'ML',dummyfile,iunvi,vis(nvi)%unc)
-          ENDDO
-          CALL filclo(iunvi,' ')
+        WRITE(*,*)' search for close approaches until time (MJD)?' 
+        READ(*,*) tmcla 
+        WRITE(iun_log,*)' search until time',tmcla,' MJD'
+        CALL fclomon2(progna,mc,obsc,obswc,m1,m2,tmcla,sigma)          
+        IF(num_vi.le.0)THEN
+           CALL filclo(iunvi,'DELETE')
+           GOTO 145
+        ENDIF
+        DO nvi=1,num_vi
+           CALL wri_tppoint(vis(nvi)%tp,iunvi,.true.)
+           CALL write_elems(vis(nvi)%ele,astnac,'ML',dummyfile,iunvi,vis(nvi)%unc)
+        ENDDO
+        CALL filclo(iunvi,' ')
 ! what to do with VIs
-          IF(iope.eq.0) GOTO 145
- 345      CONTINUE
-          DO nvi=1,num_vi
-             WRITE(*,*)nvi,vis(nvi)%tp%tcla, vis(nvi)%tp%b, vis(nvi)%tp%txi, vis(nvi)%tp%tze
-          ENDDO
-          WRITE(*,*)' which VI to analyse? 0=none'
-          READ(*,*) nvi
-          IF(nvi.le.0) GOTO 145
-          curr_vi=vis(nvi)
-          CALL vi_draw(del)
-          GOTO 345
-       ENDIF
+        IF(iope.eq.0) GOTO 145
+345     CONTINUE
+        DO nvi=1,num_vi
+           WRITE(*,*)nvi,vis(nvi)%tp%tcla, vis(nvi)%tp%b, vis(nvi)%tp%txi, vis(nvi)%tp%tze
+        ENDDO
+        WRITE(*,*)' which VI to analyse? 0=none'
+        READ(*,*) nvi
+        IF(nvi.le.0) GOTO 145
+        curr_vi=vis(nvi)
+        CALL vi_draw(del)
+        GOTO 345
+     ENDIF
 ! stay inside the multiple orbits case for repeated use of the data     
-       GOTO 145 
+     GOTO 145 
 ! ===================================================================== 
-    ELSEIF(ifun.eq.8)THEN 
+  ELSEIF(ifun.eq.8)THEN 
 ! ===================================================================== 
 ! coordinate changes
-       CALL tee(iun_log,'COORDINATE CHANGES=') 
-         menunam='coord' 
-         CALL menu(icoord,menunam,5,'Coordinates?=',          &
+     CALL tee(iun_log,'COORDINATE CHANGES=') 
+     menunam='coord' 
+     CALL menu(icoord,menunam,5,'Coordinates?=',          &
      &      'KEPlerian=',                                   &
      &      'EQUinoctal=',                                  &
      &      'CARtesian=',                                   &
      &      'COMetary=',                                    &
      &      'ATTributables=')
-         ok=.true. 
-         IF(icoord.eq.0)GOTO 50
-         cooy=cootyp(icoord)
-         menunam='cooarc' 
-         CALL menu(iarc,menunam,4,                               &
+     ok=.true. 
+     IF(icoord.eq.0)GOTO 50
+     cooy=cootyp(icoord)
+     menunam='cooarc' 
+     CALL menu(iarc,menunam,4,                               &
      &      ' Which orbital elements to convert?=',          &
      &      ' arc 1=',' arc 2=',' both arcs=',               &
      &      ' identification=')
-         IF(iarc.eq.1.or.iarc.eq.3)THEN
-            IF(ini0)THEN
-               IF(cov0)THEN
-                  CALL coo_cha(el0,cooy,el0,fail_flag,dee)
-                  CALL convertunc(unc0,dee,unc0)
-               ELSE
-                  CALL coo_cha(el0,cooy,el0,fail_flag)
-                  unc0%succ=.false.
-               ENDIF
-               CALL write_elems(el0,astna0,'ML',dummyfile,iunel0,unc0)
-               WRITE(*,*)' elements for arc 1', el0
-            ELSE
-               WRITE(*,*)' initial conditions not available for ',astna0
-            ENDIF
-         ENDIF
-         IF(iarc.eq.2.or.iarc.eq.3)THEN
-            IF(inip)THEN
-               IF(covp)THEN
-                  CALL coo_cha(elp,cooy,elp,fail_flag,dee)
-                  CALL convertunc(uncp,dee,uncp)
-               ELSE
-                  CALL coo_cha(elp,cooy,elp,fail_flag)
-                  uncp%succ=.false.
-               ENDIF
-               CALL write_elems(elp,astnap,'ML',dummyfile,iunelp,uncp)
-               WRITE(*,*)' elements for arc 2', elp
-            ELSE
-               WRITE(*,*)' initial conditions not available for ',astnap
-            ENDIF
-         ENDIF
-         IF(iarc.eq.4)THEN
-            IF(initwo)THEN
-               IF(covtwo)THEN
-                  CALL coo_cha(el,cooy,el,fail_flag,dee)
-                  CALL convertunc(unc,dee,unc)
-               ELSE
-                  CALL coo_cha(el,cooy,el,fail_flag)
-                  unc%succ=.false.
-               ENDIF
-               CALL write_elems(el,astna0,'ML',dummyfile,iunelt,unc)
-               WRITE(*,*)' elements for both arcs', el
-            ELSE
-               WRITE(*,*)' initial conditions not available for '  &
-                    &                ,astna0//'='//astnap
-            ENDIF
-         ENDIF
+     IF(iarc.eq.1.or.iarc.eq.3)THEN
+        IF(ini0)THEN
+           IF(cov0)THEN
+              CALL coo_cha(el0,cooy,el0,fail_flag,dee)
+              CALL convertunc(unc0,dee,unc0)
+           ELSE
+              CALL coo_cha(el0,cooy,el0,fail_flag)
+              unc0%succ=.false.
+           ENDIF
+           CALL write_elems(el0,astna0,'ML',dummyfile,iunel0,unc0)
+           WRITE(*,*)' elements for arc 1', el0
+        ELSE
+           WRITE(*,*)' initial conditions not available for ',astna0
+        ENDIF
+     ENDIF
+     IF(iarc.eq.2.or.iarc.eq.3)THEN
+        IF(inip)THEN
+           IF(covp)THEN
+              CALL coo_cha(elp,cooy,elp,fail_flag,dee)
+              CALL convertunc(uncp,dee,uncp)
+           ELSE
+              CALL coo_cha(elp,cooy,elp,fail_flag)
+              uncp%succ=.false.
+           ENDIF
+           CALL write_elems(elp,astnap,'ML',dummyfile,iunelp,uncp)
+           WRITE(*,*)' elements for arc 2', elp
+        ELSE
+           WRITE(*,*)' initial conditions not available for ',astnap
+        ENDIF
+     ENDIF
+     IF(iarc.eq.4)THEN
+        IF(initwo)THEN
+           IF(covtwo)THEN
+              CALL coo_cha(el,cooy,el,fail_flag,dee)
+              CALL convertunc(unc,dee,unc)
+           ELSE
+              CALL coo_cha(el,cooy,el,fail_flag)
+              unc%succ=.false.
+           ENDIF
+           CALL write_elems(el,astna0,'ML',dummyfile,iunelt,unc)
+           WRITE(*,*)' elements for both arcs', el
+        ELSE
+           WRITE(*,*)' initial conditions not available for '  &
+                &                ,astna0//'='//astnap
+        ENDIF
+     ENDIF
 ! ===================================================================== 
-      ELSEIF(ifun.eq.9)THEN 
+  ELSEIF(ifun.eq.9)THEN 
 ! ===================================================================== 
 ! compute attributables
-         CALL tee(iun_log,'COMPUTE ATTRIBUTABLES=')
-         CALL orb_sel(.false.,iarc)
-         IF(iarc.eq.0) GOTO 50 
-         CALL obs_cop(1,iarc) ! copy observations to obsc, obswc
-         CALL attri_comp(mc,obsc,obswc,attrc,error)
-         IF(error) GOTO 50
-         trou=nint(attrc%tdtobs)
-         IF(attrc%sph*radeg.gt.sphx)THEN
-            WRITE(*,*)' arc too wide ', attrc%sph*radeg
-         ELSE
-            CALL wri_attri(0,0,astnac,attrc,trou)
-         ENDIF
-         IF(iarc.eq.1)THEN
-            attr0=attrc
-            elc=el0
-         ELSEIF(iarc.eq.2)THEN
-            attrp=attrc
-            elc=elp
-         ELSEIF(iarc.eq.3)THEN
-            attr=attrc
-            elc=el
-         ENDIF
-         menunam='dummy' 
-         CALL menu(iatt,menunam,3,'What to do with attributable?=', &
+     CALL tee(iun_log,'COMPUTE ATTRIBUTABLES=')
+     CALL orb_sel(.false.,iarc)
+     IF(iarc.eq.0) GOTO 50 
+     CALL obs_cop(1,iarc) ! copy observations to obsc, obswc
+     CALL attri_comp(mc,obsc,obswc,attrc,error)
+     IF(error) GOTO 50
+     trou=nint(attrc%tdtobs)
+     IF(attrc%sph*radeg.gt.sphx)THEN
+        WRITE(*,*)' arc too wide ', attrc%sph*radeg
+     ELSE
+        CALL wri_attri(0,0,astnac,attrc,trou)
+     ENDIF
+     IF(iarc.eq.1)THEN
+        attr0=attrc
+        elc=el0
+     ELSEIF(iarc.eq.2)THEN
+        attrp=attrc
+        elc=elp
+     ELSEIF(iarc.eq.3)THEN
+        attr=attrc
+        elc=el
+     ENDIF
+     menunam='dummy' 
+     CALL menu(iatt,menunam,3,'What to do with attributable?=', &
  &                    'Assign r, rdot to form ATT elements=',       &
  &                    'Compare with predictions=',                  &
  &                    'Output to file=')
-         IF(iatt.eq.0) GOTO 50
-         IF(iatt.eq.1)THEN
- 599        WRITE(*,*) 'assign r (AU) '
-            READ(*,*,ERR=599) r
- 598        WRITE(*,*) 'assign rdot (AU/day) '
-            READ(*,*,ERR=598) rdot
-            CALL attelements(attrc,r,rdot,elc,uncc)
-            IF(iarc.eq.1)THEN
-               el0=elc
-               ini0=.true.
-               cov0=.true.
-               unc0=uncc
-               WRITE(*,*)' ATT elements for arc 1'
-               WRITE(*,*) el0
-            ELSEIF(iarc.eq.2)THEN
-               elp=elc
-               inip=.true.
-               covp=.true.
-               uncp=uncc
-               WRITE(*,*)' ATT elements for arc 2'
-               WRITE(*,*) elp
-            ELSEIF(iarc.eq.3)THEN
-               el=elc
-               initwo=.true.
-               covtwo=.true.
-               unc=uncc
-               WRITE(*,*)' ATT elements for identification'
-               WRITE(*,*) elc
-            ENDIF
-         ELSE
-            WRITE(*,*)iatt, ' option not operational'
-         ENDIF
+     IF(iatt.eq.0) GOTO 50
+     IF(iatt.eq.1)THEN
+599     WRITE(*,*) 'assign r (AU) '
+        READ(*,*,ERR=599) r
+598     WRITE(*,*) 'assign rdot (AU/day) '
+        READ(*,*,ERR=598) rdot
+        CALL attelements(attrc,r,rdot,elc,uncc)
+        IF(iarc.eq.1)THEN
+           el0=elc
+           ini0=.true.
+           cov0=.true.
+           unc0=uncc
+           WRITE(*,*)' ATT elements for arc 1'
+           WRITE(*,*) el0
+        ELSEIF(iarc.eq.2)THEN
+           elp=elc
+           inip=.true.
+           covp=.true.
+           uncp=uncc
+           WRITE(*,*)' ATT elements for arc 2'
+           WRITE(*,*) elp
+        ELSEIF(iarc.eq.3)THEN
+           el=elc
+           initwo=.true.
+           covtwo=.true.
+           unc=uncc
+           WRITE(*,*)' ATT elements for identification'
+           WRITE(*,*) elc
+        ENDIF
+     ELSE
+        WRITE(*,*)iatt, ' option not operational'
+     ENDIF
 ! ===================================================================== 
-      ELSEIF(ifun.eq.10)THEN 
+  ELSEIF(ifun.eq.10)THEN 
 ! ===================================================================== 
 ! show all the status flags                                             
-         WRITE(*,180)obs0,obsp,ini0,inip,inide,initwo,                  &
-     &         cov0,covp,covtwo                                         
-  180 FORMAT('   obs0',' obsp ',' ini0 ',' inip ','inide ','initwo',    &
+     WRITE(*,180)obs0,obsp,ini0,inip,inide,initwo,                  &
+   &         cov0,covp,covtwo                                         
+180  FORMAT('   obs0',' obsp ',' ini0 ',' inip ','inide ','initwo',    &
      &       ' cov0 ',' covp ','covtwo'                                 &
      &           /10L6)                                                 
 ! give the epoch times for all the elements                            
-         WRITE(*,181)el0%t,elp%t,el%t,elide%t, &
-     & obs(1)%time_tdt,obs(m)%time_tdt,obs(m+1)%time_tdt,obs(mall)%time_tdt
-  181    FORMAT('   t0   ','   tp   ','   tm   ','  tide  ',            &
+     WRITE(*,181)el0%t,elp%t,el%t,elide%t, &
+   & obs(1)%time_tdt,obs(m)%time_tdt,obs(m+1)%time_tdt,obs(mall)%time_tdt
+181  FORMAT('   t0   ','   tp   ','   tm   ','  tide  ',            &
      &          '  tin0  ','  tfi0  ','  tinp  ','  tfip  '/            &
      &          8f8.1)                                                  
 ! observational data available                                          
-         IF(obs0)THEN 
-            WRITE(*,*)' no obs =',m,' of asteroid ',astna0 
-            IF(cov0)THEN
-               WRITE(*,*)'      obs used in fit=',iob0, ' RMS =',csino0
-            ELSE
-               WRITE(*,*)'      obs used in fit=',iob0
-            ENDIF 
-         ENDIF 
-         IF(obsp)THEN 
-            WRITE(*,*)' no obs =',mp,' of asteroid ',astnap 
-            IF(covp)THEN
-               WRITE(*,*)'      obs used in fit=',iobp, ' RMS =',csinop
-            ELSE
-               WRITE(*,*)'      observations used in fit=',iobp
-            ENDIF 
-         ENDIF 
-         IF(obs0.and.obsp)THEN 
-            WRITE(*,*)' no obs =',mall,' of both asteroids ' 
-            IF(covtwo)THEN
-               WRITE(*,*)'      obs used in fit=',iobtwo, ' RMS =',csinor
-            ELSE
-               WRITE(*,*)'      observations used in fit=',iobtwo
-            ENDIF
-         ENDIF 
-         IF(ini0)WRITE(*,*)' coord. orbit of ',astna0,' are ',el0%coo
-         IF(inip)WRITE(*,*)' coord. orbit of ',astnap,' are ',elp%coo
-         IF(initwo)WRITE(*,*)' coord. orbit of ',astna0//'='//astnap,' are ',el%coo
+     IF(obs0)THEN 
+        WRITE(*,*)' no obs =',m,' of asteroid ',astna0 
+        IF(cov0)THEN
+           WRITE(*,*)'      obs used in fit=',iob0, ' RMS =',csino0
+        ELSE
+           WRITE(*,*)'      obs used in fit=',iob0
+        ENDIF
+     ENDIF
+     IF(obsp)THEN 
+        WRITE(*,*)' no obs =',mp,' of asteroid ',astnap 
+        IF(covp)THEN
+           WRITE(*,*)'      obs used in fit=',iobp, ' RMS =',csinop
+        ELSE
+           WRITE(*,*)'      observations used in fit=',iobp
+        ENDIF
+     ENDIF
+     IF(obs0.and.obsp)THEN 
+        WRITE(*,*)' no obs =',mall,' of both asteroids ' 
+        IF(covtwo)THEN
+           WRITE(*,*)'      obs used in fit=',iobtwo, ' RMS =',csinor
+        ELSE
+           WRITE(*,*)'      observations used in fit=',iobtwo
+        ENDIF
+     ENDIF
+     IF(ini0)WRITE(*,*)' coord. orbit of ',astna0,' are ',el0%coo
+     IF(inip)WRITE(*,*)' coord. orbit of ',astnap,' are ',elp%coo
+     IF(initwo)WRITE(*,*)' coord. orbit of ',astna0//'='//astnap,' are ',el%coo
 ! ===================================================================== 
-      ELSEIF(ifun.eq.11)THEN 
+  ELSEIF(ifun.eq.11)THEN 
 ! ===================================================================== 
 ! calendar to MJD conversion                                            
-         WRITE(*,*)'calendar date, year, month, day, hour?' 
-         READ(*,*)iy,imo,iday,ihr 
-         sec=0.d0 
-         imin=0 
-         CALL julian(iy,imo,iday,ihr,imin,sec,jd) 
-         WRITE(*,777)jd-2400000.5d0 
-  777    FORMAT('MJD=',f13.6) 
+     WRITE(*,*)'calendar date, year, month, day, hour?' 
+     READ(*,*)iy,imo,iday,ihr 
+     sec=0.d0 
+     imin=0 
+     CALL julian(iy,imo,iday,ihr,imin,sec,jd) 
+     WRITE(*,777)jd-2400000.5d0 
+777  FORMAT('MJD=',f13.6) 
 ! ===================================================================== 
-      ELSEIF(ifun.eq.13)THEN 
+  ELSEIF(ifun.eq.13)THEN 
 ! ===================================================================== 
-         IF(iope.eq.0)THEN 
-            WRITE(*,*)' THIS FUNCTION IS NOT READY' 
-            GOTO 50 
-         ENDIF 
+     WRITE(*,*)' THIS FUNCTION IS NOT READY' 
+     GOTO 50 
 ! Check first and possibly second derivatives at the starting points    
-         WRITE(*,*)' test derivatives of order (1,2)?' 
-         READ(*,*) ider2 
-!        CALL twotes(m,t0,tau,idsta,eq0,ider2)                          
+     WRITE(*,*)' test derivatives of order (1,2)?' 
+     READ(*,*) ider2 
+!    CALL twotes(m,t0,tau,idsta,eq0,ider2)                          
 ! ===================================================================== 
-      ELSE 
+  ELSE 
 ! ===================================================================== 
 ! non existing option                                                   
-         WRITE(*,*)' This I cannot do' 
-      ENDIF 
-      IF(init)THEN 
-         init=.false. 
-         init2=.true. 
-      ELSEIF(init2)THEN 
-         init2=.false. 
-      ENDIF 
-      GOTO 50 
-    END PROGRAM fitobs
+     WRITE(*,*)' This I cannot do' 
+  ENDIF
+  IF(init)THEN 
+     init=.false. 
+     init2=.true. 
+  ELSEIF(init2)THEN 
+     init2=.false. 
+  ENDIF
+  GOTO 50 
+END PROGRAM fitobs

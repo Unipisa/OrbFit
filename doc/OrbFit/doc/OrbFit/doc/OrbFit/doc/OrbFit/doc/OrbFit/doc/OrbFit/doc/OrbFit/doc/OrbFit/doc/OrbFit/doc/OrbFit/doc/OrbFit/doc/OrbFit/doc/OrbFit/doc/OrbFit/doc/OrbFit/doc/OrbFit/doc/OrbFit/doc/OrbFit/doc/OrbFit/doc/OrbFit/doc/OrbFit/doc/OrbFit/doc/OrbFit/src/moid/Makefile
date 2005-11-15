@@ -40,8 +40,8 @@ ast2ast_moid.x:ast2ast_moid.o $(LIBDEPS)
 #	-o statcomp3.x
 
 depend:
-	../../bin/mkdep90 -I../include -L../suit *.f *.f90 *.h *.h90 > make.dep
-	../../bin/mkmoddep -f ../.compiler ../suit > modules.flags
+	../../bin/mkdep90 -I../include -L../suit -L../propag *.f *.f90 *.h *.h90 > make.dep
+	../../bin/mkmoddep -f ../.compiler ../suit ../propag > modules.flags
 
 clean:
 	-(rm -f *.x *.o *.mod ../lib/libmoid.a *% *~ core work.pc*)

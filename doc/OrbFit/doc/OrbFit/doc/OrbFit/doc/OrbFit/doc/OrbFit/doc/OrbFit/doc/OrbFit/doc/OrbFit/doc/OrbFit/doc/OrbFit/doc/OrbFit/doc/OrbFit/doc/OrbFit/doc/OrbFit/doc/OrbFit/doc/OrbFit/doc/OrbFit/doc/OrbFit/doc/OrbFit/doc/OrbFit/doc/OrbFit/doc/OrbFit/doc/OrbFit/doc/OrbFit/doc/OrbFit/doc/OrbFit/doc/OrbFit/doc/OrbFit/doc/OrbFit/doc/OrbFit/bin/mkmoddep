@@ -30,7 +30,7 @@ esac
 
 result=""
 case $compiler in
-	NAG|lf95|g95|intel|intel-Xeon|intel8|intel8-Xeon|HP90)	for dir
+	NAG|lf95|g95|intel|intel-Xeon|intel8|intel8-Xeon|HP90|gfortran)	for dir
 		do
 			if [ ! -d $dir ]; then
 				echo "mkmoddep: directory $dir not found" 1>&2

@@ -1654,6 +1654,8 @@ integer lench
 RETURN
 END SUBROUTINE jpl_radarobs
 
+! Revised by Genny on 5 November 2005 to deal with the new format of 
+! radar_data_ast.txt to include numbered objects > 99999
 SUBROUTINE jplradar_transform(rec,obs,error)
 USE station_coordinates
 
@@ -1690,7 +1692,7 @@ LOGICAL,       INTENT(OUT) :: error
       obs=undefined_ast_obs
 ! ========== HANDLE OBJECT NAME =================
       READ(rec,101,ERR=10) number,nametmp
-  101 FORMAT(a5,1x,a17)
+  101 FORMAT(a6,1x,a16)
       call rmsp(number,lnum)
       call rmsp(nametmp,lnam)
       if(lnam.gt.9)lnam=9
@@ -2294,6 +2296,8 @@ END SUBROUTINE addobs_rwo
 
 ! Copyright Orbfit Consortium 1999
 ! this routine determines an asteroid radius if needed for radar
+! Revised by Genny on 5 November 2005 to deal with the new format of 
+! astorb.dat to include numbered objects > 99999
 SUBROUTINE aster_radius(objid,obstype,m)
   INTEGER,INTENT(IN) :: m
   CHARACTER*(name_len), INTENT(IN), DIMENSION(m) ::  objid  ! designation
@@ -2353,7 +2357,7 @@ SUBROUTINE aster_radius(objid,obstype,m)
 109 call filclo(unit,' ')
 ! ==============================================================
 !                  num   nam    comp   Hmag  Gmag    col   diam
-101 format(a5,1X,A18,1X,15x,1X,f5.2,1X,5x,1X,4x,1X,f5.1)
+101 format(a6,1X,A18,1X,15x,1X,f5.2,1X,5x,1X,4x,1X,f5.1)
 102 format(a,f6.2,a)
 ! ==============================================================
 END SUBROUTINE aster_radius

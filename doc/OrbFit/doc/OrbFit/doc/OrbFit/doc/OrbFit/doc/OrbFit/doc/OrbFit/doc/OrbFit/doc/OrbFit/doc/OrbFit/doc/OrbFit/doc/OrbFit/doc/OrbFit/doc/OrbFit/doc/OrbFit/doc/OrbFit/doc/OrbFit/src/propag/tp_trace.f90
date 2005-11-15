@@ -16,7 +16,7 @@
 !   inclolinctp(iunout,iunclo,despla,vas_trace,no,nox)
 !   arrloadtp(va_tp,rindex) 
 !   rescaltp(va_tp) 
-!        min_poss3tp(smax,va_tp)
+!        min_poss3tp(va_tp)
 ! obsolescent MTP routines 
 !   rea_clorec(iunclo,reqpla,imulcur,va_trace,               &
 !        rea_clan(record,va_trace,error) 
@@ -150,7 +150,7 @@ LOGICAL, PUBLIC :: covava ! availability flag
 
 ! common data: former close_app_data
 ! storage space for multiple minima/multiple target plane crossing
-INTEGER, PARAMETER, PUBLIC :: njcx=50
+INTEGER, PARAMETER, PUBLIC :: njcx=10
 INTEGER, PUBLIC :: njc
 ! planet approached previously
 INTEGER, PUBLIC :: ipla0
@@ -176,7 +176,7 @@ CONTAINS
   SUBROUTINE str_clan(dx1dx0,dx0de) 
     USE planet_masses
     USE orbit_elements
-    IMPLICIT NONE 
+!    USE least_squares, ONLY: scaling_lov
 ! ============INPUT========================                             
     DOUBLE PRECISION, INTENT(IN) :: dx1dx0(6,6) ! accumulated state transition matrix 
     DOUBLE PRECISION, INTENT(IN) :: dx0de(6,6) ! derivatives of init.cartesian wrt elements
@@ -222,7 +222,7 @@ CONTAINS
     DOUBLE PRECISION :: xpl(3), vpl(3), vv(3), xx(3), dz, xop(3)
     DOUBLE PRECISION :: r1(3,3), r2(3,3), rr(3,3), rop(3,3), ropt(3,3), rrt(3,3)
     DOUBLE PRECISION :: eigval(2), axes(2,2), fv1(2),fv2(2), sig(2), wtp(2)
-    DOUBLE PRECISION :: tpc(3),tpr,cxv,czv,svv,wtpv,wtpr,wtpal
+    DOUBLE PRECISION :: tpc(3),tpr,cxv,czv,svv,wtpv,wtpr,wtpal,units(6)
     TYPE(tp_point) :: tp
     INTEGER fail_flag1, fail_flag2,ierr
 ! ===================================================================== 
@@ -253,7 +253,14 @@ CONTAINS
 ! Opik elements          
          IF(.not.covava)THEN
             tpcar=tpcar_mtpcar(mtpcar,fail_flag1,tp%bsd)
-            tp%opik=opik_tpcar(tpcar,fail_flag2)
+! if conversion to TP has failed....
+            IF(fail_flag1.eq.6)THEN
+               WRITE(*,*)'str_clan: elliptic around planet '
+               tp%tp_conv=.false.
+            ELSEIF(fail_flag1.eq.0)THEN
+               tp%tp_conv=.true.            
+               tp%opik=opik_tpcar(tpcar,fail_flag2)
+            ENDIF
          ELSE
 ! partials are always available if we are here                          
             nv =21 
@@ -264,7 +271,14 @@ CONTAINS
             ENDDO 
             CALL varwra(y2,dxdx1,nv*2,nv) 
             tpcar=tpcar_mtpcar(mtpcar,fail_flag1,tp%bsd,del1)
-            tp%opik=opik_tpcar(tpcar,fail_flag2,del2,vt3)
+! if conversion to TP has failed....
+            IF(fail_flag1.eq.6)THEN
+               WRITE(*,*)'str_clan: elliptic around planet '
+               tp%tp_conv=.false.
+            ELSEIF(fail_flag1.eq.0)THEN
+               tp%tp_conv=.true. 
+               tp%opik=opik_tpcar(tpcar,fail_flag2,del2,vt3)
+            ENDIF
             del=MATMUL(del2,del1)
 ! Chain rule: we compute dxde=dxdx1*dx1dx0*dx0de                        
             dxdx0=MATMUL(dxdx1,dx1dx0)
@@ -272,7 +286,7 @@ CONTAINS
 ! d(opik elements)/de
             dee=MATMUL(del,dxde)
             CALL convertunc(unc_store,dee,tp%unc_opik)
-! stretching and width: eigenvalues                                                          
+! stretching and width: eigenvalues
             CALL rs(2,2,tp%unc_opik%g(4:5,4:5),eigval,1,axes,fv1,fv2,ierr) 
             DO  i=1,2 
                IF(eigval(i).gt.0.d0)THEN 
@@ -288,7 +302,8 @@ CONTAINS
             dtpcarde=MATMUL(del1(1:3,1:6),dxde)       
             dtpde(1:2,1:6,jc)=MATMUL(vt3(2:3,1:3),dtpcarde)
 ! weak direction           
-            CALL weak_dir(unc_store%g,wdir,sdir,-1,coo_store,coord_store)
+            CALL weak_dir(unc_store%g,wdir,sdir,-1,coo_store,coord_store,units)
+            wdir=wdir*units
             wtp(1)=DOT_PRODUCT(dtpde(1,1:6,jc),wdir)*sdir 
             wtp(2)=DOT_PRODUCT(dtpde(2,1:6,jc),wdir)*sdir 
             tp%stretch_lov=sqrt(wtp(1)**2+wtp(2)**2) 
@@ -301,12 +316,6 @@ CONTAINS
             sina=-axes(1,2) 
             cosa=axes(2,2) 
             tp%alpha=atan2(sina,cosa) 
-         ENDIF
-! if conversion to TP has failed....
-         IF(fail_flag1.eq.6)THEN
-           tp%tp_conv=.false.
-         ELSEIF(fail_flag1.eq.0)THEN
-           tp%tp_conv=.true.            
          ENDIF
 ! auxiliary variables
          tp%xytp=tpcar%coord
@@ -416,7 +425,8 @@ CONTAINS
      &           unc_store%g,tpc,dtpdet(1,1,jc),sig,           &
      &           axes,tpr,svv,cxv,czv) 
 ! weak direction           
-            CALL weak_dir(unc_store%g,wdir,sdir,-1,coo_store,coord_store)
+            CALL weak_dir(unc_store%g,wdir,sdir,-1,coo_store,coord_store,units)
+            wdir=wdir*units
             wtp(1)=DOT_PRODUCT(wdir,dtpdet(1:6,1,jc))*sdir 
             wtp(2)=DOT_PRODUCT(wdir,dtpdet(1:6,2,jc))*sdir 
             wtpv=DOT_PRODUCT(wdir,dtpdet(1:6,3,jc))*sdir 
@@ -906,7 +916,7 @@ END SUBROUTINE str_clan
     DOUBLE PRECISION :: tprmin
     INTEGER :: j,jc 
     LOGICAL :: bound
-!==================================================================================
+!=====================================================================
 ! select lower minimum                                                  
     IF(njc.eq.1)THEN 
        jc=1 
@@ -934,8 +944,8 @@ END SUBROUTINE str_clan
 ! coordinate change to TP                                               
     DOUBLE PRECISION                 :: mu
 !    INTEGER                          :: imul0 
-!=====================================================================================
-!  rescaling units                                                      
+!========================================================================
+!  rescaling gravitational constant
     mu=gmearth/reau**3 
 ! rescaling of lengths; positions, velocities in Earth radii
     va_tp%d=va_tp%d/reau
@@ -963,25 +973,23 @@ END SUBROUTINE str_clan
 !     arrline(25)=(2.d0*smax/nmul)*(xmul-imul0)                         
     va_tp%sigma=deltasig*(va_tp%rindex-imul0) 
 ! minimum possible, moid_gf                                             
-    CALL min_poss3tp(smax,va_tp)
+    CALL min_poss3tp(va_tp)
     CONTAINS
             
-! ================================================================================
+! ===================================================================
 ! MIN_POSSible distance, box model; in unit of Earth radius             
-! ================================================================================
-      SUBROUTINE min_poss3tp(smax,va_tp)
-!========================INPUT====================================================
-        DOUBLE PRECISION, INTENT(IN) :: smax
-!=====================INPUT/OUTPUT================================================
+! ===================================================================
+      SUBROUTINE min_poss3tp(va_tp)
+!================INPUT/OUTPUT========================================
         TYPE(tp_point), INTENT(INOUT) :: va_tp 
-!=====================END INTERFACE===============================================
+!==============END INTERFACE=========================================
         DOUBLE PRECISION :: wtpr,wtpal    ! projection of LOV on target plane, 
-                                        ! polar coordinates                                
+                                          ! polar coordinates
         DOUBLE PRECISION :: dmin          ! local variables 
         DOUBLE PRECISION :: xx,yy,re,s0,w0   
         DOUBLE PRECISION :: dmin1, r 
         DOUBLE PRECISION :: rad,vel,vsize,c_opik     ! use of moid
-! ================================================================================
+! =================================================================
 ! compute gravitational focusing                                        
         r=va_tp%b 
         vel=va_tp%opik%coord(1)

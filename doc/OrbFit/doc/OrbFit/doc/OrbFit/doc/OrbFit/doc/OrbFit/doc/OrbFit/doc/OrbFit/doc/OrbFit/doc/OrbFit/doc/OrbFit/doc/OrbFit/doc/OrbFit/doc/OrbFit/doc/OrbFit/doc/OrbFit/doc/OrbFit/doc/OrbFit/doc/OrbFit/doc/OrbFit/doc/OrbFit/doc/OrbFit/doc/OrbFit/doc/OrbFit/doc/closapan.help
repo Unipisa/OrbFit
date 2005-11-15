@@ -1,49 +1,52 @@
-% help file, orbfit 1.7.1 and later
+% help file, orbfit 3.3.1 and later
 % this is the close approach analysis menu
 
-MENU CLOSAPAN
+==========IMPORTANT WARNING=================
 
-For which orbit?
+Close approach analysis is a delicate problem, both because it is
+mathematically difficult (it amounts to predictions for a chaotic orbit)
+and because it can lead to predictions of an impact by asteroid with
+our planet. 
 
-1 = arc 1  ...use state vector and covariance matrix of first arc.
+To spread unjustified panic by announcing a future impact, without having gone
+through the very rigorous verification procedure which is necessary (and is
+requested by the International Astronomical Union, IAU), is an irresponsible
+behavior. See the current IAU policy on possible impact announcements on
 
-2 = arc 2  ...use state vector and covariance matrix of second arc.
+http://web.mit.edu/rpb/wgneo/TechComm.html
 
-3 = joint computed orbit ...use state vector and covariance matrix of
-the orbit fitted to the observations of both arcs.
+On the other hand, also denying a future possible impact, already announced by
+others, is critical.
 
-0 = exit ...back to the main menu.
+This computer code is provided as free software precisely to make possible
+independent verification of the claims of future possibilities of impact as
+posted in the two professional web sites
 
-WARNING: after selecting 1-3 in this menu, the user is asked to
-specify the other extreme of the monitoring time interval, in Modified
-Julian Days (MJD). To convert calendar dates to MJD, use the DATE
-CONVERSION option in the main menu. The other extreme is the current
-epoch of the orbital elements.
+http://newton.dm.unipi.it/neodys and http://unicorn.eis.uva.es/neodys
 
-The following messages give the close approaches found in the
-monitoring time interval; then the program proceeds to analyse THE
-LAST ONE ONLY. If you are interested in a previous one, you should use
-a shorter monitoring interval.
+at the Universities of Pisa and Valladolid (service duplicated to guarantee
+availability) and
 
-The first message of the close approach analysis shows the time and
-distance of the close approach being analysed, and the unit vector
-normal to the target plane. Select 1=new to perform the confidence
-boundary analysis on this plane; -1 is an advanced option, to be used
-only for special purposes (plot a close approach on the target plane
-of another one). 
+http://neo.jpl.nasa.gov/
 
-A special case occurs when multiple crossing of the target plane take
-place, and/or the close approach being analysed has multiple minima of
-the distance to the planet. This program is not guaranteed to work in
-this case, which is however very rare for close approaches to Earth
-(it occurs for cometary approaches to Jupiter, e.g. SL-9). If multiple
-target plane crossing and/or multiple minima of distance occur, ta
-possible fix is to change the sphere of influence of the Earth as
-considered by the program, by adding the option
+at NASA/Caltech Jet Propulsion Laboratory, Pasadena. 
 
-       .dmea=0.03 ! sphere of influence 
+Thus, if you have little experience in this class of sophisticated Celestial
+Mechanics computations, you are welcome to use this software to understand te
+results and even to learn how to do them yourself. We will try to make this
+software, which is essentially the same we use operationally in NEODyS, more
+and more user friendly (we acknowledge the output is quite obscure now). 
 
-in the file runname.fop; this changes the radius of the sphere inside
-which close approaches are analysed to 0.03 AU (the default is 0.1 AU,
-which is Ok in most cases, but for some very low velocity approaches
-by asteroids with semimajor axis close to 1 AU).
+However, we demand that you take a responsible attitude before contradicting
+the impact predictions as posted by NEODyS and/or JPL, and even more before
+making your own announcement of a possible impact. Our experience has shown
+that to do this is very dangerous, and can be handled only by qualified
+personnel with both the necessary scientific knowledge and the communication
+skill, especially in contacting the media.
+
+WARNING: the user will be asked to specify the other extreme of the monitoring
+time interval, in Modified Julian Days (MJD). To convert calendar dates to
+MJD, use the DATE CONVERSION option in the main menu. The other extreme is the
+current epoch of the orbital elements. Search backward is allowed: just give a
+date before the current orbital elements epoch.
+

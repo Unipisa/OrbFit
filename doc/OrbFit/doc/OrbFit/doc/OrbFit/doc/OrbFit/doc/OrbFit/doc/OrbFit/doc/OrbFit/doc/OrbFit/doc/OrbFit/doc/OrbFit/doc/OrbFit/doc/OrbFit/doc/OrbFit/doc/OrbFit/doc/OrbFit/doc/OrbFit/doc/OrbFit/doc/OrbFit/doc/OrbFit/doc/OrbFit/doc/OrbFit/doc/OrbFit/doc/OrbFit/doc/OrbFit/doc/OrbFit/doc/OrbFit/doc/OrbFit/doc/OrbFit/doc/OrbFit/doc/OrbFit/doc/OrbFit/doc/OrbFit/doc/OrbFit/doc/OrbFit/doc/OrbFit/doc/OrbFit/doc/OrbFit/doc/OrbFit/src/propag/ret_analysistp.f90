@@ -64,7 +64,7 @@ CONTAINS
     DOUBLE PRECISION :: tmin,smin 
     LOGICAL :: fals_conv,fals_notp 
     INTEGER :: nvai 
-    INTEGER :: niter                                                         
+    INTEGER :: niter,iunwarn0,iunnew0                                                         
     DOUBLE PRECISION :: siglim,dalpha1,dalpha2,pridif,dfalsi
     INTEGER :: i1,i2 
     DOUBLE PRECISION, PARAMETER :: del_fal=2.3d-3    ! convergence control 
@@ -76,6 +76,8 @@ CONTAINS
     iunnew= -iun_log ! standard output + logfile 
     iunwarn= -iun_log ! standard output + logfile 
     iunrisk= -iun_log ! standard output + logfile 
+    iunnew0=iun_log
+    iunwarn0=iun_log
 ! derivative of distance squared with respect to sigma                  
     dr2ds(1:lre)=vas_tr(1:lre)%dd2_ds 
 ! scan filament                                                         
@@ -96,7 +98,7 @@ CONTAINS
                 CALL achillestp(vas_tr(1),siglim,type,        &
      &                iunwarn,iunnew,va_tracemin,niter,fals_conv,fals_notp)
                 IF(fals_notp)THEN 
-                   WRITE(iunnew,*)' achillestp no TP ',type 
+                   WRITE(iunnew0,*)' achillestp no TP ',type 
                 ELSE 
                    CALL riskchecktp(va_tracemin,t0,type,no_risk,iunnew,iunwarn,iunrisk)
                    CALL store_vi()
@@ -118,7 +120,7 @@ CONTAINS
      &                iunwarn,iunnew,va_tracemin,niter,fals_conv,fals_notp)
 ! if failure write failure record, else possibly risk record            
                 IF(fals_notp)THEN 
-                   WRITE(iunnew,*)' achillestp no TP ',type 
+                   WRITE(iunnew0,*)' achillestp no TP ',type 
                 ELSE 
                    CALL riskchecktp(va_tracemin,t0,type,no_risk,iunnew,iunwarn,iunrisk)
                    CALL store_vi()
@@ -139,13 +141,13 @@ CONTAINS
      &                fals_conv,niter,fals_notp)  
 ! if failure write failure record, else possibly risk record            
                 IF(fals_notp)THEN 
-                   WRITE(iunnew,*)' falsi no TP ' 
+                   WRITE(iunnew0,*)' falsi no TP ' 
                    siglim=deltasig/2.d0 
                    CALL achillestp(vas_tr(j-1),siglim,     &
      &                      type,iunwarn,iunnew,va_tracemin,               &
      &                      niter,fals_conv,fals_notp)                  
                    IF(fals_notp.or..not.fals_conv)THEN 
-                      WRITE(iunnew,*)' achillestp no TP/conv ',type 
+                      WRITE(iunnew0,*)' achillestp no TP/conv ',type 
                    ELSE 
                       CALL riskchecktp(va_tracemin,t0,type,no_risk,iunnew,iunwarn,iunrisk)
                       CALL store_vi()
@@ -154,7 +156,7 @@ CONTAINS
                    CALL achillestp(vas_tr(j),siglim,type,iunwarn,iunnew,va_tracemin,    &
      &                      niter,fals_conv,fals_notp)                  
                    IF(fals_notp.or..not.fals_conv)THEN 
-                      WRITE(iunnew,*)' achillestp no TP/conv ',type 
+                      WRITE(iunnew0,*)' achillestp no TP/conv ',type 
                    ELSE 
                       CALL riskchecktp(va_tracemin,t0,type,no_risk,iunnew,iunwarn,iunrisk) 
                       CALL store_vi()
@@ -171,7 +173,7 @@ CONTAINS
                    dalpha2=pridif(vas_tr(j)%alpha_lov,va_tracemin%alpha_lov)
 ! store the minimum distance output from falsi                          
                    dfalsi=va_tracemin%b 
-                   WRITE(iunwarn,*)'check for almost interrupted',     &
+                   WRITE(iunwarn0,*)'check for almost interrupted',     &
      &                   dalpha1*degrad,dalpha2*degrad                  
                    IF(cos(dalpha2).gt.0.70d0)THEN 
                       siglim=deltasig*abs(vas_tr(j-1)%rindex-va_tracemin%rindex)/2.d0 
@@ -179,7 +181,7 @@ CONTAINS
      &                      type,iunwarn,iunnew,va_tracemin,               &
      &                      niter,fals_conv,fals_notp)                  
                       IF(fals_notp.or..not.fals_conv)THEN 
-                         WRITE(iunnew,*)' achillestp no TP/conv ',type 
+                         WRITE(iunnew0,*)' achillestp no TP/conv ',type 
                       ELSE 
                          IF(abs(dfalsi-va_tracemin%b).gt.del_fal*dfalsi)   &
         &                   CALL riskchecktp(va_tracemin,t0,type,no_risk,iunnew,iunwarn,iunrisk) 
@@ -192,7 +194,7 @@ CONTAINS
      &                      type,iunwarn,iunnew,va_tracemin,               &
      &                      niter,fals_conv,fals_notp)                  
                       IF(fals_notp.or..not.fals_conv)THEN 
-                         WRITE(iunnew,*)' achillestp no TP/conv ', type 
+                         WRITE(iunnew0,*)' achillestp no TP/conv ', type 
                       ELSE 
                          IF(abs(dfalsi-va_tracemin%b).gt.del_fal*dfalsi)   &
         &                   CALL riskchecktp(va_tracemin,t0,type,no_risk,iunnew,iunwarn,iunrisk) 
@@ -211,10 +213,10 @@ CONTAINS
                    CALL achillestp(vas_tr(j),siglim,type,     &
      &                iunwarn,iunnew,va_tracemin,niter,fals_conv,fals_notp)
                 ELSE 
-                   WRITE(iunnew,*)' case not understood ', type 
+                   WRITE(iunnew0,*)' case not understood ', type 
                 ENDIF
                 IF(fals_notp)THEN 
-                   WRITE(iunnew,*)' achillestp no TP ',type 
+                   WRITE(iunnew0,*)' achillestp no TP ',type 
                 ELSE 
                    CALL riskchecktp(va_tracemin,t0,type,no_risk,iunnew,iunwarn,iunrisk)
                    CALL store_vi()
@@ -225,34 +227,34 @@ CONTAINS
                 CALL achillestp(vas_tr(j-1),siglim,type,      &
      &                iunwarn,iunnew,va_tracemin,niter,fals_conv,fals_notp)
                 IF(fals_notp)THEN 
-                   WRITE(iunnew,*)' achillestp no TP ',type 
+                   WRITE(iunnew0,*)' achillestp no TP ',type 
                 ELSE 
                    CALL riskchecktp(va_tracemin,t0,type,no_risk,iunnew,iunwarn,iunrisk)
                    CALL store_vi()
                 ENDIF
 ! missing second half of the entagled case                              
-                WRITE(iunnew,*)type, ' second minimum not handled' 
+                WRITE(iunnew0,*)type, ' second minimum not handled' 
              ELSEIF(type.eq.'ENTAASC')THEN 
 ! look for last minimum                                                 
                 siglim=deltasig/2.d0 
                 CALL achillestp(vas_tr(j),siglim,type,        &
      &                iunwarn,iunnew,va_tracemin,niter,fals_conv,fals_notp)
                 IF(fals_notp)THEN 
-                   WRITE(iunnew,*)' achillestp no TP ',type 
+                   WRITE(iunnew0,*)' achillestp no TP ',type 
                 ELSE 
                    CALL riskchecktp(va_tracemin,t0,type,no_risk,iunnew,iunwarn,iunrisk)               
                    CALL store_vi()
                 ENDIF
 ! missing second half of the entagled case                              
-                WRITE(iunnew,*)type, ' second minimum not handled' 
+                WRITE(iunnew0,*)type, ' second minimum not handled' 
              ELSE 
                 IF(type.eq.'NOWORRY'.or.type.eq.'INTEMAX'.or.          &
      &                   type.eq.'SIMPMAX')THEN                         
 !  ok not to be handled                                                 
                 ELSE 
-                   WRITE(iunnew,*)' case not handled, type=',type,     &
+                   WRITE(iunnew0,*)' case not handled, type=',type,     &
    &                   vas_tr(j-1)%tcla, vas_tr(j-1)%rindex    
-                   WRITE(iunwarn,*)' case not handled, type=',type 
+                   WRITE(iunwarn0,*)' case not handled, type=',type 
                    CALL wriouttp(vas_tr(j-1),iunwarn) 
                    CALL wriouttp(vas_tr(j),iunwarn) 
                 ENDIF
@@ -780,7 +782,7 @@ CONTAINS
     CHARACTER(LEN=7), INTENT(IN)             :: type 
     INTEGER, INTENT(IN)                      :: iunwar0,iunnew0 
 !======================= INPUT/OUTPUT===========================
-    TYPE(tp_point), DIMENSION(2) :: arrf       ! array contains the last two 
+!    TYPE(tp_point), DIMENSION(2) :: arrf       ! array contains the last two 
                                                  ! used in this routine   
 !========================== OUTPUT==============================
     TYPE(tp_point), INTENT(OUT)  :: arrmin
@@ -811,8 +813,8 @@ CONTAINS
     iunwar=abs(iunwar0)
     iunnew=abs(iunnew0) 
     WRITE(iunwar,*)'findminctp ',type,arrc(1)%tcla,a0,b0 
-    arrf(1)=arrc(1)
-    arrf(2)=arrc(2)
+!    arrf(1)=arrc(1)
+!    arrf(2)=arrc(2)
 ! consult arrays for initial two points                                 
     a(1)=a0 
     b(1)=b0 
@@ -903,7 +905,7 @@ CONTAINS
             db(it+1)=dw(it+1) 
             tb(it+1)=tw(it+1) 
 !...........................
-            CALL arrloadtp(arrf(2),b(it+1)) 
+!            CALL arrloadtp(arrf(2),b(it+1)) 
             a(it+1)=a(it) 
             fa(it+1)=fa(it) 
             da(it+1)=da(it) 
@@ -928,7 +930,7 @@ CONTAINS
             fa(it+1)=fw(it+1) 
             da(it+1)=dw(it+1) 
             ta(it+1)=tw(it+1) 
-            CALL arrloadtp(arrf(1),a(it+1)) 
+!            CALL arrloadtp(arrf(1),a(it+1)) 
             b(it+1)=b(it) 
             fb(it+1)=fb(it) 
             db(it+1)=db(it) 
@@ -988,7 +990,7 @@ CONTAINS
          v=arrmin%opik%coord(1) 
          mu=gmearth/reau**3
          b_e=sqrt(1.d0+(2.d0*mu)/v**2)
-         IF(cont_dist.lt.del_fal.or.cont_dist.lt.del_fal*ddw            &
+         IF(cont_dist.lt.del_fal  & ! .or.cont_dist.lt.del_fal*ddw      &
      &           .or.cont_prob.lt.eps_fal.or.ddw.lt.b_e)THEN           
             WRITE(iunwar,*)' minimum found, iter= ',niter 
             WRITE(*,*)' minimum found, iter= ',niter 
@@ -1064,6 +1066,7 @@ SUBROUTINE lovclosapptp(rindex,t1,t2,iunwar,fals_notp,va_tracemin)
 ! propagate                                                             
   batch=.true. 
   CALL pro_ele(el0,tafter,el,unc0,unc) 
+!  WRITE(*,*)'lovclosapptp: t1,t2,tbefore,tafter,tclas: ',t1,t2,tbefore,tafter,tcla(1:njc)
   IF(njc.eq.0)THEN 
      WRITE(iunwar,*)' lovclosapp failed; no close approach' 
      falsok=.false. 
@@ -1071,8 +1074,7 @@ SUBROUTINE lovclosapptp(rindex,t1,t2,iunwar,fals_notp,va_tracemin)
      WRITE(iunwar,*)' lovclosapp failed; close app. planet ', iplam
      falsok=.false. 
      kill_propag=.false.
-  ELSEIF(tcla(njc).gt.max(tbefore,tafter).or.                    &
-     &          tcla(njc).lt.min(tbefore,tafter))THEN   
+  ELSEIF(tp_store(njc)%tcla.gt.max(tbefore,tafter).or.tp_store(njc)%tcla.lt.min(tbefore,tafter))THEN   
      IF(kill_propag)THEN
         WRITE(iunwar,*)' lovclosapp failed: previous collision at ',tcla(njc)
      ELSE
@@ -1088,7 +1090,11 @@ SUBROUTINE lovclosapptp(rindex,t1,t2,iunwar,fals_notp,va_tracemin)
      falsok=.true.
   ENDIF
   IF(falsok)THEN 
-     CALL arrloadtp(va_tracemin,rindex) 
+     CALL arrloadtp(va_tracemin,rindex)
+     IF(.not.va_tracemin%tp_conv)THEN
+        WRITE(iunwar,*)' lovclosapp failed: close approach elliptic ',va_tracemin%tcla
+        fals_notp=.true.
+     ENDIF  
   ELSE 
      fals_notp=.true. 
   ENDIF
@@ -1121,7 +1127,7 @@ CONTAINS
     ENDIF
 ! time interval to exit from TP disk   
     IF(v_inf0.gt.0.d0)THEN                                 
-       delt_tp=2*dmin(iplam)/v_inf0
+       delt_tp=4*dmin(iplam)/v_inf0
     ELSE
        delt_tp=365.25d0
     ENDIF

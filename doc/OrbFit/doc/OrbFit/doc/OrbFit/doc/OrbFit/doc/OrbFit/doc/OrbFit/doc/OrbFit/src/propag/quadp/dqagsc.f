@@ -183,7 +183,7 @@ c         call error handler if necessary.
 c
       lvl = 0
 10    if(ier.eq.6) lvl = 1
-      if(ier.ne.0) write(*,*) 'error from dqagsec',ier,lvl
+c      if(ier.ne.0) write(*,*) 'error from dqagsec',ier,lvl
 c         call xerror(26habnormal return from dqags,26,ier,lvl)
       return
       end

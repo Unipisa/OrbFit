@@ -126,7 +126,7 @@
     ecar%t=0.d0 !dummy time
     CALL coo_cha(ecar,'COM',ec,fail_flag) !conversion into cometary elems
 !    write(*,*)'compute_minima; ast elements(com):',ec%coord(1:6)
-    IF(fail_flag.gt.4)THEN !no conversion provided
+    IF(fail_flag.gt.5)THEN !no conversion provided
        write(*,*)'compute_minima_ta: failed conversion into cometary elements &
             & for the asteroid'
        nummin=0
@@ -139,7 +139,7 @@
     ecarpl%t=0.d0 !dummy time
     CALL coo_cha(ecarpl,'COM',ecpl,fail_flag) !conversion into cometary elems
 !    write(*,*)'compute_minima; pl elements(com):',ecpl%coord(1:6)
-    IF(fail_flag.gt.4)THEN !no conversion provided
+    IF(fail_flag.gt.5)THEN !no conversion provided
        write(*,*)'compute_minima_ta: failed conversion into cometary elements&
             & for the planet'
        nummin=0
@@ -156,6 +156,12 @@
     if(.not.sflag(3)) then
        write(*,*)'negative discriminant!  ecc=',ec%coord(2)
     endif
+
+    IF(nstat.le.0) THEN
+       WRITE(*,*)'compute_minima_ta: error! nstat=',nstat
+       nummin=0
+       RETURN
+    ENDIF
 
 ! loop on number of stationary points                               
     DO j = 1,nstat 

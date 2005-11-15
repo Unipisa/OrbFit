@@ -121,6 +121,7 @@ SUBROUTINE io_det(unirep,rwofil,name,obs,obsw,n,error_model,ifo,&
      WRITE(*,203) 'Failure',selipt,tdt3(2)-tdt3(1),tdt3(3)-tdt3(2)
      IF(unirep.GT.0) WRITE(unirep,203) 'Failure',selipt, &
      &        tdt3(2)-tdt3(1),tdt3(3)-tdt3(2)
+     fail=.TRUE.
      RETURN
   ENDIF
   IF(iodvrb.GE.2) THEN 

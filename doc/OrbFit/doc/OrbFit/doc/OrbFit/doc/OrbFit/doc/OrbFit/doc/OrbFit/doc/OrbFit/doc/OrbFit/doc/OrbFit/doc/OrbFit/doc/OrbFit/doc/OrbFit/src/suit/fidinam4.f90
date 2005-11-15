@@ -133,7 +133,10 @@ CHARACTER*10 FUNCTION dircom4(name0,le)
 ! numbered: directories of 1000 each                                    
   nodir=number/1000 
   dircom4=' ' 
-  IF(nodir.gt.9)THEN 
+  IF(nodir.gt.99)THEN
+     WRITE(dircom4,'(I3)')nodir
+     le=3
+  ELSEIF(nodir.gt.9)THEN 
      WRITE(dircom4,'(I2)')nodir 
      le=2 
   ELSE 

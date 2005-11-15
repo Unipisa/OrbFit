@@ -3,10 +3,10 @@ close_app.o: \
 	../include/nvarx.h90 \
 	../suit/ever_pitkin.mod \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
 	../suit/planet_masses.mod \
 	close_app.o \
+	orbit_elements.o \
 	runge_kutta_gauss.o \
 	tp_trace.o 
 
@@ -14,7 +14,7 @@ count_opp.o: \
 	../include/parobx.h90 \
 	../suit/astrometric_observations.mod \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
+	orbit_elements.o \
 	pred_obs.o \
 	propag_state.o 
 
@@ -22,13 +22,13 @@ count_opp2.o: \
 	../include/parobx.h90 \
 	../suit/astrometric_observations.mod \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
+	orbit_elements.o \
 	pred_obs.o \
 	propag_state.o 
 
 ephem_prop.o: \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
+	orbit_elements.o \
 	pred_obs.o \
 	propag_state.o 
 
@@ -38,8 +38,8 @@ eval_risk.o: \
 fitsubs.o: \
 	../include/timespan.h90 \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
-	../suit/util_suit.mod 
+	../suit/util_suit.mod \
+	orbit_elements.o 
 
 force_model.o: \
 	../include/jplhdr.h90 \
@@ -55,29 +55,29 @@ least_squares.o: \
 	../suit/astrometric_observations.mod \
 	../suit/fund_const.mod \
 	../suit/name_rules.mod \
-	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
 	../suit/util_suit.mod \
 	close_app.o \
 	least_squares.o \
 	obs_correl.o \
+	orbit_elements.o \
 	pred_obs.o 
 
 moid_compute.o: \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
-	../suit/planet_masses.mod 
+	../suit/planet_masses.mod \
+	orbit_elements.o 
 
 multiple_sol.o: \
 	../include/sysdep.h90 \
 	../suit/astrometric_observations.mod \
 	../suit/fund_const.mod \
 	../suit/name_rules.mod \
-	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
 	../suit/util_suit.mod \
 	least_squares.o \
 	obssto.o \
+	orbit_elements.o \
 	pred_obs.o \
 	propag_state.o \
 	tp_trace.o 
@@ -91,20 +91,32 @@ obssto.o: \
 	../include/parobx.h90 \
 	../include/sysdep.h90 \
 	../suit/astrometric_observations.mod \
-	../suit/orbit_elements.mod \
-	../suit/output_control.mod 
+	../suit/output_control.mod \
+	orbit_elements.o 
 
 offlov_checktp.o: \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/planet_masses.mod \
 	close_app.o \
+	eval_risk.o \
 	least_squares.o \
 	multiple_sol.o \
 	obssto.o \
+	orbit_elements.o \
 	propag_state.o \
 	tp_trace.o \
 	virtual_impactor.o 
+
+orbit_elements.o: \
+	../suit/attributable.mod \
+	../suit/ever_pitkin.mod \
+	../suit/fund_const.mod \
+	../suit/io_elems.mod \
+	../suit/name_rules.mod \
+	../suit/output_control.mod \
+	../suit/planet_masses.mod \
+	../suit/reference_systems.mod \
+	../suit/station_coordinates.mod 
 
 plocbd.o: \
 	../suit/fund_const.mod \
@@ -115,23 +127,23 @@ pred_obs.o: \
 	../suit/attributable.mod \
 	../suit/ever_pitkin.mod \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
 	../suit/reference_systems.mod \
 	../suit/station_coordinates.mod \
 	close_app.o \
 	force_model.o \
+	orbit_elements.o \
 	propag_state.o 
 
 propag_state.o: \
 	../include/nvarx.h90 \
 	../suit/ever_pitkin.mod \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
 	../suit/planet_masses.mod \
 	close_app.o \
 	force_model.o \
+	orbit_elements.o \
 	propag_state.o \
 	ra15_mod.o \
 	runge_kutta_gauss.o \
@@ -145,12 +157,12 @@ ra15_mod.o: \
 
 ret_analysistp.o: \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
 	../suit/planet_masses.mod \
 	close_app.o \
 	multiple_sol.o \
 	offlov_checktp.o \
+	orbit_elements.o \
 	propag_state.o \
 	tp_trace.o \
 	virtual_impactor.o 
@@ -175,7 +187,7 @@ runge_kutta_gauss.o: \
 
 semi_linear.o: \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
+	orbit_elements.o \
 	pred_obs.o 
 
 shower_analysistp.o: \
@@ -184,18 +196,25 @@ shower_analysistp.o: \
 tp_trace.o: \
 	../include/nvarx.h90 \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
-	../suit/planet_masses.mod 
+	../suit/planet_masses.mod \
+	orbit_elements.o 
 
 virtual_impactor.o: \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/planet_masses.mod \
+	orbit_elements.o \
 	propag_state.o \
 	tp_trace.o 
+
+wromlr.o: \
+	../include/parcmc.h90 \
+	../suit/fund_const.mod \
+	../suit/io_elems.mod \
+	../suit/name_rules.mod \
+	../suit/output_control.mod 
 
 yark_pert.o: \
 	../include/sysdep.h90 \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod 
+	orbit_elements.o 

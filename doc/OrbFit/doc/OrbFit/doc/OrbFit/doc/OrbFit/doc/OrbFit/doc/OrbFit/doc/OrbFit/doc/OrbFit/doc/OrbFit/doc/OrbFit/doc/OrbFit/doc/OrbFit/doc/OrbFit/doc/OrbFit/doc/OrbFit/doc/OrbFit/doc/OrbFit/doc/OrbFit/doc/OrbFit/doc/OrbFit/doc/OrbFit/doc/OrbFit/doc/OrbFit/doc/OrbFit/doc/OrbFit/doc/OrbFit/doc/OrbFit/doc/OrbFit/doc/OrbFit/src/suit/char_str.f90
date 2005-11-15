@@ -689,6 +689,12 @@ WRITE(format,100,ERR=10) required_length,nd2
 CALL rmsp(format,lf)
 WRITE(string,FMT=format,ERR=10) value
 IF(INDEX(string,'*') == 0) error=.false.
+IF(string(1:1).eq.' ')THEN
+   string(1:1)='0'
+   IF(string(2:2).eq.' ')THEN
+      string(2:2)='0'
+   ENDIF
+ENDIF
 
 10 CONTINUE
 

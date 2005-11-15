@@ -5,10 +5,6 @@ fitobs.
         .obsdir0='obsdata'    ! directory of observs. file, first arc 
         .elefi0='2004XK3.eq0' ! first arc elements file
 
-! second arc
-!        .astnap='2004 MN404'    ! full name, second arc
-!        .obsdirp='obsdata'    ! directory of observs. file, second arc 
-
 propag.
         .iast=3         ! 0=no asteroids with mass n=no. of massive asteroids 
         .npoint=600     ! minimum number of data points for a deep close appr

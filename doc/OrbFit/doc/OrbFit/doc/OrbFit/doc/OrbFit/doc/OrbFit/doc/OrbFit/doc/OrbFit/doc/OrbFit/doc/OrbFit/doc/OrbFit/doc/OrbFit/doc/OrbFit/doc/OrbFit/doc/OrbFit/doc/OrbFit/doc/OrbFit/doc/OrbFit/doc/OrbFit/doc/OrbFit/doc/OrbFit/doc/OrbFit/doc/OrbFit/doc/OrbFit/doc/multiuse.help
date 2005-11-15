@@ -1,4 +1,4 @@
-% help file, orbfit 1.7.1 and later
+% help file, orbfit 3.3.1 and later
 % this is the multiple solutions usage menu
 
 MENU MULTIUSE
@@ -18,6 +18,10 @@ line of multiple solutions on the celestial sphere.
 for an a-e plot, to compute multiple observations at times close to a
 new epoch. This option is followed by a request for the new epoch, in
 MJD.
+
+5= close approach analysis...finds future (and past) close approaches
+to the Earth, assessing the minimum possible approach distance to our planet 
+and the probability of a collision, if any.
 
 0 = exit; -1=help
 

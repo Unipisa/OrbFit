@@ -121,7 +121,7 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
 ! control of bizarre orbits                                             
   LOGICAl bizarre 
   INTEGER iun,iundump,iunint 
-  DOUBLE PRECISION, DIMENSION(6) :: scales
+  DOUBLE PRECISION, DIMENSION(6) :: units ! for scaling
   iun=abs(iun_log) 
   IF(verb_mul.ge.30)THEN 
      iundump=abs(iun_log) 
@@ -154,7 +154,7 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
   ENDIF
 ! ===================================================================== 
 ! compute line of variations                                            
-  CALL weak_dir(uncert%g,wdir,sdir,iunint,el0%coo,el0%coord)
+  CALL weak_dir(uncert%g,wdir,sdir,iunint,el0%coo,el0%coord,units)
   wdir0=wdir 
 ! input parameters of segment on the variations line                    
   IF(batch)THEN 
@@ -177,31 +177,6 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
 ! ===================================================================== 
 ! nominal stepsize (in the sigma space)                                 
   dn=1.d0/float(imult) 
-  IF(batch)THEN 
-! preselect a  stepsize which could not result in hyperbolic orbit      
-! hypothetical final point                                              
-     ratio=sqrt(2.d0) 
-     IF(scaling_lov)THEN
-        CALL scale_coef(el0%coo,el0%coord,scales)
-        scales=1.d0/scales
-     ELSE
-        scales=1.d0
-     ENDIF
-     DO k=1,10 
-        eqf=el0
-        DO j=1,6 
-           eqf%coord(j)=el0%coord(j)+wdir(j)*scales(j)*sdir*dn*sigma*imult 
-        ENDDO
-        IF(bizarre(eqf,ecc))THEN 
-           dn=dn/ratio 
-           IF(verb_mul.gt.9)WRITE(iun,*)' f_multi: shortening to avoid ecc= ',ecc,k,dn
-           IF(verb_mul.gt.19) WRITE(iun,*)eqf               
-        ELSE 
-           GOTO 9 
-        ENDIF
-     ENDDO
-9    CONTINUE 
-  ENDIF
 ! store information on stepsize
   delta_sigma=dn*sigma
 ! ===================================================================== 
@@ -222,18 +197,17 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
      imi=imult+i+1 
      IF(.not.batch)WRITE(*,*)' alternate solution no. ',imi 
      IF(.not.batch)WRITE(iun,*)' alternate solution no. ',imi 
-     CALL prop_sig(batch,elm(imi-1),elc,dn,sigma,mc,obs,obsw,wdir,sdir,fail)
+     CALL prop_sig(batch,elm(imi-1),elc,dn,sigma,mc,obs,obsw,wdir,sdir,units,fail)
 ! check for hyperbolic                                                  
      IF(fail)THEN 
         IF(.not.batch)WRITE(*,*)'step ',imi,' failed' 
-        IF(.not.batch)WRITE(*,*)elc 
-        IF(verb_mul.gt.9)WRITE(iun,*)'fail in prop_sig, imi= ',imi,dn
+!        IF(.not.batch)WRITE(*,*)elc 
+        WRITE(iun,*)'fail in prop_sig, imi= ',imi,dn
         imi=imi-1
         GOTO 6 
      ELSEIF(bizarre(elc,ecc))THEN 
         IF(.not.batch)WRITE(*,*)'step ',imi,' bizarre', 'ecc=', ecc 
-        IF(.not.batch)WRITE(*,*)elc 
-        IF(verb_mul.gt.9)WRITE(iun,*)'bizarre out of  prop_sig, imi= ',imi,ecc,dn
+        WRITE(iun,*)'bizarre out of  prop_sig, imi= ',imi,ecc,dn
         imi=imi-1 
         GOTO 6 
      ELSE 
@@ -242,7 +216,7 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
      &       csinom(imi),delnom(imi),rmsh,nused,succ)
 ! exit if not convergent                                                
         IF(.not.succ) THEN 
-           IF(verb_mul.gt.19)WRITE(iun,*)'fail in constr_fit, imi= ',imi,dn
+           WRITE(iun,*)'fail in constr_fit, imi= ',imi,dn
            imi=imi-1 
            GOTO 6 
         ENDIF
@@ -250,12 +224,10 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
         CALL nomoid(elm(imi)%t,elm(imi),moid_m(imi),dnp_m(imi),dnm_m(imi))
         iconv(imi)=0
 ! check for sigQ.le.sigma                                               
-        sigq(imi)=sqrt(abs(csinom(imi)**2-csinom(imi0)**2)*nused)/   &
-     &             rescov(6,nused,csinor)  
+        sigq(imi)=sqrt(abs(csinom(imi)**2-csinom(imi0)**2)*nused)
         IF(csinom(imi).lt.csinom(imi0))sigq(imi)=-sigq(imi)
         IF(batch.and.sigq(imi).gt.sigma)THEN 
-           IF(verb_mul.gt.19)WRITE(iun,*)'too large sigma_q ',imi,sigq(imi)
-           IF(sigq(imi).gt.sigma*1.1d0) imi=imi-1
+           WRITE(iun,*)'too large sigma_q ',imi,sigq(imi)
            GOTO 6 
         ENDIF
      ENDIF
@@ -272,18 +244,16 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
      IF(.not.batch)WRITE(*,*)' alternate solution no. ',imi 
      IF(.not.batch)WRITE(iun,*)' alternate solution no. ',imi 
      sigmam=-sigma 
-     CALL prop_sig(batch,elm(imi+1),elc,dn,sigmam,mc,obs,obsw,wdir,sdir,fail) 
-! check for hyperbolic                                                  
-     IF(fail)THEN 
+     CALL prop_sig(batch,elm(imi+1),elc,dn,sigmam,mc,obs,obsw,wdir,sdir,units,fail) 
+     IF(fail)THEN ! check for divergence
         IF(.not.batch)WRITE(*,*)'step ',imi,' failed' 
-        IF(.not.batch)WRITE(*,*)elc 
-        IF(verb_mul.gt.19)WRITE(iun,*)'fail in prop_sig, imi= ',imi,dn
+        WRITE(iun,*)'fail in prop_sig, imi= ',imi,dn
         imi=imi+1 
         GOTO 8 
-     ELSEIF(bizarre(elc,ecc))THEN 
+     ELSEIF(bizarre(elc,ecc))THEN ! check for hyperbolic
         IF(.not.batch)WRITE(*,*)'step ',imi,' bizarre' 
         IF(.not.batch)WRITE(*,*)elc
-        IF(verb_mul.gt.19)WRITE(iun,*)'bizarre out of prop_sig, imi= ',imi,ecc,dn
+        WRITE(iun,*)'bizarre out of prop_sig, imi= ',imi,ecc,dn
         imi=imi+1 
         GOTO 8 
      ELSE 
@@ -293,19 +263,17 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
      &       csinom(imi),delnom(imi),rmsh,nused,succ)           
 ! exit if not convergent                                                
         IF(.not.succ)THEN 
-           IF(verb_mul.gt.19)WRITE(iun,*)'fail in constr_fit, imi= ',imi,dn
+           WRITE(iun,*)'fail in constr_fit, imi= ',imi,dn
            imi=imi+1 
            GOTO 8 
         ENDIF
 ! orbital distance                                                      
         CALL nomoid(elm(imi)%t,elm(imi),moid_m(imi),dnp_m(imi),dnm_m(imi))
         iconv(imi)=0
-        sigq(imi)=sqrt(abs(csinom(imi)**2-csinom(imi0)**2)*nused)/   &
-     &             rescov(6,nused,csinor)  
+        sigq(imi)=sqrt(abs(csinom(imi)**2-csinom(imi0)**2)*nused)
         IF(csinom(imi).lt.csinom(imi0))sigq(imi)=-sigq(imi)
         IF(batch.and.sigq(imi).gt.sigma)THEN 
-           IF(verb_mul.gt.19)WRITE(iun,*)'too large sigma_q ',imi,sigq(imi)
-           IF(sigq(imi).gt.sigma*1.1d0) imi=imi+1
+           WRITE(iun,*)'too large sigma_q ',imi,sigq(imi)
            GOTO 8 
         ENDIF
      ENDIF
@@ -320,8 +288,18 @@ SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
 ! catalog reference time
   tdt_cat=el0%t
   IF(batch)RETURN 
-  CALL tee(iun,'SUMMARY OF MULTIPLE SOLUTIONS=') 
-  CALL tee(iun,'no       a      h      k      p      q      lambda=')          
+  CALL tee(iun,'SUMMARY OF MULTIPLE SOLUTIONS=')
+  IF(el0%coo.eq.'EQU')THEN 
+     CALL tee(iun,'no       a      h      k      p      q      lambda=')
+  ELSEIF(el0%coo.eq.'CAR')THEN 
+     CALL tee(iun,'no       x      y      z    xdot    ydot    zdot=')
+  ELSEIF(el0%coo.eq.'KEP')THEN 
+     CALL tee(iun,'no       a      e      I    Omeg    omeg    mean.an=')
+  ELSEIF(el0%coo.eq.'COM')THEN
+    CALL tee(iun,'no        q      e      I    Omeg    omeg    t.peri=')
+  ELSEIF(el0%coo.eq.'ATT')THEN
+    CALL tee(iun,'no      alpha  delta   adot  ddot     r      rdot=')
+  ENDIF
   CALL filopn(iunctc,'mult.ctc','unknown') 
   CALL wromlh(iunctc,'ECLM','J2000') 
   DO i=imim,imip 
@@ -384,10 +362,9 @@ SUBROUTINE nmulti(nam0,elc,uncert,csinor,delnor,            &
 ! loop indexes                                                          
   INTEGER i 
   LOGICAL batch ! batch control
-  INTEGER iconv(mulx) ! obsolete moid flag 
 ! catalog obj name (with underscore)                                    
   CHARACTER*20 astna0 
-  INTEGER le,nscal,j
+  INTEGER le
 ! output files                                                          
   CHARACTER*60 file 
   INTEGER iunctc,iunrep,iuncat 
@@ -428,28 +405,9 @@ SUBROUTINE nmulti(nam0,elc,uncert,csinor,delnor,            &
   moid_min=1.d3 
   DO i=imim,imip 
 ! orbital distance                                                      
-     CALL nomoid(elc%t,elm(i),moid_m(i),dnp_m(i),dnm_m(i)) 
-     iconv(i)=0
      moid_min=min(moid_m(i),moid_min) 
-! warning: assumption that scalar obs=2*no.obs may be invalid for radar
-     nscal=0
-     DO j=1,mc
-        IF(obs(j)%type.eq.'O'.or.obs(j)%type.eq.'S'.and.obsw(j)%sel_coord.gt.0)THEN
-           nscal=nscal+2
-        ELSEIF(obs(j)%type.eq.'R'.or.obs(j)%type.eq.'V'.and.obsw(j)%sel_coord.gt.0)THEN
-           nscal=nscal+1
-        ENDIF
-     ENDDO
-     IF(csinom(i).gt.csinor)THEN 
-        sigq(i)=sqrt((csinom(i)**2-csinor**2)*mc*2)                  &
-     &          /rescov(6,nscal,csinor)                                  
-     ELSE 
-        sigq(i)=0.d0 
-     ENDIF
-     WRITE(iunrep,145)i,csinom(i),delnom(i),elm(i)%h_mag             &
-     &                    ,moid_m(i),dnp_m(i),dnm_m(i),iconv(i),sigq(i)       
-145  FORMAT(i5,1x,1p,e13.5,e11.3,2x,0p,f5.2,1x,                      &
-     &              f8.5,1x,f10.5,1x,f10.5,1x,i2,1x,f7.3)                 
+     WRITE(iunrep,145)i,csinom(i),delnom(i),elm(i)%h_mag,moid_m(i),dnp_m(i),dnm_m(i),0,sigq(i)
+145  FORMAT(i5,1x,1p,e13.5,e11.3,2x,0p,f5.2,1x,f8.5,1x,f10.5,1x,f10.5,1x,i2,1x,f7.3)
      astna0=' '
      WRITE(astna0,111)i 
 111  FORMAT('mult_',i4) 
@@ -459,7 +417,7 @@ SUBROUTINE nmulti(nam0,elc,uncert,csinor,delnor,            &
 ! output one line catalog, if possible
      CALL coo_cha(elm(i),'KEP',elk,fail_flag)
      IF(fail_flag.ge.4)THEN
-        WRITE(*,*)' hyperbolic orbit in output ', fail_flag, i     
+        WRITE(iun_log,*)' hyperbolic orbit in output ', fail_flag, i     
      ELSE
         CALL write_elems(elk,astna0(1:le),'1L',' ',iuncat)
      ENDIf
@@ -489,7 +447,8 @@ SUBROUTINE mult_input(catname,ok)
 ! names                                                                 
   CHARACTER*(idname_len) name0 
   CHARACTER*(name_len) name1 
-  INTEGER le 
+  INTEGER le
+ CHARACTER*160 catname1
 ! magnitude slope parameter, mass, epoch                                
   double precision sl,mass,t 
 ! type of orbital elements (KEP/EQU/CAR),                               
@@ -519,16 +478,16 @@ SUBROUTINE mult_input(catname,ok)
   v_min=100.d0 
   v_max=0.d0 
 ! opening and reading multiple solution catalog                         
-  CALL rmsp(catname,le) 
-  INQUIRE(file=catname(1:le),exist=ok) 
+  catname1=catname
+  CALL rmsp(catname1,le) 
+  INQUIRE(file=catname1(1:le),exist=ok) 
   IF(.not.ok)THEN 
-     WRITE(*,*)' file ',catname(1:le),' not found' 
+     WRITE(*,*)' file ',catname1(1:le),' not found' 
      RETURN 
   ENDIF
-  CALL oporbf(catname(1:le),0) 
+  CALL oporbf(catname1(1:le),0) 
   DO i=1,mulx 
-     CALL rdorb(name0,eq,eltype,t,g,defcov,                         &
-     &        c,defnor,h,sl,mass,rsys,epoch,no,eof)                     
+     CALL rdorb(name0,eq,eltype,t,g,defcov,c,defnor,h,sl,mass,rsys,epoch,no,eof)
      IF(eof)THEN 
         norb=i-1 
         GOTO 2 
@@ -543,11 +502,6 @@ SUBROUTINE mult_input(catname,ok)
            ok=.false. 
            RETURN 
         ENDIF
-     ENDIF
-! control on elements type                                              
-     IF(eltype.ne.'EQU')THEN 
-        WRITE(*,*)'mult_input: non equinoctal, but of type ',eltype 
-!        RETURN 
      ENDIF
 ! availability of covariance                                            
      IF (.NOT.(defnor.AND.defcov)) THEN 
@@ -905,7 +859,7 @@ END SUBROUTINE outmul
 ! =========================================                             
 ! PROP_SIG                                                               
 ! propagator in sigma space                                             
-SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,wdir,sdir,fail)
+SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,wdir,sdir,units,fail)
 ! ==============input================= 
   LOGICAL batch ! batch control
 ! current elements and epoch; stepsize factor, target sigma 
@@ -917,8 +871,8 @@ SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,wdir,sdir,fail)
   TYPE(ast_obs),DIMENSION(mc), INTENT(IN) :: obs
   TYPE(ast_wbsr),DIMENSION(mc), INTENT(IN) :: obsw
 ! weak direction, rms along it                                          
-  DOUBLE PRECISION, DIMENSION(6), INTENT(INOUT) :: wdir
-  DOUBLE PRECISION, INTENT(IN) :: sdir
+  DOUBLE PRECISION, DIMENSION(6), INTENT(INOUT) :: wdir, units
+  DOUBLE PRECISION, INTENT(INOUT) :: sdir
 ! ==============output================   
   TYPE(orbit_elem), INTENT(OUT) :: el2 ! elements
   LOGICAl, INTENT(OUT) :: fail ! failure flag
@@ -951,11 +905,11 @@ SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,wdir,sdir,fail)
   elt=el1 
 ! try to do the step at once...                                         
 1 CONTINUE 
+!  write(*,*)'prop_sig 0: h,a, sdir',h,elt%coord(1),sdir 
 !  WRITE(*,*)'mmulti: ch,h, eqt ', ch,h,(eqt(j),j=1,3) 
 !  WRITE(*,*)' prop-sig: about to enter int_step',tc, obs(mc)%time_tdt
-  CALL int_step(elt,el2,h,imint,                                     &
-     &        mc,obs,obsw,iun,wdir,sdir,fail) 
-! write(*,*)fail,eq2                                                
+  CALL int_step(elt,el2,h,imint,mc,obs,obsw,iun,wdir,sdir,units,fail) 
+!  write(*,*)'prop_sig 1: a, sdir',elt%coord(1),sdir 
 ! if failed, half step                                                  
   IF(fail)THEN 
      IF(abs(h).ge.abs(hh)/ridmax)THEN 
@@ -968,6 +922,7 @@ SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,wdir,sdir,fail)
         IF(verb_mul.ge.5.and.iun.gt.0)THEN 
            WRITE(iun,*)'prop_sig: too many halvings ',h,hh,ridmax 
         ENDIF
+        WRITE(*,*)'prop_sig: too many halvings ',h,hh,ridmax
         RETURN 
      ENDIF
   ELSE 
@@ -982,11 +937,11 @@ SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,wdir,sdir,fail)
      CALL whicor(0,icor,ncor,inew) 
 ! compute covariance and residual norm     
 !  WRITE(*,*)' prop-sig: about to enter diff-cor',tc, obs(mc)%time_tdt 
-     CALL diff_cor(mc,obs,obsw,elt,icor,iun,              &
-     &        eltp,uncert,csinor,delnor,succ)                        
+     CALL diff_cor(mc,obs,obsw,elt,icor,iun,eltp,uncert,csinor,delnor,succ)
      itmax=itmaxold 
 ! compute weak direction and length                                     
-     CALL weak_dir(uncert%g,wdir,sdir,iun,eltp%coo,eltp%coord) 
+     CALL weak_dir(uncert%g,wdir,sdir,iun,eltp%coo,eltp%coord,units) 
+!     write(*,*)'prop_sig 2: a, sdir',elt%coord(1),sdir 
      IF(DOT_PRODUCT(wdir,wdir0).lt.0.d0)wdir=-wdir
      GOTO 1 
   ENDIF
@@ -994,13 +949,12 @@ SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,wdir,sdir,fail)
 END SUBROUTINE prop_sig
 !=================================================                      
 ! INT_STEP integration step for propagation along LOV                    
-SUBROUTINE int_step(el0,el1,hh,imint,                              &
-     &       mc,obs,obsw,iun,wdir,sdir,fail)                            
+SUBROUTINE int_step(el0,el1,hh,imint,mc,obs,obsw,iun,wdir,sdir,units,fail)
 ! stepsize, integration method                                          
   DOUBLE PRECISION, INTENT(IN) ::  hh 
   INTEGER, INTENT(IN) :: imint 
 ! weak direction (in input computed at eq0)             
-  DOUBLE PRECISION, INTENT(IN) :: wdir(6)
+  DOUBLE PRECISION, INTENT(INOUT) :: wdir(6),units(6),sdir
 ! ======observations====                                                
 ! number of obs.
   INTEGER, INTENT(IN) ::  mc
@@ -1014,14 +968,13 @@ SUBROUTINE int_step(el0,el1,hh,imint,                              &
   INTEGER iun 
 ! failure flag                                                          
   LOGICAl fail
-  DOUBLE PRECISION, DIMENSION(6)   ::  scales
 ! =========end interface================                                
 ! intermediate point: state, covariance, normal matr., RMS, norm corr   
   TYPE(orbit_elem) ::  el12,el12p
   TYPE(orb_uncert) :: un12
   DOUBLE PRECISION :: csino12,delno12 
 ! weak direction (in input computed at eq0), length of axis             
-  DOUBLE PRECISION sdir,wdir12(6),sdir12,wdirst(6),sdirst 
+  DOUBLE PRECISION wdir12(6),sdir12,wdirst(6),sdirst 
 ! obs,residuals control, flag (for difcor)         
   INTEGER inew, icor(6),ncor,itmaxold 
 ! success control is dummy,bizarre is impor                             
@@ -1032,27 +985,21 @@ SUBROUTINE int_step(el0,el1,hh,imint,                              &
   INTEGER itx,it 
   DOUBLE PRECISION eps,cosa,ang,dsi,e1,e12,direc,q,qg,enne 
 ! ================================================                      
-  IF(scaling_lov)THEN
-     CALL scale_coef(el0%coo,el0%coord,scales)
-     scales=1.d0/scales
-  ELSE
-     scales=1.d0
-  ENDIF 
   IF(imint.eq.1)THEN 
 ! Euler method
      el1=el0                                                          
-     el1%coord=el0%coord+scales*wdir*sdir*hh 
+     el1%coord=el0%coord+units*wdir*sdir*hh 
      fail=.false. 
   ELSEIF(imint.eq.2)THEN 
 ! Runge-Kutta-Gauss of order 2:                                         
      itx=5 
      eps=1.d-4 
-! first store vectorfield as it is on eq0                               
+! first store vectorfield at el0                            
      wdirst=wdir
      sdirst=sdir 
 ! compute intermediate point (first guess)                              
      el12=el0 
-     el12%coord=el0%coord+scales*wdir*sdir*hh*0.5d0 
+     el12%coord=el0%coord+units*wdir*sdir*hh*0.5d0 
 ! before running differential corrections, tests that orbit is still good
      IF(bizarre(el12,e12))THEN 
         fail=.true. 
@@ -1068,15 +1015,17 @@ SUBROUTINE int_step(el0,el1,hh,imint,                              &
         CALL whicor(0,icor,ncor,inew) 
 ! compute covariance and residual norm                                  
 !       write(*,*)mc,iobs(1),ioco(1)                                 
-        CALL diff_cor(mc,obs,obsw,el12,icor,iun,   &
-     &     el12p,un12,csino12,delno12,succ)                    
+        CALL diff_cor(mc,obs,obsw,el12,icor,iun,el12p,un12,csino12,delno12,succ)
         itmax=itmaxold 
 ! compute weak direction and length                                     
-        CALL weak_dir(un12%g,wdir12,sdir12,iun,el12p%coo,el12p%coord) 
+        CALL weak_dir(un12%g,wdir12,sdir12,iun,el12p%coo,el12p%coord,units) 
         direc=DOT_PRODUCT(wdir12,wdir)  
-        IF(direc.lt.0.d0)   wdir12=-wdir12
+        IF(direc.lt.0.d0) wdir12=-wdir12
+! store vectorfield at current iteration                               
+        wdirst=wdir12
+        sdirst=sdir12 
 ! recompute intermediate point  
-        el12%coord=el0%coord+scales*wdir*sdir*hh*0.5d0   
+        el12%coord=el0%coord+units*wdir12*sdir12*hh*0.5d0   
 !    write(*,*)'weak sigma, iter, eq12',sdir12,it,(eq12(j),j=1,3) 
 ! before a new iteration, tests that orbit is still elliptic            
         IF(bizarre(el12,e12))THEN 
@@ -1100,12 +1049,14 @@ SUBROUTINE int_step(el0,el1,hh,imint,                              &
 ! convergence achieved                                                  
            GOTO 2 
         ENDIF
-        wdirst=wdir12 ! CALL vcopy(6,wdir12,wdirst) 
+        wdirst=wdir12
         sdirst=sdir12 
      ENDDO
 ! convergence failed                                                    
-!       WRITE(*,*)' int_step: failed convergence, it, ang, dsig'         
-!       WRITE(*,*)it-1,ang,(sdir12-sdirst)/sdirst                       
+! WARNING: very verbose
+     WRITE(*,*)' int_step: failed convergence, it, ang, dsig'         
+     WRITE(*,*)it-1,ang,dsi 
+! WARNING                      
      fail=.true. 
      IF(iun.gt.0)WRITE(iun,*)'int_step: non convergent ',el12 
      el1=el12 
@@ -1114,7 +1065,7 @@ SUBROUTINE int_step(el0,el1,hh,imint,                              &
 2    CONTINUE 
 ! compute final point 
      el1=el0                                                          
-     el1%coord=el0%coord+scales*wdir12*sdir*hh                              
+     el1%coord=el0%coord+units*wdir12*sdir12*hh                              
 ! tests that orbit is still acceptable 
      IF(bizarre(el1,e1))THEN 
         fail=.true. 
@@ -1235,7 +1186,7 @@ SUBROUTINE lovinit(astname,mulsodir,obsdir,progna,iunout,        &
 ! and with consecutive indexes!!! that is imul(i)=imul(1)+i-1           
      CALL splinam(name0,name1,j) 
      IF(j.gt.0.and.j.le.mulx)THEN
-        imul(j)=j
+        imul(i)=j
      ELSEIF(j.lt.0)THEN
         WRITE(*,*)'lovinit: VA with negative index', j
         STOP
@@ -1246,7 +1197,7 @@ SUBROUTINE lovinit(astname,mulsodir,obsdir,progna,iunout,        &
 ! note that the multiple solutions are assumed to be written
 ! with consecutive indexes!!! 
      IF(i.gt.1)THEN 
-        IF(imul(j-1).eq.0)THEN
+        IF(imul(i-1).eq.0)THEN
            WRITE(*,*)'lovinit: indexes not in order: VA ',j,' at record ',i,' missing ',j-1
         ENDIF
      ENDIF
@@ -1334,7 +1285,7 @@ SUBROUTINE lovinterp(rindex,deltasig,el0,unc0,succ)
 ! ==================END INTERFACE=============================
   LOGICAL :: batch                              ! batch control
 ! ================LOV INTERPOLATION===========================
-  DOUBLE PRECISION :: wdir(6),sdir,h0,diff(6) 
+  DOUBLE PRECISION :: wdir(6),units(6),sdir,h0,diff(6) 
   LOGICAL :: fail, bizarre 
 !  INTEGER :: iun20 
   DOUBLE PRECISION :: csinew,delnew,rmshnew    ! for constr_fit   
@@ -1347,7 +1298,7 @@ SUBROUTINE lovinterp(rindex,deltasig,el0,unc0,succ)
 ! failure case ready                                                    
   succ=.false. 
 ! interpolate elements                                                  
-  ir=rindex
+  ir=NINT(rindex)
 ! extrapolation?                                                        
 ! WARNING: will result in failure if extrapolation is by a              
 ! long step beyond the end of the LOV string already computed           
@@ -1365,7 +1316,7 @@ SUBROUTINE lovinterp(rindex,deltasig,el0,unc0,succ)
 ! linear interpolation between the two consecutive ones                 
   s=rindex-imu 
 !  iun20=-1  
-  CALL weak_dir(unm(imu)%g,wdir,sdir,-1,elm(imu)%coo,elm(imu)%coord) 
+  CALL weak_dir(unm(imu)%g,wdir,sdir,-1,elm(imu)%coo,elm(imu)%coord,units) 
 ! anti reversal check
   IF(imu.lt.imip)THEN
      diff=elm(imu+1)%coord-elm(imu)%coord
@@ -1374,7 +1325,7 @@ SUBROUTINE lovinterp(rindex,deltasig,el0,unc0,succ)
   ENDIF
   IF(DOT_PRODUCT(diff,wdir).lt.0.d0)wdir=-wdir
 ! nonlinear interpolation   
-  CALL prop_sig(batch,elm(imu),el0,s,deltasig,m_m,obs_m,obsw_m,wdir,sdir,fail)        
+  CALL prop_sig(batch,elm(imu),el0,s,deltasig,m_m,obs_m,obsw_m,wdir,sdir,units,fail)
 ! check for hyperbolic                                                  
   IF(fail)THEN 
      WRITE(*,*)'step ',rindex,' hyperbolic' 

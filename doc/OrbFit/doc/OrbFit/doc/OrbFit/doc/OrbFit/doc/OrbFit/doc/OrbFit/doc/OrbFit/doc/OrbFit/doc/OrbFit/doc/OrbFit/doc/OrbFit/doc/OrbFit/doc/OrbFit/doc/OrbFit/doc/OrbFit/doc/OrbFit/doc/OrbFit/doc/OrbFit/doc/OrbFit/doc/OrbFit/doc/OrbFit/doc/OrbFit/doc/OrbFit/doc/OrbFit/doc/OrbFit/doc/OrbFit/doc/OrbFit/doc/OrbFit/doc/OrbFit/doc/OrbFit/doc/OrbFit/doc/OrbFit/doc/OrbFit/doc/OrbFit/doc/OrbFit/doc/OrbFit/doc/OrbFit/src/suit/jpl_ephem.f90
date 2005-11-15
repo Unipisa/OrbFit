@@ -215,7 +215,8 @@
   120 FORMAT(' ERROR: file ',A,' has unsupported version',I4) 
                                                                         
       IF(t.LT.tb1 .OR. t.GT.tb2) THEN 
-          IF(t.LT.t1 .OR. t.GT.t2)THEN 
+          IF(t.LT.t1 .OR. t.GT.t2)THEN
+              WRITE(*,*)' rdbep: for asteroid ephemerides from file ', filbep 
               WRITE(*,*)' time requested', t,' interval available',t1,t2
               i=2
               WRITE(*,*)bomb(i)           

@@ -4,7 +4,7 @@ MODULE offlov_checktp
 
 PRIVATE
 ! common data  
-  DOUBLE PRECISION, PUBLIC :: bsdmin,bsdmax                       
+  DOUBLE PRECISION, PUBLIC :: bsdmin,bsdmax  
 ! public routines
   PUBLIC riskchecktp, header_risk
 
@@ -115,9 +115,9 @@ SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fol
 ! compute ellipse in the elements space 
      dtpdt=TRANSPOSE(dtpde(1:2,1:6,jcsel))                                
 ! WARNING!!!! should use uncnew%g, uncnew%c ????
-     CALL slinel(dtpdt,unc0%g,unc0%c,ceicel,b,v)
+!     CALL slinel(dtpdt,unc0%g,unc0%c,ceicel,b,v)
 ! the one below should be better
-!    CALL slinel(dtpdt,uncnew%g,uncnew%c,ceicel,b,v)
+     CALL slinel(dtpdt,uncnew%g,uncnew%c,ceicel,b,v)
 ! WARNING ??????????????????????????????????????
 ! dtpc needs to be rescaled back into AU!!! 
      dtpcau(1)=dtpc(1)*reau 
@@ -191,6 +191,13 @@ SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fol
      ENDIF
 ! get data on TP analysys of the new close approach                     
      CALL arrloadtp(va_tracenew,va_tracemin%rindex) 
+     IF(.not.va_tracenew%tp_conv)THEN
+        WRITE(iunwarn0,*)' elliptic encounter, no TP '
+        WRITE(iunnew0,*)'  elliptic encounter, no TP '
+        fold=.true. 
+        distmin=r 
+        RETURN 
+     ENDIF
 ! store value of sigma corresponding to RMS of residuals                
      IF(csinew.gt.csinor)THEN 
         va_tracenew%sigma=sqrt((csinew**2-csinor**2)*m_m*2)                  &
@@ -269,6 +276,7 @@ SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
   USE planet_masses 
   USE tp_trace 
   USE virtual_impactor                                          
+  USE eval_risk
 ! ========================INPUT============================================
   TYPE(tp_point), INTENT(IN)      :: va_tracemin
   CHARACTER(LEN=7), INTENT(IN)    :: type 
@@ -280,8 +288,8 @@ SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
   INTEGER, INTENT(INOUT)            :: no_risk 
 ! ====================END INTERFACE========================================
   DOUBLE PRECISION  :: b_e,dcur,vsize,width,stretch,alpha,csi1,zeta1,U 
-  DOUBLE PRECISION  :: prob,p_imp,h,mass,v_imp,energy,e_tilde,fb 
-  DOUBLE PRECISION  :: rel_prob,ps,palermo 
+  DOUBLE PRECISION  :: p_imp,h,mass,v_imp,energy,e_tilde,fb 
+  DOUBLE PRECISION  :: rel_prob,ps,prob 
   DOUBLE PRECISION  :: tcl,sigma,deltat,sigimp
   DOUBLE PRECISION  :: chi,fact,p_imp1 
   INTEGER           :: le, iunrisk0,iunrisk1,iunnew0,iunwarn0
@@ -319,6 +327,8 @@ SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
      WRITE(iunwarn0,*)'Impact Probability ',p_imp
 ! write risk file if appropriate                                        
      IF(p_imp.gt.1e-11)THEN 
+
+
 ! palermo scale: need time span and magnitude, U                        
         tcl=va_tracemin%tcla 
         deltat=tcl-t0 
@@ -414,6 +424,7 @@ END SUBROUTINE header_risk
     USE planet_masses, ONLY: gmearth
     USE tp_trace
     USE multiple_sol, ONLY: lovmagn
+    USE eval_risk
     INTEGER, INTENT(IN) :: lre
     TYPE(tp_point), INTENT(IN)  :: tptrail(lre),tpmin
     DOUBLE PRECISION, INTENT(IN) :: t0 ! intial conditions time
@@ -424,7 +435,7 @@ END SUBROUTINE header_risk
     LOGICAL, DIMENSION(lre) :: viflag
     INTEGER i,j,nvai_int,interv(2,10), iunrisk,le,ii2
     DOUBLE PRECISION v, b_e, be, mu, stretch, width, dvai, p_imp, gau, fb, rel_prob,sigma, dcur, rtp
-    DOUBLE PRECISION rindex, vinf, sigimp, tcl, palermo, h, mass, deltat, ps, v_imp, energy, e_tilde,dsigma
+    DOUBLE PRECISION rindex, vinf, sigimp, tcl, h, mass, deltat, ps, v_imp, energy, e_tilde,dsigma
     CHARACTER(LEN=14) :: calend             ! calendar date 
 ! count Virtual Asteroids Impacting (VAI)
     nvai=0

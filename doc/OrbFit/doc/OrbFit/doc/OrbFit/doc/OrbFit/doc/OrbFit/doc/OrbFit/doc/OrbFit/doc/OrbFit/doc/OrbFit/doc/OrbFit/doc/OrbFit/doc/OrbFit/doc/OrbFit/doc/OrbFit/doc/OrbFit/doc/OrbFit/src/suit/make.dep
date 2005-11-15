@@ -29,10 +29,10 @@ fidinam4.o: \
 	output_control.o 
 
 file_oper.o: \
+	../include/parlib.h90 \
 	../include/sysdep.h90 \
 	comlib.h90 \
-	file_oper.o \
-	parlib.h90 
+	file_oper.o 
 
 header_input.o: \
 	../include/parcmc.h90 \
@@ -50,7 +50,6 @@ io_elems.o: \
 	fund_const.o \
 	io_elems.o \
 	name_rules.o \
-	output_control.o \
 	reference_systems.o 
 
 iorwo_old.o: \
@@ -97,17 +96,6 @@ option_input.o: \
 
 orb_els.o: \
 	fund_const.o 
-
-orbit_elements.o: \
-	attributable.o \
-	ever_pitkin.o \
-	fund_const.o \
-	io_elems.o \
-	name_rules.o \
-	output_control.o \
-	planet_masses.o \
-	reference_systems.o \
-	station_coordinates.o 
 
 reference_systems.o: \
 	fund_const.o \

@@ -705,7 +705,7 @@ CONTAINS
 !     selecting roots with both real components
     nrealroots = 0
     DO i=1,nroots
-       IF(discheck(i).eq..true.) THEN
+       IF(discheck(i)) THEN
           nrealroots=nrealroots+1
           wzerotmp(nrealroots)=wzero(i)
           zzerotmp(nrealroots)=zzero(i)

@@ -1,0 +1,13 @@
+! input file for fitobs
+fitobs.
+! first arc
+        .astna0='example'    ! full name, first arc
+        .obsdir0='obsdata'    ! directory of observs. file, first arc 
+!        .elefi0='2004XK3.eq0' ! first arc elements file
+
+! second arc
+!        .astnap='2004 MN404'    ! full name, second arc
+!        .obsdirp='obsdata'    ! directory of observs. file, second arc 
+
+propag.
+

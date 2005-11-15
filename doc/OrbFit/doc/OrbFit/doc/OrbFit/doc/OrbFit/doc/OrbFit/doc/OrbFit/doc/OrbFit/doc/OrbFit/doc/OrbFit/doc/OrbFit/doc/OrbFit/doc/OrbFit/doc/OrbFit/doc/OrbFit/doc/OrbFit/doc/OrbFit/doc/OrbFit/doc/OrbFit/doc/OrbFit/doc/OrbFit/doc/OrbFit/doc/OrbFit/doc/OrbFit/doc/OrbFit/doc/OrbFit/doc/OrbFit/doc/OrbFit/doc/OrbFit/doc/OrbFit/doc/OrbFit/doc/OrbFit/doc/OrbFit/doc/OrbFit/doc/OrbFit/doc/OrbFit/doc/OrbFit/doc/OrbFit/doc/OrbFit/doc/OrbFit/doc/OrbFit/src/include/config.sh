@@ -7,6 +7,13 @@ cat > doclib.h90 << END
 ! Version: August 4, 1998
 ! ---------------------------------------------------------------------
 ! Default library directory
-      CHARACTER*100 ddocd
-      PARAMETER (ddocd=  '${docdir}')
+CHARACTER*100 ddocd
+PARAMETER (ddocd=  '${docdir}')
+END
+
+libdir=`( cd ../../lib ; pwd )`
+echo "default library directory is $libdir"
+cat > parlib.h90 << END
+! Default library directory
+CHARACTER(LEN=100), PARAMETER :: dlibd = '${libdir}'
 END

@@ -16,16 +16,15 @@
 ! into showers and returns                                              
 ! =============================================================== 
                        
-SUBROUTINE showret3tp(iunlog,vas_trace,no,dt,tgap,        &
-     &     isho,nsho,iret,nret) 
+SUBROUTINE showret3tp(iunlog,no,vas_trace,dt,tgap,isho,nsho,iret,nret)
   USE tp_trace  
   IMPLICIT NONE 
 ! ===INPUT=========================================
   INTEGER, INTENT(IN) :: iunlog           ! log output unit
-  TYPE(tp_point), DIMENSION(no), INTENT(INOUT) :: vas_trace
-                                              ! close approach record
   INTEGER, INTENT(IN) :: no               ! total number of 
                                               ! close approaches
+  TYPE(tp_point), DIMENSION(no), INTENT(INOUT) :: vas_trace
+                                              ! close approach record
   DOUBLE PRECISION, INTENT(IN) :: dt      ! max time span 
                                               ! defining a shower
   DOUBLE PRECISION, INTENT(IN) :: tgap    ! desired time gap 
@@ -40,7 +39,8 @@ SUBROUTINE showret3tp(iunlog,vas_trace,no,dt,tgap,        &
   INTEGER, INTENT(OUT) :: nret        ! returns (trails) number
 !==================================================================
 !==================================================================
-  DOUBLE PRECISION :: tclo(no)      ! close approach times 
+  INTEGER, PARAMETER :: nox=200000              ! max close app number, total
+  DOUBLE PRECISION :: tclo(nox)      ! close approach times 
   INTEGER :: lsho                   ! length of shower
   DOUBLE PRECISION :: ts1,ts2       ! time span of showers
   INTEGER :: j,js                   ! loop indexes 
@@ -105,20 +105,20 @@ SUBROUTINE showret3tp(iunlog,vas_trace,no,dt,tgap,        &
      
 CONTAINS
                                            
-! =====================================================================                        
+! ===================================================================== 
 ! SUBROUTINE sort_time2                                                             
 ! sorts a list of close approaches by time
 ! =====================================================================
   SUBROUTINE sort_time2(t,a,no) 
-!================INPUT==================================================                          
-    INTEGER, INTENT(IN) :: no               ! actual no of records  
-    DOUBLE PRECISION, INTENT(INOUT) :: t(no)   ! sort key, other fields
-    TYPE(tp_point), DIMENSION(no),INTENT(INOUT) :: a !records                               
+!================INPUT==================================================        
+    INTEGER, INTENT(IN) :: no                        ! actual no of records  
+    DOUBLE PRECISION, INTENT(INOUT) :: t(no)         ! sort key
+    TYPE(tp_point), DIMENSION(no),INTENT(INOUT) :: a !records        
 !=============END INTERFACE============================================
-    DOUBLE PRECISION  :: ts(SIZE(t))         ! workspace: sorted time
-    TYPE(tp_point), DIMENSION(SIZE(t)) :: as ! workspace: sorted records
-    INTEGER :: is(SIZE(t)) 
-    INTEGER :: ipo(SIZE(t))                  ! pointers 
+    DOUBLE PRECISION  :: ts(nox)         ! workspace: sorted time
+    TYPE(tp_point), DIMENSION(nox) :: as ! workspace: sorted records
+!    INTEGER :: is(SIZE(t)) 
+    INTEGER :: ipo(nox)                  ! pointers 
     LOGICAL :: sorted                    ! done sorting?
     INTEGER :: j,k                       ! loop indexes 
 !=======================================================================
@@ -127,13 +127,11 @@ CONTAINS
 ! reorder                                                               
     DO j=1,no 
        ts(j)=t(ipo(j)) 
-       is(j)=a(ipo(j))%rindex
        as(j)=a(ipo(j))
     ENDDO
 ! output in input arrays                                                
     DO j=1,no 
        t(j)=ts(j) 
-       a(j)%rindex=is(j)
        a(j)=as(j) 
     ENDDO
  
@@ -147,17 +145,16 @@ CONTAINS
 ! =====================================================================
   SUBROUTINE sort_index2(t,a,no,isho,lsho) 
 !===============INPUT============================             
-    INTEGER, INTENT(IN) :: no       ! total no of records
-    INTEGER, INTENT(IN) :: isho     ! starting row
-    INTEGER, INTENT(IN) :: lsho     ! number of rows
-    INTEGER i(no)                   ! sort key 
-    DOUBLE PRECISION t(no)          ! other fields
-    TYPE(tp_point), DIMENSION(no) :: a
-    DOUBLE PRECISION ts(SIZE(t))        ! workspace: sorted records
-    TYPE(tp_point), DIMENSION(SIZE(t)) :: as
-    INTEGER is(SIZE(t)) 
-!===============END INTERFACE============================          
-    INTEGER ipo(SIZE(t))                ! pointers 
+    INTEGER, INTENT(IN) :: no                ! total no of records
+    INTEGER, INTENT(IN) :: isho              ! starting row
+    INTEGER, INTENT(IN) :: lsho              ! number of rows
+    DOUBLE PRECISION,INTENT(INOUT) :: t(no)  ! time
+    TYPE(tp_point), INTENT(INOUT) :: a(no)   !records
+    DOUBLE PRECISION ts(nox)                 ! workspace: sorted time
+    TYPE(tp_point), DIMENSION(nox) :: as     ! workspace: sorted records
+!===============END INTERFACE============================  
+    INTEGER i(nox)                   ! sort key 
+    INTEGER ipo(nox)                ! pointers 
     LOGICAL sorted                  ! done sorting?
     INTEGER j,k,jj                  ! loop indexes
 !=======================================================
@@ -169,15 +166,13 @@ CONTAINS
 ! reorder                                                               
     DO j=1,lsho 
        jj=j+isho-1 
-       is(jj)=i(ipo(j)+isho-1) 
        ts(jj)=t(ipo(j)+isho-1) 
        as(jj)=a(ipo(j)+isho-1) 
     ENDDO
 ! output in input arrays                                                
     DO j=1,lsho 
        jj=j+isho-1 
-       t(jj)=ts(jj) 
-       i(jj)=is(jj) 
+       t(jj)=ts(jj)  
        a(jj)=as(jj) 
     ENDDO
   END SUBROUTINE sort_index2

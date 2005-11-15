@@ -494,7 +494,9 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
       rdot2=prscal(xat(1:3),vat(1:3))/r2
       tcur2=tcur+dt
 ! only for resret, if passing inside Earth, returns are not real
-      IF(fix_mole.and.r.lt.reau) kill_propag=.true. 
+      IF(fix_mole.and.r.lt.reau) kill_propag=.true.
+! the following setting doesn't work as expected
+!     IF(fix_mole.and.r.lt.reau/3.d0) kill_propag=.true. 
    ELSE
       xat(1:nv)=x(1:nv)
       vat(1:nv)=v(1:nv)
@@ -509,6 +511,9 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
      WRITE(*,*)' strclo: jc>njcx ',jc,njcx,' at ', tcur
      WRITE(ierrou,*)' strclo: jc>njcx ',jc,njcx,' at ', tcur
      numerr=numerr+1
+     IF(fix_mole)THEN
+        kill_propag=.true.
+     ENDIF
      jc=jc-1 
      RETURN
   ENDIF

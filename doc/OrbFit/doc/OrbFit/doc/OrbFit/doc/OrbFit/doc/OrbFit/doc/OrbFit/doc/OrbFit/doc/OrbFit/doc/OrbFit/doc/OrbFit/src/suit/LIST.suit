@@ -13,7 +13,6 @@ angle_var.f90:END SUBROUTINE sessag
 angle_var.f90:SUBROUTINE polar(x,alpha,delta,r) 
 angle_var.f90:END SUBROUTINE polar
 
-
 astrometric_observations.f90:MODULE astrometric_observations
 
 astrometric_observations.f90:TYPE(ast_obs_direct) FUNCTION drop_geopos(obs)
@@ -43,8 +42,30 @@ astrometric_observations.f90:END SUBROUTINE read_rwo_header
 astrometric_observations.f90:! END SUBMODULE iorwo
 
 astrometric_observations.f90:! SUBMODULE iompc
+astrometric_observations.f90:SUBROUTINE mpc_obs_robinp(obs_found,obs,nobs,unit,filnam,eof,ons_mode)
+astrometric_observations.f90:END SUBROUTINE mpc_obs_robinp
+astrometric_observations.f90:SUBROUTINE mpc_detect_format(record,file_form)
+astrometric_observations.f90:END SUBROUTINE mpc_detect_format
+astrometric_observations.f90:SUBROUTINE mpc_obs_input_new(obs_found,obs,nobs,file_form,unit,eof,endifchange)
+astrometric_observations.f90:  SUBROUTINE mpcnew_transform(mpcrec1,mpcrec2,obs,acc_mag,complete)
+astrometric_observations.f90:  END SUBROUTINE mpcnew_transform
+astrometric_observations.f90:   SUBROUTINE mag_parse(magst,mag,mag_str,mag_band,mag_def)
+astrometric_observations.f90:   END SUBROUTINE mag_parse
+astrometric_observations.f90:   SUBROUTINE desig_parse(desig,objdes)
+astrometric_observations.f90:   END SUBROUTINE desig_parse
+astrometric_observations.f90:   SUBROUTINE time_parse(timest,time_utc,time_tdt)
+astrometric_observations.f90:   END SUBROUTINE time_parse
+astrometric_observations.f90:   SUBROUTINE unc_parse(uncst,acc)
+astrometric_observations.f90:   END SUBROUTINE unc_parse
+astrometric_observations.f90:   SUBROUTINE read_aldel(rast,dest,coord)
+astrometric_observations.f90:   END SUBROUTINE read_aldel
+astrometric_observations.f90:   SUBROUTINE mpc_getnewrec(file_form,iunit,mpcrec,eof1)
+astrometric_observations.f90:   END SUBROUTINE mpc_getnewrec
+astrometric_observations.f90:END SUBROUTINE mpc_obs_input_new
 astrometric_observations.f90:SUBROUTINE mpc_obs_input(obs_found,obs,nobs,unit,filnam,eof,ons_mode)
 astrometric_observations.f90:END SUBROUTINE mpc_obs_input
+astrometric_observations.f90:SUBROUTINE mpc_obs_inp(obs_found,obs,nobs,unit,eof,rad_in_mpcfile,endifchange,ons_mode)
+astrometric_observations.f90:END SUBROUTINE mpc_obs_inp
 astrometric_observations.f90:SUBROUTINE mpcrec_transform(mpcrec,obs,complete,error,skip_rad,ons_mode)
 astrometric_observations.f90:END SUBROUTINE mpcrec_transform
 astrometric_observations.f90:SUBROUTINE mpcrec_add_obspos(obs,error,mpcrec1,mpcrec2)
@@ -72,11 +93,11 @@ astrometric_observations.f90:LOGICAL FUNCTION changed_obs(obst,obswt,obs,obsw)
 astrometric_observations.f90:END FUNCTION changed_obs
 astrometric_observations.f90:SUBROUTINE addobs_rwo(obs,obsw,m,obst,obswt,mt,change)
 astrometric_observations.f90:END SUBROUTINE addobs_rwo
-
 astrometric_observations.f90:SUBROUTINE aster_radius(objid,obstype,m)
 astrometric_observations.f90:END SUBROUTINE aster_radius
 astrometric_observations.f90:SUBROUTINE rdanga(string,angle,acc,error)
 astrometric_observations.f90:END SUBROUTINE rdanga
+
 astrometric_observations.f90:END MODULE astrometric_observations
 
 attributable.f90:MODULE attributable
@@ -453,6 +474,8 @@ observ_rms.f90:      SUBROUTINE crmscl(obscod,ads,mpctyp,tdt,rmsa,rmsd,biasa,bia
 observ_rms.f90:      END SUBROUTINE crmscl
 observ_rms.f90:      SUBROUTINE crmscn(obscod,ads,mpctyp,tdt,rmsa,rmsd,avea,aved,      &
 
+obsvarie.f90:      SUBROUTINE iaucodnew(mpccod,iaudes,error)
+obsvarie.f90:    END SUBROUTINE iaucodnew
 obsvarie.f90:      SUBROUTINE iaucod(mpccod,iaudes,error) 
 obsvarie.f90:      END SUBROUTINE iaucod 
 obsvarie.f90:      SUBROUTINE iaucod2(mpccod,iaudes,error) 

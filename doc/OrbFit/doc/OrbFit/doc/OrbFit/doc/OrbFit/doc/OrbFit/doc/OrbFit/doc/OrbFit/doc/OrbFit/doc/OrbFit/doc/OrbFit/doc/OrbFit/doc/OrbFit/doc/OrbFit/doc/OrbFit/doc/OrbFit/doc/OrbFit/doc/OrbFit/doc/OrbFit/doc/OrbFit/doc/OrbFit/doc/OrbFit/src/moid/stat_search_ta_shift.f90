@@ -16,9 +16,9 @@
 ! cometary elements of the first and second orbit
     DOUBLE PRECISION :: ec1(6),ec2(6)
     DOUBLE PRECISION :: ph1step,e1step,i1step,Omn1step,om1step
-    DOUBLE PRECISION :: ph1iter,e1iter,i1iter,Omn1iter,om1iter
+    INTEGER :: ph1iter,e1iter,i1iter,Omn1iter,om1iter
     DOUBLE PRECISION :: ph2step,e2step,i2step,Omn2step,om2step
-    DOUBLE PRECISION :: ph2iter,e2iter,i2iter,Omn2iter,om2iter
+    INTEGER :: ph2iter,e2iter,i2iter,Omn2iter,om2iter
     CHARACTER*1 :: ansiter
 ! true anomalies
     DOUBLE PRECISION :: v1(poldeg),v2(poldeg),vv1,vv2,chv1,chv2

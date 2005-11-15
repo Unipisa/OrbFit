@@ -638,7 +638,7 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,suc
 ! unit for output                                                       
   integer iun 
 ! scaling LOV
-  DOUBLE PRECISION, DIMENSION(6) :: scales 
+  DOUBLE PRECISION, DIMENSION(6) :: units 
 ! ====================================================================  
 ! number of solve-for variables                                         
   icor(1)=0 
@@ -695,7 +695,7 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,suc
         ENDIF
         CALL set_restart(.false.) 
 ! Compute residuals, form matrix g=-d(csi)/d(eq)  
-        IF(obs_s(j)%type.eq.'O'.or.obs(j)%type.eq.'S')THEN 
+        IF(obs_s(j)%type.eq.'O'.or.obs_s(j)%type.eq.'S')THEN 
            alobs=obs_s(j)%coord(1)
            obsw_s(j)%res_coord(1)=pridif(alobs,alj) 
            obsw_s(j)%res_coord(2)=obs_s(j)%coord(2)-dej 
@@ -721,19 +721,18 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,suc
      CALL min_sol(obs_s,obsw_s,m,g,icor6,iun,                         &
      &                uncert%c,deqv,uncert%g,csinor,indp,cond)
      IF(indp.ne.0) GOTO 9
-     CALL weak_dir(uncert%g,peq,sdir,-1,elc%coo,elc%coord)
+     CALL weak_dir(uncert%g,peq,sdir,-1,elc%coo,elc%coord,units)
      IF(DOT_PRODUCT(peq,peq0).lt.0.d0)peq=-peq
      peq0=peq
 ! scaling of matrix d (Xi)/dX     
      IF(scaling_lov)THEN
-        CALL scale_coef(elc%coo,elc%coord,scales)
         DO i=1,no
            DO j=1,6
-              gs(i,j)=g(i,j)/scales(j)
+              gs(i,j)=g(i,j)*units(j)
            ENDDO
         ENDDO
      ELSE
-        scales=1.d0
+        units=1.d0
         gs(1:no,1:6)=g(1:no,1:6)
      ENDIF
 ! find orthonormal basis with peq as first vector                       
@@ -748,7 +747,7 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,suc
 ! convert back correction to the previous base
      deq=MATMUL(v,deqv)
 ! convert correction to unscaled coordinates
-     deq=deq/scales
+     deq=deq*units
 ! Update solution 
 !     elc%coord=elc%coord+deq 
 ! relaxation loop
@@ -947,8 +946,8 @@ SUBROUTINE diff_cor(m,obs,obsw,el0,icor,iunf,elc,uncert,csinor,delnor,succ)
   elc=el0 
 ! output unit
   iun=abs(iunf) 
-  IF(verb_dif.gt.19)write(*,220) el0%coo,el0%coord 
-  IF(iunf.gt.0.and.verb_dif.gt.9)THEN 
+  IF(verb_dif.gt.19.and.itmax.gt.0)write(*,220) el0%coo,el0%coord 
+  IF(iunf.gt.0.and.verb_dif.gt.9.and.itmax.gt.0)THEN 
      write(iun,220) el0%coo,el0%coord 
 220  format(' starting values ', a3/6f13.7) 
   ENDIF
@@ -994,7 +993,7 @@ SUBROUTINE diff_cor(m,obs,obsw,el0,icor,iunf,elc,uncert,csinor,delnor,succ)
            succ=.true.
            uncert%succ=.true.  
            IF(verb_dif.ge.9)write(iun,*)'One pass only. No corrections.'
-           IF(verb_dif.ge.19)write(*,*) 'One pass only. No corrections.' 
+!           IF(verb_dif.ge.19)write(*,*) 'One pass only. No corrections.' 
            GOTO 70 
         ENDIF
 ! control against hyperbolic and bizarre orbits                         
@@ -2604,10 +2603,10 @@ SUBROUTINE mag_est(m,obs,obsw,h0,rmsh)
 !         obs(j)%mag_band=col
      avail(j)=smag.ne.'      '.and.                              &
      & (col.eq.'B'.or.col.eq.'V'.or.col.eq.'R'.or.col.eq.'U'.or.col.eq.'J'.or. &
-     &   col.eq.'I'.or.col.eq.'C'.or.col.eq.'z'.or.col.eq.'i'.or.col.eq.'g'.or.col.eq.'H'.or.col.eq.' ')    
+     &   col.eq.'I'.or.col.eq.'C'.or.col.eq.'z'.or.col.eq.'i'.or.col.eq.'g'.or.col.eq.'H'.or.col.eq.' '.or.col.eq.'r')    
      IF(.not.(col.eq.'B'.or.col.eq.'V'.or.col.eq.'R'.or.col.eq.'U'.or.col.eq.'J'    &
      &   .or.col.eq.'I'.or.col.eq.'C'.or.col.eq.'z'.or.col.eq.'i'.or.col.eq.'g' &
-     &   .or.col.eq.'H'.or.col.eq.' '))THEN   
+     &   .or.col.eq.'H'.or.col.eq.' '.or.col.eq.'r'))THEN   
         IF(ierrou.gt.0)THEN 
            WRITE(ierrou,*) 'Unknown Color:',col,' Obs #',j 
            numerr=numerr+1 
@@ -2648,6 +2647,8 @@ SUBROUTINE mag_est(m,obs,obsw,h0,rmsh)
            obsm(j)=obsm(j)+0.01d0
         ELSEIF(col.eq.'U'.or.col.eq.'J')THEN
            obsm(j)=obsm(j)+1.1d0
+        ELSEIF(col.eq.'r')THEN
+           obsm(j)=obsm(j)+0.23d0
         ENDIF
      ENDIF
   ENDDO
@@ -3127,7 +3128,7 @@ end subroutine outcov
 !   output:      wdir  = weak direction vector                          
 !                sdir  = sigma                                          
 ! ============ INTERFACE====================                            
-SUBROUTINE weak_dir(gamma,wdir,sdir,iun8,coo,coord) 
+SUBROUTINE weak_dir(gamma,wdir,sdir,iun8,coo,coord,units) 
   USE fund_const
   USE least_squares
   IMPLICIT NONE 
@@ -3137,6 +3138,7 @@ SUBROUTINE weak_dir(gamma,wdir,sdir,iun8,coo,coord)
   INTEGER, INTENT(IN) :: iun8 
   CHARACTER(LEN=3), INTENT(IN)    :: coo 
   DOUBLE PRECISION, DIMENSION(6), INTENT(IN) :: coord  ! orbital elements
+  DOUBLE PRECISION, DIMENSION(6),INTENT(OUT) :: units  ! for scaling
 ! ========END INTERFACE==================== 
   INTEGER :: ierr ! error flag 
   INTEGER :: i,j ! loop index
@@ -3148,14 +3150,18 @@ SUBROUTINE weak_dir(gamma,wdir,sdir,iun8,coo,coord)
   DOUBLE PRECISION, DIMENSION(6)   :: eigval,fv1,fv2
   DOUBLE PRECISION prscal ! function
 ! ========================================= 
-  gammas=gamma
+! scaling control
   IF(scaling_lov)THEN
-     CALL scale_coef(coo,coord,scales)
+     CALL scale_coef!(coo,coord,scales)
      DO i=1,6
         DO j=1,6
            gammas(i,j)=gamma(i,j)*(scales(i)*scales(j))
         ENDDO
      ENDDO
+     units=1.d0/scales
+  ELSE
+     gammas=gamma
+     units=1.d0
   ENDIF
 ! eigenvalues                                                           
   call rs(6,6,gammas,eigval,1,eigvec,fv1,fv2,ierr) 
@@ -3166,6 +3172,7 @@ SUBROUTINE weak_dir(gamma,wdir,sdir,iun8,coo,coord)
      wdir=eigvec(1:6,6)
      sdir=sqrt(eigval(6)) 
   ENDIF 
+! axial vector continued as true vector
   IF(coo.eq.'EQU'.or.coo.eq.'KEP'.or.coo.eq.'COM')THEN
 ! if coo='EQU', 'KEP' a growing with sigma, if 'COM' q growing with sigma 
      IF(wdir(1).lt.0.d0) wdir=-wdir
@@ -3191,55 +3198,55 @@ SUBROUTINE weak_dir(gamma,wdir,sdir,iun8,coo,coord)
      WRITE(iun8,*) 
   ENDIF
 
-END SUBROUTINE weak_dir
 
+CONTAINS
 ! ==================INTERFACE======================================
-  SUBROUTINE scale_coef(coo,coord,scales)
-  USE fund_const
-  USE least_squares
-  IMPLICIT NONE
-  CHARACTER(LEN=3), INTENT(IN)    :: coo 
-  DOUBLE PRECISION, DIMENSION(6), INTENT(IN) :: coord  
-  DOUBLE PRECISION, DIMENSION(6), INTENT(OUT) ::  scales
+  SUBROUTINE scale_coef !(coo,coord,scales)
+!  USE fund_const
+!  USE least_squares
+!  IMPLICIT NONE
+!  CHARACTER(LEN=3), INTENT(IN)    :: coo 
+!  DOUBLE PRECISION, DIMENSION(6), INTENT(IN) :: coord  
+!  DOUBLE PRECISION, DIMENSION(6), INTENT(OUT) ::  scales
 !==================END INTERFACE====================================
-  DOUBLE PRECISION :: r,v
-  INTEGER :: fail_flag
-  IF(coo.eq.'EQU')THEN
-     scales(1)=coord(1)   ! a:semimajor axis
-     scales(2:5)=1
-     scales(6)=dpig
-  ELSEIF(coo.eq.'CAR')THEN
-     r=sqrt(coord(1)**2+coord(2)**2+coord(3)**2)
-     v=sqrt(coord(4)**2+coord(5)**2+coord(6)**2)
-     scales(1:3)=r  
-     scales(4:6)=v  
-  ELSEIF(coo.eq.'KEP')THEN
-     scales(1)=coord(1)    ! a:semimajor axis
-     scales(2)=1.d0
-     scales(3)=pig
-     scales(4:6)=dpig
-  ELSEIF(coo.eq.'COM')THEN
-     scales(1)=coord(1)  ! q:perihelion distance
-     scales(2)=1.d0
-     scales(3)=pig
-     scales(4)=dpig
-     scales(5)=dpig
+    DOUBLE PRECISION :: r,v, units(6)
+    INTEGER :: fail_flag
+    IF(coo.eq.'EQU')THEN
+       units(1)=coord(1)   ! a:semimajor axis
+       units(2:5)=1
+       units(6)=dpig
+    ELSEIF(coo.eq.'CAR')THEN
+       r=sqrt(coord(1)**2+coord(2)**2+coord(3)**2)
+       v=sqrt(coord(4)**2+coord(5)**2+coord(6)**2)
+       units(1:3)=r  
+       units(4:6)=v  
+    ELSEIF(coo.eq.'KEP')THEN
+!       units(1)=coord(1)    ! a:semimajor axis
+       units(1)=1.d-3   ! a:semimajor axis
+       units(2)=1.d0
+       units(3)=pig
+       units(4:6)=dpig
+    ELSEIF(coo.eq.'COM')THEN
+       units(1)=coord(1)  ! q:perihelion distance
+       units(2)=1.d0
+       units(3)=pig
+       units(4)=dpig
+       units(5)=dpig
 ! T: period T=2pi*sqrt(a^3/gm)....a=q/(1-e) SINGULAR for e=1
-!     scales(6)=dpig*sqrt(((coord(1)**3)/(1-coord(2))**3)/gms)    
-     scales(6)=dpig/gk*sqrt(coord(1)**3)/sqrt(1-coord(2))
-  ELSEIF(coo.eq.'ATT')THEN
-     scales(1)=dpig
-     scales(2)=pig
-     scales(3)=gk
-     scales(4)=gk
-     scales(5)=1.d0
-     scales(6)=gk
-  ELSE
-     WRITE(*,*)' scale_coef: coordinates ', coo, ' not known '
-     STOP
-  ENDIF
-  scales=1.d0/scales ! dY/dX has the inverse of the scale units
+!     units(6)=dpig*sqrt(((coord(1)**3)/(1-coord(2))**3)/gms)    
+       units(6)=dpig/gk*sqrt(coord(1)**3)/sqrt(1-coord(2))
+    ELSEIF(coo.eq.'ATT')THEN
+       units(1)=dpig
+       units(2)=pig
+       units(3)=gk
+       units(4)=gk
+       units(5)=1.d0
+       units(6)=gk
+    ELSE
+       WRITE(*,*)' scale_coef: coordinates ', coo, ' not known '
+       STOP
+    ENDIF
+    scales=1.d0/units ! dY/dX has the inverse of the scale units
+  END SUBROUTINE scale_coef
 
-END SUBROUTINE scale_coef
-
-
+END SUBROUTINE weak_dir

@@ -12,7 +12,7 @@ OBS_OBJ=station_coordinates.o astrometric_observations.o observ_rms.o \
 REF_OBJ=reference_systems.o iers_ser.o chebi_pol.o
 
 # Orbital elements
-ELEM_OBJ=orb_els.o io_elems.o orbit_elements.o ever_pitkin.o
+ELEM_OBJ=orb_els.o io_elems.o ever_pitkin.o
 
 # Mathematical routines (including EISPACK routines) 
 MATH_OBJ=math_lib.o pol_zeros.o angle_var.o eigen_val.o

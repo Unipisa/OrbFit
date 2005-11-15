@@ -1,6 +1,6 @@
 all: fitobs orbfit bineph
-	(cd fitobs; make)
 	(cd bineph; make)
+	(cd fitobs; make)
 	(cd orbfit; make)
 	(cd moid; make)
 

@@ -9,13 +9,12 @@ usage () {
 	echo "       and <configuration> is one of the following:"
         echo "          lf95    (Lahey-Fujitsu fortran95 compiler"
         echo "          intel8   (Intel fortran95 compiler vers. 8)"
-        echo "       the program compiles also under the following compilers,"
-        echo "       but it has not yet been tested properly: "
-        echo "          intel8-Xeon  (Intel f95 compiler vers. 8 for Xeon and Pent-4)"
+        echo "       the program may compile with the following compilers,"
+        echo "       but there are problems: "
         echo "          intel   (Intel fortran95 vers. 7 compiler)"
-        echo "          intel-Xeon  (Intel f95 vers.7 compiler for Xeon and Pent-4)"
         echo "          HP90    (HP FORTRAN 90)"
         echo "          g95  (g95 free software, http://g95.sourceforge.net)"
+        echo "          gfortran (GNU compiler under development)"
 	exit 1
 }
 

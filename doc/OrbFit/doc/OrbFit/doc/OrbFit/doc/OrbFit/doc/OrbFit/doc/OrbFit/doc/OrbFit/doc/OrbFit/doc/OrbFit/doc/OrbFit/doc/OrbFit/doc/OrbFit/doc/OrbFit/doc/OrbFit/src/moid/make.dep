@@ -1,7 +1,7 @@
 
 ast2ast_moid.o: \
+	../propag/orbit_elements.mod \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
 	critical_points_shift.o 
 
@@ -18,8 +18,8 @@ compute_critical_points_shift.o: \
 	critical_points_shift.o 
 
 compute_minima_ta.o: \
+	../propag/orbit_elements.mod \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/planet_masses.mod \
 	critical_points_shift.o 
 
@@ -31,8 +31,8 @@ lprsolvesystem_ta.o: \
 	../suit/output_control.mod 
 
 mincomp_ta_shift.o: \
+	../propag/orbit_elements.mod \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
 	critical_points_shift.o 
 
@@ -47,8 +47,8 @@ stat_search_ta_shift.o: \
 
 statcomp_ta_shift.o: \
 	../include/jplhdr.h90 \
+	../propag/orbit_elements.mod \
 	../suit/fund_const.mod \
-	../suit/orbit_elements.mod \
 	../suit/output_control.mod \
 	../suit/planet_masses.mod \
 	critical_points_shift.o 

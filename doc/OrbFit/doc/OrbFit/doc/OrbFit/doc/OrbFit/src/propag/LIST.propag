@@ -38,14 +38,16 @@ ephem_prop.f90:801:END SUBROUTINE srtept
 ephem_prop.f90:809:SUBROUTINE outco(iun,gamma,c) 
 ephem_prop.f90:842:END SUBROUTINE outco
 
-eval_risk.f90:11:      DOUBLE PRECISION FUNCTION prob(csi0,zeta0,sigma0,w0,s0,r0) 
-eval_risk.f90:72:      END FUNCTION prob                                          
-eval_risk.f90:75:      DOUBLE PRECISION FUNCTION ff(u) 
-eval_risk.f90:116:      END FUNCTION ff                                           
-eval_risk.f90:119:      DOUBLE PRECISION FUNCTION f(uu)
-eval_risk.f90:138:      END FUNCTION f                                           
-eval_risk.f90:143:      DOUBLE PRECISION FUNCTION palermo(U,hmagn,prob,dt,          &
-eval_risk.f90:198:      END FUNCTION palermo                                            
+eval_risk.f90:1:MODULE eval_risk
+eval_risk.f90:15:DOUBLE PRECISION FUNCTION palermo(U,hmagn,prob,dt,          &
+eval_risk.f90:81:END FUNCTION palermo
+eval_risk.f90:83:END MODULE eval_risk
+eval_risk.f90:86:DOUBLE PRECISION FUNCTION prob(csi0,zeta0,sigma0,w0,s0,r0) 
+eval_risk.f90:144:END FUNCTION prob
+eval_risk.f90:147:DOUBLE PRECISION FUNCTION ff_prob(u) 
+eval_risk.f90:188:END FUNCTION ff_prob
+eval_risk.f90:191:DOUBLE PRECISION FUNCTION f_prob(uu)
+eval_risk.f90:209:END FUNCTION f_prob
 
 fitsubs.f90:21:SUBROUTINE whicor(inter,icor,ncor,inew) 
 fitsubs.f90:53:END SUBROUTINE whicor

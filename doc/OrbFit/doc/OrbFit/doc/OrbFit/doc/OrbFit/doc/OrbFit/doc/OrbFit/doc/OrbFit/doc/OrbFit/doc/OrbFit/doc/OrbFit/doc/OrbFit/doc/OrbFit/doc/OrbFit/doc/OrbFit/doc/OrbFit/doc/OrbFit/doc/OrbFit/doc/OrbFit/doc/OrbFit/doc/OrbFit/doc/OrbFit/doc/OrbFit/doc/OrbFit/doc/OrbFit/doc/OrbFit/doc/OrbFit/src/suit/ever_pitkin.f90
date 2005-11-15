@@ -292,7 +292,7 @@ CONTAINS
          beta=alpha*psi2**2
          IF(abs(beta).lt.betacontr)EXIT
        ENDDO
-       WRITE(*,*)' halfing', psi,nhalf,beta
+!       WRITE(*,*)' halfing', psi,nhalf,beta
        term0=1.d0
        term1=psi2
        s0=1.d0

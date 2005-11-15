@@ -631,12 +631,15 @@
          & (.not.multfl)) THEN
        count = count + 1
        IF(count.eq.10) THEN
-          if(verb_moid.ge.20) then
+!          if(verb_moid.ge.20) then
 !            WRITE(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!' 
              WRITE(*,*)'!! COMPUTATION FAILED:',count,'ANGULAR SHIFT TRIED !!'
              WRITE(*,*)'!!!     STOPPING CRITICAL POINTS COMPUTATION      !!!'
+             write(*,*)'ec1 elements:',elc1(1:5)
+             write(*,*)'ec2 elements:',elc2(1:5)
+
 !            WRITE(*,*)'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!' 
-          endif
+!          endif
           nsol = -1 
           nummin = -1 
           nummax = -1 

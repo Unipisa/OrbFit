@@ -2,5 +2,5 @@
 ! Version: August 4, 1998
 ! ---------------------------------------------------------------------
 ! Default library directory
-      CHARACTER*100 ddocd
-      PARAMETER (ddocd=  '/orbfit/orb33/doc')
+CHARACTER*100 ddocd
+PARAMETER (ddocd=  '/orbfit/orb331/doc')

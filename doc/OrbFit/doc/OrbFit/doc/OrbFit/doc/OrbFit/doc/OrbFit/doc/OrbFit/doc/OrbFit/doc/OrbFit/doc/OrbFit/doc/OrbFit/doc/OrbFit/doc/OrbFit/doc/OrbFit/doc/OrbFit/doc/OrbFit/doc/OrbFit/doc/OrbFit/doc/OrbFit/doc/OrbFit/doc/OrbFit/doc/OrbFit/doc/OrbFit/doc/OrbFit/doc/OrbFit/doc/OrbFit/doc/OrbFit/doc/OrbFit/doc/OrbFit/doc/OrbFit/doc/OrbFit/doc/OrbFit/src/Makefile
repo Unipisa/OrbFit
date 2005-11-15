@@ -22,6 +22,7 @@ nondistribution:
 	-(cd test; make depend; make) 
 	-(cd util90; make)
 	-(cd orb9; make depend; make)
+	-(cd propneo2; make depend; make)
 #	-(cd skymap; make depend; make)
 #	-(cd starcat; make)
 
@@ -36,6 +37,7 @@ nondistclean:
 	-(cd newret; make clean)
 	-(cd triang; make clean)
 	-(cd test; make clean)
+	-(cd propneo2; make clean)
 #	-(cd skymap; make clean)
 #	-(cd starcat; make clean)
 

@@ -2,7 +2,7 @@
 ! ====================================================                  
 ! FCLOMON2 impact monitoring from FITOBS
 ! ====================================================  
-SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla)
+SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
   USE propag_state
   USE tp_trace
   USE output_control
@@ -13,6 +13,7 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla)
   USE force_model, ONLY: masjpl
   USE planet_masses, ONLY: dmea
   USE close_app, ONLY: fix_mole
+  USE eval_risk, ONLY: massgiven,givenmass
   IMPLICIT NONE
 ! =================INPUT=========================================
   character*(6), INTENT(IN) :: progna ! program name
@@ -25,15 +26,17 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla)
   INTEGER, INTENT(IN) :: mm2
 ! search until time (MJD)
   DOUBLE PRECISION, INTENT(IN) :: tmcla 
+  DOUBLE PRECISION, INTENT(IN) :: sigma
 ! workspace por pro_ele 
   TYPE(orbit_elem) el1
   TYPE(orb_uncert) unm1
   CHARACTER*10 mulname
   INTEGER nm,j,le  ! number of virtual objects, index, string length
-  INTEGER no                                    ! number of close approaches found
+  INTEGER no                                    ! number of close 
+                                                ! approaches found
   INTEGER, PARAMETER :: nox=10000               ! max no close app
-  TYPE(tp_point), DIMENSION(nox) :: vas_tr      ! array of tp_traces (global)
-  TYPE(tp_point), DIMENSION(nox) :: vas_trl     ! array of tp_traces (of return)
+  TYPE(tp_point), DIMENSION(nox) :: vas_tr      ! array of tp_traces(global)
+  TYPE(tp_point), DIMENSION(nox) :: vas_trl     ! array of tp_traces(of return)
   DOUBLE PRECISION :: dist(nox)
   DOUBLE PRECISION :: dminpos(nox) 
   LOGICAL :: is_min, newflag                    ! local minimum, low  MOID
@@ -44,7 +47,7 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla)
   INTEGER            :: isho(nshx)              ! showers index
   INTEGER            :: iret(nretx)             ! returns (trails) index
   INTEGER            :: nret                    ! returns (trails) number
-  INTEGER            :: lre,ire,nr,ns,nnew,nrisk
+  INTEGER            :: lre,ire,nr,ns
   DOUBLE PRECISION   :: tcat                    ! time of initial conditions
   CHARACTER(LEN=15)  :: despla  ! desired planet 
 !=============================OPTIONS=====================================  
@@ -55,6 +58,12 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla)
   LOGICAL ireq,found
   INTEGER vdifold, vmultold
   CHARACTER*60 comment 
+! =======================================================================
+! modification August 16, 2005 to input mass from physical observations
+  INCLUDE 'parlib.h90' 
+  CHARACTER*200 filmass
+  LOGICAL ok
+  INTEGER iunmass
 ! ===============================================================
 ! input options
 ! ================shower length time============================  
@@ -90,9 +99,23 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla)
   verb_dif=1
   vmultold=verb_mul
   verb_mul=1
+! ============get mass known from other sources, if available=====================
+  filmass=dlibd//'/'//name_obj//'.mass'
+  CALL rmsp(filmass,le)
+  INQUIRE(file=filmass,exist=ok)
+  IF(ok)THEN
+     CALL filopn(iunmass,filmass(1:le),'old')
+     READ(iunmass,*) givenmass
+     massgiven=.true.
+     CALL filclo(iunmass,' ')
+  ELSE
+     massgiven=.false.
+  ENDIF
+! END modification August 16, 2005 to input mass from physical observations
 ! ===================================================================
   deltasig=delta_sigma ! align stepsize in multiple_sol and tp_trace
   imul0=imi0 ! align index of nominal solution in multiple_sol and tp_trace
+  smax=sigma ! to use in computation of minimum possible distance on TP
 ! copy observations 
   m_m=m
   obs_m(1:m)=obs(1:m)
@@ -121,7 +144,7 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla)
      RETURN
   ENDIF
 ! shower analysis
-  CALL showret3tp(iun_log,vas_tr,no,dt,tgap,isho,nsho,iret,nret)
+  CALL showret3tp(iun_log,no,vas_tr,dt,tgap,isho,nsho,iret,nret)
 ! main loop on returns                                                  
   ns=1 
   CALL header_rep(iun_log)
@@ -176,10 +199,10 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla)
      IF(newflag)THEN 
 ! reopen files for newton report                                        
         WRITE(*,*)' return number nr=',nr, ' falsi/newton ' 
-        nnew=nnew+1 
+!        nnew=nnew+1 
         CALL ret_min(lre,vas_trl,tdt_cat,dnewton,no_risk)
 ! test output                                                           
-        nrisk=nrisk+no_risk 
+!        nrisk=nrisk+no_risk 
      ELSE 
         WRITE(*,*)' return number nr=',nr, 'NO  falsi/newton ' 
      ENDIF
