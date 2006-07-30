@@ -5,6 +5,7 @@
 !                fdiff_cor
 !                diff_cor 
 !                constr_fit
+!                step_fit (to be removed, replaced by step_fit2.multiple_sol)
 !                sort_obs
 !                unsort_obs
 !                min_sol
@@ -34,10 +35,15 @@
 ! MODULES AND HEADERS
 ! least_squares.o: \
 !	../include/parobx.h90 \
-!	../suit/ASTROMETRIC_OBSERVATIONS.mod 
-!	../suit/FUND_CONST.mod \
-!	../suit/OUTPUT_CONTROL.mod \
+!	../suit/astrometric_observations.mod \
+!	../suit/fund_const.mod \
+!	../suit/name_rules.mod \
+!	../suit/output_control.mod \
+!	../suit/util_suit.mod \
+!	close_app.o \
+!	least_squares.o \
 !	obs_correl.o \
+!	orbit_elements.o \
 !	pred_obs.o 
  
 MODULE least_squares
@@ -52,13 +58,13 @@ PRIVATE
 ! PUBLIC SUBROUTINEs
 PUBLIC :: fdiff_cor, diff_cor, sort_obs, unsort_obs, fit_weight ,difini, rejini
 PUBLIC :: mag_est, min_sol, rms_compute, write_photom, constr_fit, fourdim_fit
-PUBLIC :: blockset
-
+PUBLIC :: blockset, step_fit, sin_cor
 ! PARAMETERs
 CHARACTER*20 :: error_model_priv ! error model private string
 LOGICAL :: errmod_given=.false. ! is available
 PUBLIC :: errmod_set
 
+LOGICAL :: output_failrwo ! if true, write the rwo even upon failure 
 LOGICAL :: autrej,rejopp,rej_fudge ! OPTIONS FOR OUTLIER REJECTION/RECOVERY
 ! autrej      -  Automatic rejection flag PUBLIC
 ! rejopp      -  Permit the rejection of an entire opp.PUBLIC
@@ -66,8 +72,8 @@ LOGICAL :: autrej,rejopp,rej_fudge ! OPTIONS FOR OUTLIER REJECTION/RECOVERY
 
 INTEGER itmax, itgmax, interactive ! max no iter., max iter. w. paralysed Q
 ! interactive=0 automatic, inter=1 interactive choice of solve for parameters 
-DOUBLE PRECISION divrat,delcr
-PUBLIC :: autrej, rejopp, rej_fudge, itmax, itgmax, divrat, interactive
+DOUBLE PRECISION divrat,delcr, del_constr, step_sig
+PUBLIC :: autrej, rejopp, rej_fudge, itmax, itgmax, divrat, interactive, del_constr, step_sig, delcr, output_failrwo
 
 INTEGER iicdif ! iicdif      -  Initialization check
 
@@ -240,7 +246,7 @@ SUBROUTINE fdiff_cor(batch,iarc,obs0,ini0,ok,cov0,el0,m,obs,obsw,nobs,    &
         obsw(i)%resm_def=.FALSE. 
      ENDDO
   ENDIF
-  IF(iarc.ge.0)THEN
+  IF(iarc.ge.0.and.(output_failrwo.or.succ))THEN
 ! output of residuals, weights and observations file                    
 ! warning: when the orbit is hyperbolic, these are the residuals of     
 ! iteration one.                                                        
@@ -461,7 +467,7 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,    &
      delnor=snorm(deq,uncert4%c,6,6) 
      IF(verb_dif.ge.9)write(iun,200)it,csinor,delnor,elc%coord
      IF(verb_dif.ge.19)write(*,200)it,csinor,delnor,elc%coord 
-200  format(' *** iteration ',i3,' RMS residuals =',1p,d12.4,    &
+200  format(' *iteration 4dfit ',i3,' RMS residuals =',1p,d12.4,    &
    &        '   norm corr =',d12.4,'  new elem values:'/0p,6f13.7/)   
 ! control against hyperbolic and bizarre orbits                         
      IF(bizarre(elc,ecc))THEN 
@@ -560,6 +566,337 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,    &
   succ=.false.
 ! =====================                                                 
 END SUBROUTINE fourdim_fit
+!
+! Copyright 2006, The Orbfit Consortium                                 
+! ===================================================================   
+! STEP_FIT differential corrector slippping along the LOV by steps  
+! WARNING: this version abandoned, used step_fit2 in multiple_sol.mod
+! ===================================================================   
+! version 3.3.2, 6 January 2006
+!                                        
+! Input: m observations number                                          
+!        obs observations
+!        obsw weights/bias
+!        el0 asteroid elements (NOT CHANGED)                           
+! Output elc corrected orbital elements at same time       
+!        uncert includes covariance matrix and inverse
+!        csinor residuals norm                                          
+!        delnor differential corrections norm 
+!        succ success flag; the solution is meaningful if succ=.true.   
+! ============= REMARK ===============================================  
+! The weights are constant in this routine                              
+! =============INTERFACE===== ========================================= 
+SUBROUTINE step_fit(m,obs,obsw,el0,elc,uncert,csinor,delnor,rmsh,nused,succ)
+! ===================================================================== 
+  USE pred_obs
+  USE close_app, ONLY: kill_propag
+! ================input data==========================
+  INTEGER, INTENT(IN) ::  m ! number of observations
+  TYPE(ast_obs), DIMENSION(m), INTENT(IN)  :: obs
+  TYPE(ast_wbsr), DIMENSION(m), INTENT(INOUT) :: obsw 
+  TYPE(orbit_elem), INTENT(INOUT) :: el0  ! epoch time, initial elements       
+! ================output ==========================
+  TYPE(orbit_elem), INTENT(INOUT) :: elc  ! corrected elements
+  TYPE(orb_uncert), INTENT(OUT)  :: uncert ! normal and covar. matrix
+  DOUBLE PRECISION, INTENT(OUT) :: delnor,csinor,rmsh ! corr,res norm 
+  INTEGER nused ! no obs. used 
+  LOGICAL succ ! success flag 
+! =============END INTERFACE============================================
+  DOUBLE PRECISION :: peq(6) !  orthogonal vector
+  TYPE(orbit_elem) elb
+! proper motion, data to compute magnitude
+  DOUBLE PRECISION :: adot,ddot,pha,dis,dsun,elo,gallat, appmag 
+! input data sorted 
+  INCLUDE 'parobx.h90' 
+  TYPE(ast_obs),DIMENSION(nobx) :: obs_s
+  TYPE(ast_wbsr),DIMENSION(nobx) :: obsw_s        
+  integer iposs(nobx),iocj,no 
+  DOUBLE PRECISION tauj,alj,dej  
+! condition number, sigmna along weak dir                   
+  DOUBLE PRECISION cond, sdir
+  INTEGER indp ! inversion failure flag
+! ====================================================================  
+! partial derivatives of observables w.r. to elements         
+  DOUBLE PRECISION dade(6),ddde(6),drde(6),dvde(6) 
+! position and velocity (geocentric) of observer
+  DOUBLE PRECISION pos(3), vel(3)
+! to preserve integrity of obs_s
+  DOUBLE PRECISION alobs
+! first derivatives of observations                          
+  DOUBLE PRECISION g(nob2x,6),gr(nob2x,6),gs(nob2x,6)
+!  corr. and residuals norm, their controls                             
+  integer ider,icor(6),icor6(6),nsolv 
+  DOUBLE PRECISION csino0,csino1,mu,rescov,gam(6,6),c(6,6) 
+! differential correction, eccentricity                                 
+  DOUBLE PRECISION deq(6),deq6(6),deq6_lov(6),deq6_const(6),ecc 
+  LOGICAL lov_step  
+! iteration indexes                                                     
+  integer it,itg,itm
+! matrices for coordinate change                                        
+  DOUBLE PRECISION v(6,6),deqv(6) 
+! loop indexes: j=1,m; i,k=1,6 , ibk for blocks
+  integer j,k,i, ibk 
+! DOUBLE PRECISION functions                                            
+  DOUBLE PRECISION snorm,snormd, pridif                     
+  logical twobo ! control of two body approximation (must be false)
+  LOGICAL bizarre ! function for control of bizarre orbit
+  INTEGER ir ! index for relaxation loop, to avoid bizarre corrections
+! unit for output                                                       
+  integer iun 
+! scaling LOV
+  DOUBLE PRECISION, DIMENSION(6) :: units 
+! ====================================================================  
+! number of solve-for variables                                         
+  icor(1)=0 
+  icor(2:6)=1 
+  icor6=1 ! for final matrices
+  ! ====================================================================  
+! assign ider depending from inew                                       
+  ider=1 
+! full n-body                                                           
+  twobo=.false. 
+! definition of blocks if necessary
+  CALL blockset(m,obs,obsw)
+! sort of times and reordering of obs. and weights                      
+  CALL sort_obs(el0%t,obs,obsw,m,iposs,obs_s,obsw_s)                         
+! Initialisation with starting value for elements                       
+  elc=el0
+! ====================================================================  
+  iun=abs(iun_log) 
+  if(verb_dif.gt.9)write(iun,*)'starting values ', el0 
+  if(verb_dif.gt.19) write(*,*)'starting values ',  el0 
+! ================== main loop ==============================           
+! iteration control parameters: use default
+! assign ider 
+  ider=1 
+! Loop on iterations of differential corrections, alternate
+  itg=0 
+  itm=3*itmax
+  do 60 it=1,itm 
+! ================== iteration ==============================           
+! Compute observations and derivatives                                  
+     CALL set_restart(.true.) 
+     do 61 j=1,m 
+        tauj=obs_s(j)%time_tdt 
+        iocj=obs_s(j)%obscod_i 
+        pos=obs_s(j)%obspos
+        vel=obs_s(j)%obsvel
+        IF(obs_s(j)%type.eq.'O'.or.obs_s(j)%type.eq.'S')THEN 
+           CALL alph_del(elc,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
+         &           adot,ddot,pha,dis,dsun)
+           IF(kill_propag)THEN
+              WRITE(*,*)' step_fit: kill_propag'
+              succ=.false.
+              kill_propag=.false.
+              RETURN
+           ENDIF
+!  compute magnitude difference (apparent minus absolute)               
+           dmagns(j)=appmag(0.d0,elc%g_mag,dsun,dis,pha) 
+        ELSEIF(obs_s(j)%type.eq.'R'.or.obs_s(j)%type.eq.'V')THEN 
+           CALL r_rdot(elc,tauj,iocj,obs_s(j)%tech,vel,pos,alj,dej,drde,dvde,ider) 
+        ELSE 
+           WRITE(*,*)'step_fit: obs. type ',obs_s(j)%type, ' not known' 
+           STOP 'step_fit: obstype' 
+        ENDIF
+        CALL set_restart(.false.) 
+! Compute residuals, form matrix g=-d(csi)/d(eq)  
+        IF(obs_s(j)%type.eq.'O'.or.obs_s(j)%type.eq.'S')THEN 
+           alobs=obs_s(j)%coord(1)
+           obsw_s(j)%res_coord(1)=pridif(alobs,alj) 
+           obsw_s(j)%res_coord(2)=obs_s(j)%coord(2)-dej 
+           g(2*j-1,1:6)=dade 
+           g(2*j,1:6)=ddde 
+        ELSEIF(obs_s(j)%type.eq.'R')THEN 
+           obsw_s(j)%res_coord(1)=obs_s(j)%coord(1)-alj 
+           obsw_s(j)%res_coord(2)=0.d0
+           g(2*j-1,1:6)=drde
+           g(2*j,1:6)=0.d0
+        ELSEIF(obs_s(j)%type.eq.'V')THEN
+           obsw_s(j)%res_coord(1)=0.d0
+           obsw_s(j)%res_coord(2)=obs_s(j)%coord(2)-dej
+           g(2*j-1,1:6)=0.d0
+           g(2*j,1:6)=dvde
+        ELSE
+           WRITE(*,*)'step_fit: obs%type= ',obs_s(j)%type, ' not known'
+        ENDIF
+        obsw_s(j)%resc_def=.true.
+61   ENDDO
+     no=2*m
+! ===========linear constraint=============================
+     CALL min_sol(obs_s,obsw_s,m,g,icor6,iun,                         &
+     &                uncert%c,deq6,uncert%g,csinor,indp,cond)
+     IF(indp.ne.0) GOTO 9
+     CALL weak_dir(uncert%g,peq,sdir,-1,elc%coo,elc%coord,units)
+! scaling of matrix d (Xi)/dX     
+     IF(scaling_lov)THEN
+        DO i=1,no
+           DO j=1,6
+              gs(i,j)=g(i,j)*units(j)
+           ENDDO
+        ENDDO
+     ELSE
+        units=1.d0
+        gs(1:no,1:6)=g(1:no,1:6)
+     ENDIF
+     deq6=deq6/units ! diff. corr. in scaled coords
+     IF(DOT_PRODUCT(peq,deq6).lt.0.d0) peq=-peq ! sign rule to decrease Q 
+     deq6_lov=DOT_PRODUCT(peq,deq6)*peq ! component along the LOV
+     deq6_const=deq6-deq6_lov ! component orthogonal to the LOV
+     deq6_lov=deq6_lov*units ! in unscaled coordinates
+     deq6_const=deq6_const*units ! in unscaled coordinates
+!******can be removed after check************************
+! find orthonormal basis with peq as first vector                       
+     CALL graha_1(peq,6,v) 
+! convert derivatives                                                 
+     gr(1:no,1:6)=MATMUL(gs(1:no,1:6),v) 
+! ===========one differential corrections step=================         
+! Compute solution of linear least squares    
+     call min_sol(obs_s,obsw_s,m,gr,icor,iun,c,deqv,gam,csinor,indp,cond)
+     IF(it.eq.1)csino0=csinor
+     IF(indp.ne.0) GOTO 9
+! norm of the constrained correction: the zeros do not matter!
+     delnor=snorm(deqv,c,6,6) 
+!***************end removal**********************************
+!     delnor=snorm(deq6_const,uncert%c,6,6)
+! Check if we need another constrained iteration
+     IF(delnor.ge.del_constr)THEN
+        IF(verb_dif.ge.19)write(*,*)' constr.corr., delnor=',delnor
+        lov_step=.false.
+! use constrained corrections  
+!        deq=deq6_const
+!******can be removed after check************************
+! convert back correction to the previous base
+        deq=MATMUL(v,deqv)
+! convert correction to unscaled coordinates
+        deq=deq*units
+!****************end removal*****************************
+     ELSE
+        succ=.true.
+! use unconstrained corrections, of limited length in the weak direction
+        delnor=snorm(deq6_lov,uncert%c,6,6)
+        IF(verb_dif.ge.19)write(*,*)' full corr., delnor=',delnor
+        lov_step=.true.
+        IF(delnor.gt.step_sig)THEN
+           deq=deq6_const+deq6_lov*(step_sig/delnor)
+        ELSE
+           deq=deq6_const+deq6_lov
+        ENDIF
+     ENDIF
+! Update solution 
+!     elc%coord=elc%coord+deq 
+! relaxation loop
+     elb=elc
+     DO ir=1,4
+! Update solution 
+        elb%coord=elc%coord+deq 
+        IF(bizarre(elb,ecc))THEN
+           IF(verb_dif.ge.10)WRITE(*,*)' constr_fit: short step to avoid ecc=',ecc
+           deq=deq/2.d0
+           elb%coord=elc%coord+deq 
+        ELSE
+           EXIT
+        ENDIF
+     ENDDO
+     elc=elb   
+! norm of the correction: the zeros do not matter!                       
+     IF(verb_dif.ge.9)write(iun,200)it,csinor,delnor,elc%coord
+     IF(verb_dif.ge.19)write(*,200)it,csinor,delnor,elc%coord 
+200  format(' *** iteration ',i3,' RMS residuals =',1p,d12.4,    &
+   &        '   norm corr =',d12.4,'  new elem values:'/0p,6f13.7/)   
+! control against hyperbolic and bizarre orbits                         
+     IF(bizarre(elc,ecc))THEN 
+        IF(verb_dif.ge.19)write(*,*)' constr_fit: iter. ',it,' bizarre; e=',ecc
+        IF(verb_dif.ge.9) write(iun,*)' constr_fit: iter. ',it,' bizarre; e=',ecc
+        succ=.false. 
+        csinor=csino0
+        RETURN
+     ENDIF
+! Check if we need another iteration                                    
+     IF(lov_step)THEN
+     if(delnor.lt.delcr)then 
+        IF(verb_dif.ge.9)write(iun,*)' convergence corrections small' 
+        IF(verb_dif.ge.19)write(*,*)' convergence corrections small'
+        succ=.true. 
+        goto 70 
+     endif
+     if(it.gt.1)then 
+        if(csinor.gt.csino1*1.1d0)then 
+           itg=itg+1 
+           IF(verb_dif.ge.9)write(iun,*)' target function increasing ' 
+           IF(verb_dif.ge.19)write(*,*)' target function increasing '
+           succ=.false. 
+        elseif(csinor.gt.csino1*divrat)then 
+           succ=.true. 
+           IF(verb_dif.ge.9)write(iun,*)' target function paralyzed '
+           IF(verb_dif.ge.19)write(*,*)' target funct. paralyzed ' 
+           itg=itg+1 
+        endif
+        if(itg.gt.itgmax)then 
+           IF(succ)THEN
+              GOTO 70 ! store residuals, normalize covariance, etc. 
+           ELSE
+              csinor=csino0
+              RETURN  ! leave residuals from first iteration
+           ENDIF
+        endif
+     endif
+     ENDIF
+     csino1=csinor 
+60 ENDDO
+!  succ=.true. 
+70 continue 
+  IF(.not.succ)THEN
+     IF(verb_dif.ge.9)THEN
+        WRITE(*,*)' non convergent ',it,itg 
+     ELSEIF(verb_dif.gt.2)THEN
+        WRITE(iun,*)' non convergent ',it,itg
+     ENDIF
+  ENDIF
+! =========covariance (and normal matrix) rescaling==============
+  nsolv=6 
+  nused=0 
+  DO i=1,m 
+     IF(obsw_s(i)%sel_coord.gt.0)THEN
+        IF(obs_s(i)%type.eq.'O'.or.obs_s(i)%type.eq.'S')THEN
+           nused=nused+2
+        ELSEIF(obs_s(i)%type.eq.'R'.or.obs_s(i)%type.eq.'V')THEN
+           nused=nused+1
+        ENDIF
+     ENDIF
+  ENDDO
+  mu=rescov(nsolv,nused,csinor) 
+! apply rescaling to both covariance and normal matrix                    
+  DO  i=1,6 
+     DO  j=1,6 
+        uncert%g(i,j)=uncert%g(i,j)*mu**2 
+        uncert%c(i,j)=uncert%c(i,j)/mu**2 
+     ENDDO
+  ENDDO
+  uncert%succ=succ
+  uncert%ndim=elc%ndim
+! Output final result, with norm of the residuals                            
+  IF(verb_dif.ge.9.and.verb_dif.lt.19)write(*,201)it,csinor,delnor 
+201  format(' done constr. iter. ',i3,'  RMS=',1p,d12.4,' last corr. =',d12.4)
+!  IF(verb_dif.lt.9.and.verb_dif.gt.2)write(iun,201)it,csinor,delnor 
+! reordering the residuals for output                                   
+  CALL unsort_obs(iposs,m,obsw_s,obsw)
+! unsort  dmagn, dsunv,disv,phav,adotv,ddotv                      
+! (data for magnitude computation)                                      
+  DO i=1,m 
+     j=iposs(i)
+     dmagn(j)=dmagns(i) 
+  ENDDO
+! compute magnitude 
+  iun_log=iun
+  CALL mag_est(m,obs,obsw,elc%h_mag,rmsh)
+  elc%mag_set=.true.
+  RETURN
+! error case; inversion is not possible....
+9 WRITE(*,*)' inversion failed, at row ', indp
+  WRITE(iun,*)' inversion failed, at row ', indp
+  succ=.false.
+! =====================                                                 
+END SUBROUTINE step_fit
 !
 ! Copyright 1998-2003, The Orbfit Consortium                                 
 ! ===================================================================   
@@ -696,19 +1033,19 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,suc
         CALL set_restart(.false.) 
 ! Compute residuals, form matrix g=-d(csi)/d(eq)  
         IF(obs_s(j)%type.eq.'O'.or.obs_s(j)%type.eq.'S')THEN 
-           alobs=obs_s(j)%coord(1)
+           alobs=obs_s(j)%coord(1)-obsw_s(j)%bias_coord(1)
            obsw_s(j)%res_coord(1)=pridif(alobs,alj) 
-           obsw_s(j)%res_coord(2)=obs_s(j)%coord(2)-dej 
+           obsw_s(j)%res_coord(2)=obs_s(j)%coord(2)-dej-obsw_s(j)%bias_coord(2) 
            g(2*j-1,1:6)=dade 
            g(2*j,1:6)=ddde 
         ELSEIF(obs_s(j)%type.eq.'R')THEN 
-           obsw_s(j)%res_coord(1)=obs_s(j)%coord(1)-alj 
+           obsw_s(j)%res_coord(1)=obs_s(j)%coord(1)-alj-obsw_s(j)%bias_coord(1) 
            obsw_s(j)%res_coord(2)=0.d0
            g(2*j-1,1:6)=drde
            g(2*j,1:6)=0.d0
         ELSEIF(obs_s(j)%type.eq.'V')THEN
            obsw_s(j)%res_coord(1)=0.d0
-           obsw_s(j)%res_coord(2)=obs_s(j)%coord(2)-dej
+           obsw_s(j)%res_coord(2)=obs_s(j)%coord(2)-dej-obsw_s(j)%bias_coord(2)
            g(2*j-1,1:6)=0.d0
            g(2*j,1:6)=dvde
         ELSE
@@ -756,7 +1093,7 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,suc
 ! Update solution 
         elb%coord=elc%coord+deq 
         IF(bizarre(elb,ecc))THEN
-           IF(verb_dif.ge.10)WRITE(*,*)' constr_fit: short step to avoid ecc=',ecc
+           IF(verb_dif.ge.9)WRITE(iun_log,*)' constr_fit: short step to avoid ecc=',ecc
            deq=deq/2.d0
            elb%coord=elc%coord+deq 
         ELSE
@@ -768,7 +1105,7 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,suc
      delnor=snorm(deqv,c,6,6) 
      IF(verb_dif.ge.9)write(iun,200)it,csinor,delnor,elc%coord
      IF(verb_dif.ge.19)write(*,200)it,csinor,delnor,elc%coord 
-200  format(' *** iteration ',i3,' RMS residuals =',1p,d12.4,    &
+200  format(' constr_fit iteration ',i3,' RMS residuals =',1p,d12.4,    &
    &        '   norm corr =',d12.4,'  new elem values:'/0p,6f13.7/)   
 ! control against hyperbolic and bizarre orbits                         
      IF(bizarre(elc,ecc))THEN 
@@ -1079,6 +1416,11 @@ SUBROUTINE diff_cor(m,obs,obsw,el0,icor,iunf,elc,uncert,csinor,delnor,succ)
      ELSE 
         obsw_s%chi=0.d0  
         nmod=0 
+! norm of the correction: the zeros DO not matter!                      
+        IF(verb_dif.ge.9)write(*,200)it,csinor,delnor,elc%coord 
+        IF(verb_dif.gt.7)write(iun,222)it,csinor,delnor 
+222     format(' done difcor iter. ',i3,'  RMS =',1p,d12.4,&
+     &           ' last corr. =',d12.4)
      ENDIF
 ! go to next loop if no modifications or if not rejecting anyway        
      IF(nmod.eq.0 .or. .not.autrej)THEN 
@@ -1126,8 +1468,6 @@ SUBROUTINE diff_cor(m,obs,obsw,el0,icor,iunf,elc,uncert,csinor,delnor,succ)
 ! norm of the correction: the zeros DO not matter!                      
         IF(verb_dif.ge.19)write(*,200)it,csinor,delnor,elc%coord 
         IF(verb_dif.gt.9)write(iun,222)it,csinor,delnor 
-222     format(' done difcor iter. ',i3,'  RMS =',1p,d12.4,&
-     &           ' last corr. =',d12.4)
 ! ====== DECISION # 2 ===============================================   
 ! Check if we need another iteration                                    
 ! Small corrections to elements?                                        
@@ -1244,7 +1584,7 @@ END SUBROUTINE diff_cor
 !              corresponding entries in gamma and gtwg are nonzero      
 ! ============================================================
 SUBROUTINE sin_cor(m,obs_s,obsw_s,elc,icor,  &
-     &              iun,matonly,delnor,csinor,uncert) 
+     &              iun,matonly,delnor,csinor,uncert,deqout) 
   USE pred_obs
   USE close_app, ONLY: kill_propag
 ! INPUT :
@@ -1259,6 +1599,7 @@ SUBROUTINE sin_cor(m,obs_s,obsw_s,elc,icor,  &
 ! norm of residuals, of correction
   DOUBLE PRECISION, INTENT(OUT) :: csinor,delnor
   TYPE(orb_uncert), INTENT(OUT) :: uncert ! normal and covariance matrix
+  DOUBLE PRECISION, INTENT(OUT), OPTIONAL :: deqout(6) ! correction applied
 ! END INTERFACE=========================
   TYPE(orbit_elem) elb
   INTEGER j,iocj,ider,i,icor(6),k
@@ -1343,6 +1684,7 @@ SUBROUTINE sin_cor(m,obs_s,obsw_s,elc,icor,  &
 ! =========================================================
 ! Compute solution of linear least squares                              
   CALL min_sol(obs_s,obsw_s,m,g,icor,iun,gtwg,deq,gamma,csinor,indp,cond) 
+  IF(PRESENT(deqout)) deqout=deq
   IF(indp.ne.0) GOTO 9
 ! Update solution (only solve-for variables)                            
   IF(.not.matonly)THEN 
@@ -1794,6 +2136,11 @@ SUBROUTINE min_sol(obs_s,obsw_s,m,g,icor,iunf,gtwg,dx0,gamma,csinor,indp,cond)
         ENDIF
      ENDIF
   ENDDO
+  IF(nused.eq.0)THEN
+     indp=0
+     WRITE(iun_log,*)' no observations?????', nused,m
+     RETURN
+  ENDIF
 ! ===========================================================           
   IF(error_model_priv.eq.' ')THEN
 ! normal matrix GtWG of the pseudo-Newton method                        
@@ -2009,7 +2356,7 @@ SUBROUTINE invmat(c,nx,ndim,a,cond,indp,iunf)
   DO 1 i=1,ndim 
      DO 2 j=1,i-1 
         da=abs((a(i,j)-a(j,i))/(a(i,j)+a(j,i))) 
-        IF(da.gt.100*eps)THEN 
+        IF(da.gt.1000*eps)THEN 
            write(iun,*)'invmat: ',i,j,a(i,j),a(j,i),da,100*eps 
            IF(verb_dif.ge.15)                                          &
      &            write(*,*)'invmat: ',i,j,a(i,j),a(j,i),da,100*eps     
@@ -2858,18 +3205,21 @@ SUBROUTINE difini
   CALL rdnint('difcor.','nitg_max',itgmax,.false.,found,fail1,fail)
   divrat=0.999d0                                                    
   CALL rdnrea('difcor.','div_cntr',divrat,.false.,found,fail1,fail)
-  IF(fail) STOP '**** difini: abnormal end ****'                    
   delcr=1.d-3
   CALL rdnrea('difcor.','conv_contr',delcr,.false.,found,fail1,fail)
-  IF(fail) STOP '**** difini: abnormal end ****'
+  del_constr=1.d-5
+  CALL rdnrea('difcor.','del_constr',del_constr,.false.,found,fail1,fail)
+  step_sig=0.5d0
+  CALL rdnrea('difcor.','step_sig',step_sig,.false.,found,fail1,fail)
   scaling_lov=.false.
   CALL rdnlog('difcor.','scaling_lov',scaling_lov,.false.,found,fail1,fail)
-  IF(fail) STOP '**** difini: abnormal end ****'
   second_lov=.false.
   CALL rdnlog('difcor.','second_lov',second_lov,.false.,found,fail1,fail)
   IF(fail) STOP '**** difini: abnormal end ****'
   iicdif=36         
-  output_old_rwo=.false.                                                
+! default not in key/def file
+  output_old_rwo=.false.
+  output_failrwo=.true.                                                
 ! ==== large arrays allocated==================
 ! total allocatable size:
 ! nblx*(2*nxinbl_large+1)*4 + 8*nxinbl^2*nblx + 8*nxinbl_large^2*nbl_large
@@ -2939,7 +3289,7 @@ LOGICAL FUNCTION bizarre(el,ecc)
   DOUBLE PRECISION ecclim0, samin0,samax0,phmin0,ahmax0             
   COMMON / bizcon /ecclim0, samin0,samax0,phmin0,ahmax0             
 ! local variables                                                       
-  DOUBLE PRECISION a, eps, vsize, prscal, r, gm, alpha
+  DOUBLE PRECISION a, eps, vsize, prscal, r, gm, alpha, q, qg, enne
   DOUBLE PRECISION eq(6),x(3),y(3),ang(3),vlenz(3)
   TYPE(orbit_elem) elco ! for coordinate change
   INTEGER fail_flag
@@ -2950,7 +3300,6 @@ LOGICAL FUNCTION bizarre(el,ecc)
      eq=el%coord                                  
      ecc=sqrt(eq(2)**2+eq(3)**2)                                       
      a=eq(1)                                                           
-     bizarre=.false.                                                   
      IF(ecc.ge.ecclim0.or.a.ge.samax0.or.a.le.samin0)bizarre=.true. 
      IF(a*(1.d0-ecc).le.phmin0.or.a*(1.d0+ecc).ge.ahmax0)bizarre=.true.
   ELSEIF(el%coo.eq.'KEP')THEN
@@ -2970,7 +3319,7 @@ LOGICAL FUNCTION bizarre(el,ecc)
         IF(ecc.ge.ecclim0.or.a.ge.samax0.or.a.le.samin0)bizarre=.true. 
         IF(a*(1.d0-ecc).le.phmin0.or.a*(1.d0+ecc).ge.ahmax0)bizarre=.true.
      ENDIF
-  ELSE
+  ELSE  
      IF(el%coo.eq.'CAR')THEN
         r=vsize(el%coord(1:3))
         IF(r.ge.1000.d0)THEN
@@ -2986,16 +3335,14 @@ LOGICAL FUNCTION bizarre(el,ecc)
            RETURN
         ENDIF
      ENDIF
-     CALL coo_cha(el,'COM',elco,fail_flag)
-     eq=elco%coord                                  
-     ecc=eq(2)  
+     CALL ecc_peri(el,ecc,q,qg,enne) 
      IF(ecc.ge.1.d0-eps)THEN
         If(ecc.ge.ecclim0) bizarre=.true. 
-        IF(eq(1).le.phmin0) bizarre=.true.
+        IF(q.le.phmin0) bizarre=.true.
      ELSE
-        a=eq(1)/(1.d0-ecc)
+        a=q/(1.d0-ecc)
         IF(ecc.ge.ecclim0.or.a.ge.samax0.or.a.le.samin0)bizarre=.true. 
-        IF(a*(1.d0-ecc).le.phmin0.or.a*(1.d0+ecc).ge.ahmax0)bizarre=.true.
+        IF(q.le.phmin0.or.qg.ge.ahmax0)bizarre=.true.
      ENDIF
   ENDIF
 END FUNCTION bizarre

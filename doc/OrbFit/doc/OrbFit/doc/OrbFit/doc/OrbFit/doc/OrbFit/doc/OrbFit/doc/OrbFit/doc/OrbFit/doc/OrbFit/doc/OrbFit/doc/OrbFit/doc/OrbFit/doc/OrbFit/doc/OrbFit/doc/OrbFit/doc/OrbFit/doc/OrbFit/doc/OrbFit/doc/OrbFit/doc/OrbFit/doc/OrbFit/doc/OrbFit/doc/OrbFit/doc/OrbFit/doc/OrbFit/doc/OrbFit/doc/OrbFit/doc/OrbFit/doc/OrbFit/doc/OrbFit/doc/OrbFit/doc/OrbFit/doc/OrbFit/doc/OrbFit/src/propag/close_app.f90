@@ -196,7 +196,7 @@ CONTAINS
       tmin=2*disc/vsize(v) 
       dtold=tmin/npoin*dir
       IF(abs(dt).lt.1.d-5)THEN 
-         WRITE(*,*)'stepcon: ',dt, dtold,vsize(x),vsize(v),dtheta1,jgeo  
+         WRITE(iun_log,*)'stepcon: ',dt, dtold,vsize(x),vsize(v),dtheta1,jgeo  
          dt=1.d-5
          IF(.not.min_dist)kill_propag=.true.
       ENDIF     
@@ -456,7 +456,7 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
   DOUBLE PRECISION hour 
   CHARACTER*16 date 
 ! multiple minima analysis                                              
-  DOUBLE PRECISION cosa,angle,prscal 
+  DOUBLE PRECISION cosa,angle,prscal,angmin 
   INTEGER j
   iplam=iplam0
   planam=ordnam(iplam)
@@ -469,12 +469,16 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
      ELSE   
         moid0=sqrt(d2(1)) 
         angmoid=4.d2 
+        angmin=4.d2
         DO j=1,nummin 
            cosa=prscal(cplmin(1,j),xpla)/(vsize(cplmin(1,j))*vsize(xpla)) 
            angle=acos(cosa) 
-           IF(angle.lt.angx*radeg)THEN 
-              moid0=sqrt(d2(j)) 
-              angmoid=angle*degrad 
+           IF(angle.lt.angx*radeg)THEN
+              IF(angle.lt.angmin*radeg)THEN 
+                 moid0=sqrt(d2(j)) 
+                 angmoid=angle*degrad
+                 angmin=angle*degrad 
+              ENDIF
            ENDIF
         ENDDO
      ENDIF

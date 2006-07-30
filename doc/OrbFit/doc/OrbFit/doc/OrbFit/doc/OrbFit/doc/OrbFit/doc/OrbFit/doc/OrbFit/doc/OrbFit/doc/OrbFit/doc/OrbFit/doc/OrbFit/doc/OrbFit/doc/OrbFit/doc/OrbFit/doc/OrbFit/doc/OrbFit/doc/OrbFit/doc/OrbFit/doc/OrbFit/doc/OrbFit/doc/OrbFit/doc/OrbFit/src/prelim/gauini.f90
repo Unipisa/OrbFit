@@ -19,7 +19,7 @@
       INCLUDE 'comgau.h90' 
                                                                         
       LOGICAL found,fail1 
-                                                                        
+      fail=.false.                                                       
       errmax=1.D-14 
       CALL rdnrea('init_orbdet.gauss.','max_err',errmax,.false.,found,  &
      &            fail1,fail)                                           
@@ -31,7 +31,7 @@
       itmax=50 
       CALL rdnint('init_orbdet.gauss.','nit_max',itmax,.false.,found,   &
      &            fail1,fail)                                           
-                                                                        
+      iicgau=0                                                                  
       IF(.NOT.fail) iicgau=36 
                                                                         
       END                                           

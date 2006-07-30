@@ -90,18 +90,16 @@ SUBROUTINE fstpro(batch,icov,ini0,cov0,iun20,iun8,ok,             &
 END SUBROUTINE fstpro
 ! Copyright 1998 Orbfit Consortium                                      
 ! Version December 18, 1998 Steven Chesley (chesley@dm.unipi.it)        
-! Vesrion 3.1, Augist 2003, A. Milani
+! Version 3.3.1/2 February 2006, A. Milani
 ! ====================================================                  
 ! FSTEPH Ephemerides Generation for FITOBS                              
 ! This is a hacked version of FSTPRO                                    
-! First integrate from t0 back to tr, saving at interval step.          
+! Inntegrate from t0 both back and forward as required
 ! Then write this data in chronological order                           
-! Finally integrate from to forward to tf, writing after each step      
 ! inputs:                                                               
 !     name - asteroid name (for file and ephem listing)                 
 !     dir - location for files                                          
-!     defele - logical for existence of elements                        
-!     ok - success flag                                                 
+!     defele - logical for existence of elements
 !     el0 - input elements                                              
 !     tr - initial time for ephemerides                                 
 !     tf - final time                                                   
@@ -110,39 +108,40 @@ END SUBROUTINE fstpro
 !     ephefl - logical flag for output of ephemrides file               
 !     eltype - coordinate type for ephemerides (output) elements (EQU,CA
 !     moidfl - logical flag for output of file of MOID's and nodal dista
-! output: NONE                                                          
+! output:
+!     ok - success flag                      
 !                                                                       
 ! REMARK: IF moidfl=.false. and ephefl=.false. you will still           
 !     get a close approach file.                                        
 ! ====================================================                  
 SUBROUTINE fsteph(name,dir,defele,ok,el0,                &
-     &     tr,tf,step,numsav,ephefl,eltype,moidfl)
+     &     tr,tf,step,numsav,ephefl,cooy,moidfl)
   USE fund_const
   USE orbit_elements 
   USE propag_state 
   IMPLICIT NONE 
 ! =================INPUT=========================================       
 ! name, place, output element type                                      
-  CHARACTER*(*) name,dir 
-! availability of initial conditions, covariance, all required          
-  LOGICAL defele,ok,moidfl,ephefl 
+  CHARACTER*(*), INTENT(IN) :: name,dir 
+! availability of initial conditions and covariance, required output          
+  LOGICAL, INTENT(IN) ::  defele,moidfl,ephefl 
 ! necessary size of temporary storage array                             
-  INTEGER numsav 
+  INTEGER, INTENT(IN) ::  numsav 
 ! times, elements                                                 
-  DOUBLE PRECISION tr,tf,step
+  DOUBLE PRECISION, INTENT(IN) ::  tr,tf,step
   TYPE(orbit_elem), INTENT(IN) :: el0
-  CHARACTER*(3) eltype 
+  CHARACTER*(3), INTENT(IN) :: cooy
 ! ================OUTPUT=================================               
-! none                                                                  
+  LOGICAL, INTENT(OUT) :: ok
 ! ================END INTERFACE==========================               
-! loop indexes                                                          
-  INTEGER i,n 
+! loop indexes, no of records, no record before t0
+  INTEGER i,n, nrec, nbef 
 ! converted elements 
   TYPE(orbit_elem) :: elem0, elem1
 ! temporary storage                                                     
   INTEGER, PARAMETER :: numsavx=10000
   TYPE(orbit_elem) :: elsav(numsavx)
-  DOUBLE PRECISION tsav(numsavx),t1,t2 
+  DOUBLE PRECISION tsav(numsavx),t1,t2,t0 
   INTEGER jst, fail_flag
 ! output                                                                
   INTEGER unit 
@@ -179,7 +178,7 @@ SUBROUTINE fsteph(name,dir,defele,ok,el0,                &
 ! open ephemerides ouput file                                           
      call filnam(dir,name,'ele',file,ln) 
      call filopn(unit,file(1:ln),'unknown') 
-     call wro1lh(unit,'ECLM','J2000',eltype) 
+     call wro1lh(unit,'ECLM','J2000',cooy) 
   endif
   if(moidfl)then 
 ! open moid file                                                        
@@ -187,89 +186,67 @@ SUBROUTINE fsteph(name,dir,defele,ok,el0,                &
      call filopn(munit,filem(1:lnm),'unknown') 
   endif
   call rmsp(name,lnnam) 
-!========= CONVERT INPUT ELEMENTS TO REQUESTED TYPE ===============     
-  call coo_cha(el0,eltype,elem0,fail_flag) 
+!========= CONVERT INPUT ELEMENTS TO PROPAGATION TYPE ===============     
+  CALL coo_cha(el0,'CAR',elem0,fail_flag)
+  t0=el0%t
+! ======== CREATE LIST OF TIMES, FIND ONE JUST BEFORE t0 ============
+  nbef=0 ! if all after, nbef=0
+  DO jst=1,numsavx
+    tsav(jst)=tr+(jst-1)*step
+    IF(tsav(jst).le.t0) nbef=jst ! maximum index of tsav.le.t0 
+    IF(tsav(jst).gt.tf)EXIT
+  ENDDO
+  nrec=jst-1 ! no of records
+  
 !========= PROPAGATE, SAVE, AND THEN WRITE IN TIME ORDER ===============
 !     step back in time first (if necessary)                            
-  CALL set_restart(.true.) 
-  if(tr .le. el0%t)then 
-     t1=el0%t 
+  IF(tr .le. t0)THEN
      elem1=elem0
-!        but first propagate back to tf if t0 isn't within interval     
-     if(tf .lt. el0%T)then 
-        t1=tf 
-        call pro_ele(elem0,t1,elem1) 
-     endif
-     if(moidfl)then 
-        call nomoid(t1,elem1,moid,dnp,dnm) 
-     endif
-     n=1 
-     tsav(n)=t1 
-     msav(n)=moid 
-     icsav(n)=0
-     ndsav(n,1)=dnp 
-     ndsav(n,2)=dnm 
-     elsav(n)=elem1
-!        start loop                                                     
-     DO jst=1,10000 
-        t2=t1-jst*step 
-        call pro_ele(elem0,t2,elem1) 
-        CALL set_restart(.false.) 
+     CALL set_restart(.true.)
+     IF(nbef.eq.0) STOP ' ***** fsteph: logic error 1 **********' 
+! backward loop
+     DO n=nbef,1,-1 
+        t2=tsav(n)
+        call pro_ele(elem1,t2,elem1)
+        CALL set_restart(.false.)
         if(moidfl)then 
            call nomoid(t2,elem1,moid,dnp,dnm) 
         endif
-        n=n+1 
-        tsav(n)=t2 
+        msav(n)=moid 
+        icsav(n)=0
+        ndsav(n,1)=dnp 
+        ndsav(n,2)=dnm 
+        elsav(n)=elem1
+     ENDDO
+  ENDIF
+  IF(tf.gt.t0)THEN
+     CALL set_restart(.true.)
+     elem1=elem0
+     IF(nbef.eq.nrec) STOP ' ***** fsteph: logic error 2 **********' 
+! forward loop                                                     
+     DO n=nbef+1,nrec 
+        t2=tsav(n)
+        call pro_ele(elem1,t2,elem1) 
+        CALL set_restart(.false.) 
+        if(moidfl)then 
+           call nomoid(t2,elem1,moid,dnp,dnm) 
+        endif  
         msav(n)=moid 
         ndsav(n,1)=dnp 
         ndsav(n,2)=dnm 
         icsav(n)=0 
         elsav(n)=elem1
-        IF(t2.lt.tr) GOTO 5 
-     enddo
-!        Get last point                                                 
-5    CONTINUE 
+     ENDDO
      CALL set_restart(.true.) 
 !        write in forward time order                                    
-! MAGNITUDE IS RIGHT!!!!                                                
-     do i=n,1,-1 
-!       WRITE(*,*)'i, tsav',i,tsav(i)                              
-        if(ephefl) call write_elems(elsav(i),name(1:lnnam),'1L',file,unit)
-        if(moidfl) write(munit,199)tsav(i),msav(i),                 &
-     &           ndsav(i,1),ndsav(i,2)                                  
+     do i=1,nrec 
+        IF(ephefl)THEN
+           CALL coo_cha(elsav(i),cooy,elem1,fail_flag)
+           CALL write_elems(elem1,name(1:lnnam),'1L',file,unit)
+        ENDIF
+        if(moidfl) write(munit,199)tsav(i),msav(i),ndsav(i,1),ndsav(i,2)                                  
 199     format(f13.4,1x,f8.5,1x,f8.5,1x,f8.5) 
      enddo
-  endif
-!========= PROPAGATE AND WRITE SIMULTANEOUSLY ========================  
-  if(tf .ge. el0%t)then 
-     t1=el0%t 
-     elem1=elem0
-!        now step to the beginning (if necessary)                       
-     if(tr .gt. el0%t)then 
-        t1=tr 
-        call pro_ele(elem0,t1,elem1) 
-        if(ephefl) call wro1lr(unit,name(1:lnnam),elem1,eltype,     &
-     &           t1,-1.d4,1.0d0)                                        
-        if(moidfl)then 
-           call nomoid(t1,elem1,moid,dnp,dnm) 
-           write(munit,199)t1,moid,dnp,dnm 
-        endif
-     endif
-     DO jst=1,100000 
-        t2=t1+jst*step 
-        call pro_ele(elem0,t2,elem1) 
-        CALL set_restart(.false.) 
-        if(ephefl) call wro1lr(unit,name(1:lnnam),elem1,eltype,     &
-     &           t2,-1.d4,1.0d0)                                        
-!            WRITE(*,*)'jst,t2',jst,t2                                  
-        if(moidfl)then 
-           call nomoid(t2,elem1,moid,dnp,dnm) 
-           write(munit,199)t1+step,moid,dnp,dnm 
-        endif
-        IF(t2.gt.tf) GOTO 6 
-     enddo
-6    CONTINUE 
-     CALL set_restart(.true.) 
   endif
 ! ===================================================================== 
   if(ephefl) call filclo(unit,' ') 
@@ -277,6 +254,7 @@ SUBROUTINE fsteph(name,dir,defele,ok,el0,                &
   if(ephefl) write(*,*)'Ephemeris file generated:',file(1:ln) 
   if(moidfl) write(*,*)'Moid file generated:',filem(1:lnm) 
 END SUBROUTINE fsteph
+
 ! Copyright (C) 1997-2000 by Mario Carpino (carpino@brera.mi.astro.it)  
 ! Version: December 11, 2000                                            
 ! --------------------------------------------------------------------- 

@@ -260,9 +260,9 @@
       amfit=.true.
       CALL rdnlog('ident.','aM_fit',amfit,.false.,found,                &
      &            fail1,fail)
-      delcr=1.d-5
-      CALL rdnrea('ident.','conv_cntr',delcr,.false.,found,             &
-     &            fail1,fail)
+!      delcr=1.d-5
+!      CALL rdnrea('ident.','conv_cntr',delcr,.false.,found,             &
+!     &            fail1,fail)
 
       IF(fail) STOP '**** rdopti: abnormal end ****'
 
@@ -291,9 +291,9 @@
 
       fail=.false.
 
-      delcr=1.d-5
-      CALL rdnrea('lsfit.','conv_cntr',delcr,.false.,found,             &
-     &            fail1,fail)
+!      delcr=1.d-5
+!      CALL rdnrea('lsfit.','conv_cntr',delcr,.false.,found,             &
+!     &            fail1,fail)
 
       IF(fail) STOP '**** rdoptf: abnormal end ****'
 

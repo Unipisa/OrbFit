@@ -12,7 +12,7 @@ CLOAP=  close_app.o tp_trace.o semi_linear.o shower_analysistp.o \
 
 PUB= ephem_prop.o plocbd.o fitsubs.o pred_obs.o
 
-DIFCOR= multiple_sol.o least_squares.o obs_correl.o count_opp.o count_opp2.o orbit_elements.o wromlr.o 
+DIFCOR= multiple_sol.o least_squares.o obs_correl.o count_opp.o count_opp2.o orbit_elements.o wromlr.o gaussdeg8.o arc_control.o 
 
 QUADP = quadp/dqags.o quadp/dqagse.o quadp/dqagp.o quadp/dqagpe.o \
         quadp/dqelg.o quadp/dqk21.o quadp/dqpsrt.o quadp/dqagsc.o \

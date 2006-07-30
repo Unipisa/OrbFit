@@ -9,6 +9,7 @@
 ./src/util90
 ./src/newret
 ./src/triang
+./src/panst
 ./src/test
 ./src/include/SUSPECT.list
 ./src/propneo2

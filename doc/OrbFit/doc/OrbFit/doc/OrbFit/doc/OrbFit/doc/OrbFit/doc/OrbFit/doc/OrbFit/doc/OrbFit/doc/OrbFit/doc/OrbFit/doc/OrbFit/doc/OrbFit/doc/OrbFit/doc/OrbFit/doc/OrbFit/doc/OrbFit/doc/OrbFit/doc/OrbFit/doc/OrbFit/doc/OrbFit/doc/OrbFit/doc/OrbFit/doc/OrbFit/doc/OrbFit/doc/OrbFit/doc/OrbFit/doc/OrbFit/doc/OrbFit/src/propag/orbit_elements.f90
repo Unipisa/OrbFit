@@ -234,7 +234,8 @@ IF(cargr_in)THEN
 ! fail_flag=9,10,20: nothing to do
       ENDIF
    ELSE
-      PRINT *, ' coo_cha: this should not happen, coox=',coox,' cooy=', cooy
+      PRINT *, ' coo_cha: this should not happen 1, coox=',coox,' cooy=', cooy
+      WRITE(*,*) x
       STOP
    ENDIF
 ELSEIF(kepgr_in)THEN
@@ -321,15 +322,18 @@ ELSEIF(kepgr_in)THEN
             y=com_kep(z,fail_flag) 
          ENDIF
       ELSE
-         PRINT *, ' coo_cha: this should not happen, coox, cooy ', coox, cooy
+         PRINT *, ' coo_cha: this should not happen 2, coox=',coox,' cooy=', cooy
+         WRITE(*,*) x
          STOP
       ENDIF
    ELSE
-      PRINT *, ' coo_cha: this should not happen, coox, cooy ', coox, cooy
+      PRINT *, ' coo_cha: this should not happen 3, coox=',coox,' cooy=', cooy
+      WRITE(*,*) x
       STOP
    ENDIF 
 ELSE
-   WRITE(*,*)' coo_cha: this should not happen, coox, cooy ',coox,cooy
+   WRITE(*,*)' coo_cha: this should not happen 4, coox=',coox,' cooy=', cooy
+   WRITE(*,*) x
    STOP
 ENDIF
 END SUBROUTINE coo_cha
@@ -389,6 +393,7 @@ TYPE(orbit_elem), INTENT(IN) :: el
 DOUBLE PRECISION, INTENT(OUT) :: ecc,q,qg,enne
 ! ===================================================================
 DOUBLE PRECISION gm,eps,a
+DOUBLE precision x(3),y(3),ang(3),vlenz(3),gei,gei2,r0,vel2,alpha,prscal,vsize
 TYPE(orbit_elem) el1
 INTEGER fail_flag
 !
@@ -416,15 +421,40 @@ ELSEIF(el%coo.eq.'COM')THEN
       enne=sqrt(gm/a**3)
    ENDIF
 ELSE
-   CALL coo_cha(el,'COM',el1,fail_flag)
-   ecc=el1%coord(2)
-   q=el1%coord(1)
+   IF(el%coo.eq.'ATT')THEN
+! convert to cartesian if it is ATT
+      CALL coo_cha(el,'CAR',el1,fail_flag)
+   ELSEIF(el%coo.eq.'CAR')THEN
+      el1=el
+   ELSE
+      WRITE(*,*)' ecc_peri: unknown coord type, coo= ',el%coo
+      WRITE(*,*) el
+      STOP
+   ENDIF
+! compute eccentricity
+   x=el1%coord(1:3)
+   y=el1%coord(4:6)
+!  radius and velocity squared                                          
+   vel2=prscal(y,y)          ! velocity
+   r0=vsize(x)               ! distance from center
+   call prvec(x,y,ang)       !  angular momentum 
+! non singular first element
+   gei2=prscal(ang,ang)
+   gei=sqrt(gei2)
+   IF(gei.eq.0.d0)THEN
+      WRITE(*,*) ' ecc_peri: zero angular momentum ',el
+   ENDIF
+   call prvec(y,ang,vlenz) ! Lenz vector
+   vlenz=vlenz*(1.d0/gm)-x(1:3)*(1.d0/r0)
+   ecc=vsize(vlenz)
+   q=gei2/(gm*(1.d0+ecc))
+   alpha=vel2-2*gm/r0 ! 2* energy 
    IF(ecc.gt.1.d0-eps)THEN
       qg=1.d+50
       enne=0.d0
    ELSE
-      a=el1%coord(1)/(1.d0-ecc)
-      qg=a*(1.d0+ecc)
+      qg=gei2/(gm*(1.d0-ecc))
+      a=-gm/alpha
       enne=sqrt(gm/a**3)
    ENDIF
 ENDIF

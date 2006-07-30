@@ -16,13 +16,15 @@ attributable.o: \
 	../include/parobx.h90 \
 	astrometric_observations.o \
 	fund_const.o \
-	name_rules.o 
+	name_rules.o \
+	output_control.o 
 
 char_str.o: \
 	char_str.o 
 
 ever_pitkin.o: \
-	fund_const.o 
+	fund_const.o \
+	output_control.o 
 
 fidinam4.o: \
 	../include/sysdep.h90 \
@@ -115,6 +117,7 @@ util_suit.o: \
 	output_control.o 
 
 very_short_arc.o: \
+	../include/par_sharc.h90 \
 	astrometric_observations.o \
 	attributable.o \
 	fund_const.o \

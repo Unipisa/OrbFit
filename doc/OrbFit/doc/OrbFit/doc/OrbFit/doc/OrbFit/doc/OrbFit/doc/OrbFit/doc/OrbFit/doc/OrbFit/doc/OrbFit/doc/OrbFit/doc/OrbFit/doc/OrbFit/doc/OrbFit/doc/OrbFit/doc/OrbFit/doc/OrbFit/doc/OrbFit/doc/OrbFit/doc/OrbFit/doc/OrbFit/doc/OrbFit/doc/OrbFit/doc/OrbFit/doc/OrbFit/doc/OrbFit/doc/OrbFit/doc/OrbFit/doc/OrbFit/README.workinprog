@@ -1,0 +1,82 @@
+
+This file describes the changes to the software actually being implemented
+and not yet included in the public distribution. It also decsribes the known
+problems and bugs. (Updated 2 February 2006).
+
+0) Tholen has been working on Windows compilation, with Compaq Visual Fortran
+   6.6c. 
+
+iers_ser.f90  gmsnom has undefined stuff thus the call 
+
+comp_heart_ta_shift.f90 should USE critical_points_shift 
+matrixdat_ta_shift
+
+
+problems with the quadp library....
+
+1) Milani has been working to fix the radar residuals problem of NEODyS.
+   Changes are being appplied to the 3.3.1 version running under neodys@newton
+   and under orbmaint@piazzi.  Recently (after last 3.3.1 merge, 15/11/2005)
+   changed files:
+
+updated in 3.3.1 and 3.3.2:
+./src/propag/ephem_prop.f90 (fsteph wrong) 
+(neofit not affected because option time series not used anymore)
+./conf/mf.intelhifi.d, .O (compilation with IEEE754 compliance)
+./src/suit/io_elems.f90 (fix to problem when ML format does not contain COV)
+./src/suit/astrometric_observations.f90 (use of accurate Earth rotation always)
+./src/propag/pred_obs.f90 (correction to r_rdot for higher order relativistic)
+                          (in 3.3.1 remove test output of obspos)
+./src/fitobs/fitobs.f90 (in 3.3.1 remove test output of resid.)
+./lib/ephemn.key (input iers.key)
+./lib/RADCODE.dat (corrected pos. of Arecibo and Goldstone DSS13)
+
+2) Milani has been working to the new orbit identification algorithm. Also,
+   the new algorithm step_fit to upgrade a constrained orbit to a full least
+   square one.  Also, the arc type computation and the new qualities,
+   motivated byt he new defibnition of discovery. Changes have been applied to
+   the 3.3.2 version running under orbmaint@piazzi; they affect directories
+   ./src/idconf2 and ./src/allobs (but also ./src/propag, with
+   least_squares.f90 and multiple_sol.f90 containing experimental software).
+   Recently (after previous 3.3.2 merge, 1/2/2006) changed files:
+
+
+Feb  9 19:45 Makefile
+Feb 10 16:10 allobs/ufitobs5.f90
+Feb 11 09:52 allobs/arc_control.f90
+Feb 13 16:57 propag/multiple_sol.f90
+Feb 13 17:21 allobs/ufitobs4.f90
+Feb 13 19:05 idconf2/idcheck3.f90
+Feb 15 15:47 idconf2/identmul_input.f90
+Feb 16 09:01 suit/astrometric_observations.f90  ????????
+
+3) Milani and Gronchi have been working to the Panstarrs simulations. The
+   "orphan" software is still in alpha-testing. Changes have been applied to
+   the 3.3.2 version running under orbmaint@adams; they affect mostly the
+   directory ./src/triang, but there are distribution changes. Recently (after
+   previous 3.3.2 merge, 1/2/2006) changed files:
+
+
+4) Gronchi and Tommei have been working on the new MOID regularization and
+   uncertainty estimation. This should affect only the ./src/moid directory,
+   later will affect ./src/neodys and the online NEODyS.
+
+
+KNOWN PROBLEMS
+
+1) Documentation: the project of a "Mathematical Specification" document has
+   been abandoned, to be replaced by Milani and Gronchi, "Orbit
+   Determination", Cambridge University Press 2008, 400 pages. But this use of
+   \futurecite is not nice. Any idea?
+
+2) References. A serious work in providing references could to a large extent
+   replace the ad hoc documentation. Just our own papers are dozens. The
+   problem is how to link the subrotuines, and the algorithms used in them, to
+   the references. Possible to use some BiBTeX machinery?
+
+2) Cometary orbits. The module ever_pitkin is now quite stable, even if the
+   "universal" variables are NOT universal (unless we have a computer with
+   infinite mantissa). Still observing a Sun-grazing comet while very far from
+   the Sun is not possible numerically, for our good luck it is also
+   impossible astronomically. The problem of non gravitational perturbations 
+   is still unsolved in our code. 

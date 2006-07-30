@@ -1,4 +1,5 @@
 MODULE ever_pitkin
+USE output_control
 USE fund_const  
 IMPLICIT NONE
 
@@ -135,27 +136,35 @@ CONTAINS
     ELSE
        contr=100*epsilon(1.d0)
     ENDIF
+    psi=dt/r0 !initial guess: only the sign matters
     IF(alpha.lt.0.d0)THEN
-       psi=dt/r0 !initial guess: only the sign matters
-! +dt**2*sig0/(2*r0**3) !initial guess
        IF(abs(sig0).lt.contr)THEN
           a0=-mu/alpha
-          e0=1.d0-r0/a0
-          enne=sqrt(-alpha**3)/mu
-          u0=pig
-          if(enne*dt.lt.0.d0)u0=-pig
-          DO j=1,itx
-            du=-(u0-e0*sin(u0)-enne*dt)/(1.d0-e0*cos(u0))
-            u0=u0+du
-            IF(abs(du).lt.contr)EXIT
-          ENDDO
-          psi=u0/sqrt(-alpha)
+          IF(a0.gt.1.d3)THEN
+             WRITE(*,*)' alpha, mu, a0 ', alpha,mu, a0
+          ELSE
+! use Kepler's equation to compute ecc. anomaly
+             e0=1.d0-r0/a0
+             enne=sqrt(-alpha**3)/mu
+             u0=pig
+             if(enne*dt.lt.0.d0)u0=-pig
+             DO j=1,itx
+                du=-(u0-e0*sin(u0)-enne*dt)/(1.d0-e0*cos(u0))
+                u0=u0+du
+                IF(abs(du).lt.contr)EXIT
+             ENDDO
+! if ecc. anomaly found, use relationship whith psi
+             IF(j.le.itx)psi=u0/sqrt(-alpha)
+          ENDIF
        ENDIF
     ELSE
-       psi=dt/r0 !initial guess: only the sign matters
-!       psi=psi+dt**2*sig0/(2*r0**3) !improved initial guess
+       psi=psi+dt**2*sig0/(2*r0**3) ! improved initial guess
+! in all other cases, stick to psi=dt/r0
     ENDIF
     DO j=1,jmax
+      IF(abs(psi).gt.1.d5)THEN
+         WRITE(*,*)' psi, alpha, r0', psi, alpha, r0
+      ENDIF
       CALL s_funct(psi,alpha,s0,s1,s2,s3)
       fun=r0*s1+sig0*s2+mu*s3-dt
       funp=r0*s0+sig0*s1+mu*s2
@@ -222,13 +231,16 @@ CONTAINS
 !      WRITE(*,*)j, psi,r,rp,rpp,dpsi
       psi=psi+dpsi
       IF(ABS(dpsi).lt.contr.or.abs(rp).lt.contr) GOTO 1
+      IF(r.lt.peri)GOTO 1      
 !      IF(ABS(psi).gt.psiper.or.psi*psi0.lt.0.d0)THEN
 !         WRITE(*,*)' solve_peri: unstable newton ', icount, j, psi
 !         icount=icount+1
 !         psi=psi0/icount
 !      ENDIF
     ENDDO
-    WRITE(*,*)' solve_peri: poor convergence ', jmax,dpsi,contr
+    IF(verb_io.gt.9)THEN
+       WRITE(*,*)' solve_peri: poor convergence ', jmax,dpsi,contr
+    ENDIF
 1   CONTINUE
     dt=r0*S1+sig0*s2+mu*s3
 !    WRITE(*,*)' dt ', dt
@@ -248,9 +260,9 @@ CONTAINS
     DOUBLE PRECISION, INTENT(OUT) :: s0,s1,s2,s3 ! Stumpff functions
     DOUBLE PRECISION, INTENT(IN), OPTIONAL :: conv_contr ! covergence control
     DOUBLE PRECISION beta, term2, term3, term0, term1, psi2, s02, s12
-    DOUBLE PRECISION contr, dif1, dif2, sval
+    DOUBLE PRECISION contr, dif1, dif2, sval, overfl
     INTEGER j,jj,nhalf
-    INTEGER, PARAMETER:: jmax=70, halfmax=8
+    INTEGER, PARAMETER:: jmax=70, halfmax=12
     DOUBLE PRECISION, PARAMETER :: betacontr=1.d2 !to make it not operational
 ! control
     IF(PRESENT(conv_contr))THEN
@@ -258,6 +270,8 @@ CONTAINS
     ELSE
        contr=100*epsilon(1.d0)
     ENDIF
+!    overfl=HUGE(1.d0)/1.d3
+    overfl=1/epsilon(1.d0)
 ! compute s2,s3
     beta=alpha*psi**2 
 !    WRITE(*,*)psi,beta,alpha
@@ -270,15 +284,21 @@ CONTAINS
        DO j=1,jmax
           term2=term2*beta/((2*j+1)*(2*j+2))
           s2=s2+term2
+          IF(abs(term2).gt.overfl)EXIT
           IF(abs(term2).lt.contr)EXIT
        ENDDO
-       IF(j.gt.jmax)WRITE(*,*)' j, term2, beta ', j-1, term2,beta
+       IF(j.gt.jmax.or.abs(term2).gt.overfl)THEN
+          WRITE(*,*)' psi,alpha, j, term2 ', psi, alpha, j-1, term2
+       ENDIF
        DO j=1,jmax
           term3=term3*beta/((2*j+2)*(2*j+3))
           s3=s3+term3
+          IF(abs(term3).gt.overfl)EXIT
           IF(abs(term3).lt.contr)EXIT
        ENDDO
-       IF(j.gt.jmax)WRITE(*,*)' j, term3,beta ', j-1, term3, beta
+       IF(j.gt.jmax.or.abs(term3).gt.overfl)THEN
+          WRITE(*,*)' psi,alpha,j, term3', psi,alpha,j-1, term3
+       ENDIF
 ! recursive formulae
        s1=psi+alpha*s3
        s0=1.d0+alpha*s2
@@ -292,7 +312,7 @@ CONTAINS
          beta=alpha*psi2**2
          IF(abs(beta).lt.betacontr)EXIT
        ENDDO
-!       WRITE(*,*)' halfing', psi,nhalf,beta
+       WRITE(*,*)' halving', psi,nhalf,beta
        term0=1.d0
        term1=psi2
        s0=1.d0
@@ -300,21 +320,31 @@ CONTAINS
        DO j=1,jmax
           term0=term0*beta/((2*j-1)*(2*j))
           s0=s0+term0
+          IF(abs(term0).gt.overfl)EXIT
           IF(abs(term0).lt.contr)EXIT
        ENDDO
-       IF(j.gt.jmax)WRITE(*,*)' j, term0, beta ', j-1, term0,beta
+       IF(j.gt.jmax.or.abs(term0).gt.overfl)THEN
+           WRITE(*,*)' psi,alpha, j, term0 ', psi,alpha,j-1, term0
+       ENDIF
        DO j=1,jmax
           term1=term1*beta/((2*j)*(2*j+1))
-          s1=s1+term1
+          s1=s1+term1          
+          IF(abs(term1).gt.overfl)EXIT
           IF(abs(term1).lt.contr)EXIT
        ENDDO
-       IF(j.gt.jmax)WRITE(*,*)' j, term1, beta ', j-1, term1,beta
+       IF(j.gt.jmax.or.abs(term1).gt.overfl)THEN
+          WRITE(*,*)'psi,alpha, j, term1 ', psi,alpha,j-1, term1
+       ENDIF
 ! duplication formula
        DO jj=1,nhalf
          s02=2*s0**2-1.d0
          s12=2*s0*s1
          s0=s02
          s1=s12
+         IF(abs(s0).gt.overfl.or.abs(s1).gt.overfl)THEN
+            WRITE(*,*)' s_funct: halving failed, psi, s0,s1 ', psi,s0,s1 
+            EXIT
+         ENDIF
        ENDDO
 ! recursive formulae
        s3=(s1-psi)/alpha

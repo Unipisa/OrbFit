@@ -7,6 +7,6 @@
 ! iiclsf      -  Initialization check
 !
       INTEGER iiclsf
-      DOUBLE PRECISION delcr
+!      DOUBLE PRECISION delcr
       COMMON/cmlsf1/iiclsf
-      COMMON/cmlsf2/delcr
+!      COMMON/cmlsf2/delcr

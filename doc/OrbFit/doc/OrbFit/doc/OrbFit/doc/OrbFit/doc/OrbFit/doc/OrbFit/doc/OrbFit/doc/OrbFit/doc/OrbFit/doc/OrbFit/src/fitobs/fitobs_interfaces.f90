@@ -287,6 +287,95 @@ subroutine finobs(progna,iar,astna0,obs0,nlef,m,obs,obsw,rwofi0  &
   CALL rmsp(rwofi0,ll) 
 END SUBROUTINE finobs
 
+SUBROUTINE f_gaussdeg8(uniele,name,deforb,defcov,          &
+     &     rwfil,obs,obsw,n,error_model,el)
+  USE fund_const, ONLY: gms  
+  USE astrometric_observations 
+  USE least_squares, ONLY: rms_compute
+  USE orbit_elements
+  USE output_control
+  IMPLICIT NONE 
+! INPUT observations: new data types
+  INTEGER, INTENT(IN) :: n  !number of observations
+  TYPE(ast_obs),DIMENSION(n),INTENT(IN) :: obs
+  TYPE(ast_wbsr),DIMENSION(n),INTENT(INOUT) :: obsw
+  CHARACTER*20, INTENT(IN) ::  error_model ! weighing model
+! other input   
+  INTEGER,INTENT(IN) :: uniele ! unit for output
+  CHARACTER*18, INTENT(IN) :: name !asteroid name 
+  CHARACTER*60, INTENT(IN) :: rwfil ! output file for residuals
+! OUTPUT
+  LOGICAL, INTENT(OUT) :: deforb,defcov ! orbit state on output 
+  TYPE(orbit_elem), INTENT(OUT) :: el ! elements  
+! END INTERFACE
+  DOUBLE PRECISION, DIMENSION(3) :: tobs,alpha3,delta3
+  DOUBLE PRECISION tr,dt,dt1 ! mean time, half interval, dist. to center
+  INTEGER :: obscod(3), isel(3),j,nselect
+! for call to gaussdeg8
+  INTEGER nroots,nsol
+  LOGICAL fail, debug
+  CHARACTER*(20) msg 
+  TYPE(orbit_elem), DIMENSION(3) :: elv
+  DOUBLE PRECISION rms
+! select obs: first, last closest to mean time
+     defcov=.false.
+  IF(n.le.2)THEN
+     deforb=.false.
+     RETURN
+  ENDIF
+  isel(1)=1
+  isel(3)=n
+  tr= (obs(1)%time_tdt+obs(n)%time_tdt)/2.d0
+  dt=(obs(n)%time_tdt-obs(1)%time_tdt)/2.d0
+  isel(2)=1
+  DO j=2,n
+    dt1=abs(obs(j)%time_tdt-tr)
+    IF(dt1.lt.dt)THEN
+       isel(2)=j
+       dt=dt1
+    ENDIF
+  ENDDO
+  IF(isel(2).eq.1.or.isel(2).eq.n)THEN
+     WRITE(*,*) 'f_gaussdeg8: logical error in times'
+     WRITE(*,*) obs(1:n)%time_tdt
+     STOP
+  ENDIF     
+! copy in array
+  DO j=1,3
+    tobs(j)=obs(isel(j))%time_tdt
+    alpha3(j)=obs(isel(j))%coord(1)
+    delta3(j)=obs(isel(j))%coord(2)
+    obscod(j)=obs(isel(j))%obscod_i
+  ENDDO
+! find solution(s)
+  debug=.true.
+  CALL gaussdeg8(tobs,alpha3,delta3,obscod,elv,nroots,nsol,fail,msg,debug)
+  IF(msg.ne.' ')WRITE(*,*)' error message from gaussdeg8=',msg
+! assess solutions
+  IF(nsol.eq.0)THEN
+     deforb=.false.
+     RETURN 
+  ENDIF
+!  DO j=1,nsol
+!     rms=rms_compute(obs,obsw,n)
+!     WRITE(iun_log,222)j, rms 
+!     WRITE(*,222)j, rms 
+!222  FORMAT(' preliminary orbit no. ',i3,' RMS of residuals=',f10.4)  
+!  ENDDO
+! select solution, if more than one
+  IF(nsol.eq.1)THEN
+     nselect=1
+  ELSE
+22   WRITE(*,*)' select one solution between 1 and ', nsol
+     READ(*,*) nselect
+     IF(nselect.lt.1.or.nselect.gt.nsol) GOTO 22
+  ENDIF
+  deforb=.true.
+  el=elv(nselect)  
+  WRITE(*,*) ' selected preliminary orbit ', el 
+
+END SUBROUTINE f_gaussdeg8
+
 ! Copyright (C) 1997 by Mario Carpino (carpino@brera.mi.astro.it)       
 ! Version OFINOD: December 1, 1997                                      
 ! Adapted for FITOBS, AM/ZK March 1998                                  
@@ -324,9 +413,9 @@ END SUBROUTINE finobs
 !                                                                       
 SUBROUTINE f_gauss(uniele,name,deforb,defcov,          &
      &     rwfil,obs,obsw,n,error_model,imeth,el)
-  USE fund_const    
+  USE fund_const, ONLY: gms  
   USE astrometric_observations 
-  USE least_squares
+  USE least_squares, ONLY: rms_compute
   USE orbit_elements
   USE output_control
   IMPLICIT NONE 
@@ -778,10 +867,10 @@ SUBROUTINE fident(id_dim,cov0,covp,el0,elp,unc0,uncp,elid,ff)
      WRITE(*,*)' for the same time, use propagation first' 
      RETURN 
   ENDIF
-  IF(el0%coo.ne.'EQU'.or.elp%coo.ne.'EQU')THEN
-     WRITE(*,*)' identification guess only in EQU, not in ', el0%coo, elp%coo
-     RETURN
-  ENDIF
+!  IF(el0%coo.ne.'EQU'.or.elp%coo.ne.'EQU')THEN
+!     WRITE(*,*)' identification guess only in EQU, not in ', el0%coo, elp%coo
+!     RETURN
+!  ENDIF
   eq0=el0%coord
   eqp=elp%coord
   g0=unc0%g

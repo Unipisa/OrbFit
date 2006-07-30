@@ -18,6 +18,7 @@ PROGRAM fitobs
   USE force_model, ONLY: radar, norad_obs ! to report on radar data
   USE two_states
   USE attributable
+  USE arc_control
   USE virtual_impactor
   USE tp_trace, ONLY: wri_tppoint,dtpde
   IMPLICIT NONE 
@@ -28,7 +29,7 @@ PROGRAM fitobs
 ! ===== differential corrections ==============                  
   LOGICAL succ ! success flag                             
   double precision meanti ! function for time of difcor 
-  INTEGER idif, itsav ! menu index, save itmax when changed
+  INTEGER idif, itsav, ist_fit ! menu index, save itmax when changed, step fit flag
   DOUBLE PRECISION peq(6) ! unit vector in weak direction
 ! ======== proposed identifications =======                             
 ! equinoctal orbital elements (guess from identif), epoch time
@@ -79,6 +80,8 @@ PROGRAM fitobs
   INTEGER iatt
   LOGICAL error ! only 1 obs and so on
   DOUBLE PRECISION r, rdot ! to complete an attributable to an ATT elem.
+  INTEGER artyp, nigarc, fail_arty ! arc type 
+  DOUBLE PRECISION rmsmax,geoc_chi, acce_chi, chi !arc type
 ! ======== output moid =====================                            
   DOUBLE PRECISION moid0, dnp0, dnm0 
 ! ========= calendar to julian =================                        
@@ -292,13 +295,15 @@ PROGRAM fitobs
      WRITE(*,*)' INPUT OF ORBITAL ELEMENTS' 
 ! ================MENU 2: INPUT ELEMENTS======================          
 52   menunam='inputele' 
-     CALL menu(iele,menunam,7,                                      &
+     CALL menu(iele,menunam,9,                                      &
      &      ' Which orbital elements to input/compute?=',               &
      &      ' input arc 1=',' input arc 2=',                            &
      &      ' input both arcs=',                                        &
      &      ' compute arc 1 by Gauss/Vaisala method=',                  &
      &      ' compute arc 2 by Gauss/Vaisala method=',                  &
      &      ' compute both arcs by Gauss/Vaisala=',                     &
+     &      ' find multiple solutions of deg. 8 equation, arc 1=',      &
+     &      ' find multiple solutions of deg. 8 equation, arc 2=',      &
      &      ' give to arc 2 ele of arc 1=')
 62   IF(iele.eq.0)GOTO 50 
      IF(iele.eq.1.or.iele.eq.3)THEN 
@@ -355,7 +360,27 @@ PROGRAM fitobs
      &        obs(m+1:m+mp),obsw(m+1:m+mp),mp,error_model,imeth,elp)
         ENDIF
      ENDIF
+! =====================================================================
+! find multiple solutions of deg. 8 equation, and select one
      IF(iele.eq.7)THEN 
+        IF(.not.obs0)THEN 
+           WRITE(*,*)'missing observations for arc 1' 
+           GOTO 52 
+        ENDIF
+        CALL tee(iun_log,' PRELIM. ORB.DEG 8,  ARC 1=')
+        CALL f_gaussdeg8(iunel0,astna0,ini0,cov0,          &
+     &     rwofi0,obs,obsw,m,error_model,el0)
+     ELSEIF(iele.eq.8)THEN
+  ! use Gauss/Vaisala method for preliminary orbit, arc 2                 
+        IF(.not.obsp)THEN 
+           WRITE(*,*)'missing observations for arc 2' 
+           GOTO 52 
+        ENDIF
+        CALL tee(iun_log,' PRELIM. ORB.DEG 8,  ARC 2=')
+        CALL f_gaussdeg8(iunelp,astnap,inip,covp,          &
+     &     rwofip,obs(m+11:mall),obsw(m+1:mall),mp,error_model,elp)
+     ENDIF
+     IF(iele.eq.9)THEN 
 ! ===================================================================== 
 ! copy elements of arc 1 into elements of arc 2                         
         IF(ini0)THEN 
@@ -440,6 +465,14 @@ PROGRAM fitobs
         ENDIF
         CALL tee(iun_log,' CONSTRAINED DIFFERENTIAL CORRECTIONS=') 
         CALL constr_fit(mc,obsc,obswc,elc,peq,elc,uncc,csinoc,delnoc,rmshc,iobc,succ)
+! =========================step-fit=================================
+        IF(succ)THEN
+           WRITE(*,*)' step_fit along the LOV? 1=yes 0=no'
+           READ(*,*) ist_fit
+           IF(ist_fit.eq.1)THEN
+              CALL step_fit2(mc,obsc,obswc,elc,uncc,csinoc,delnoc,iobc,succ)
+           ENDIF
+        ENDIF
 ! =========================full solution=============================
      ELSE 
         CALL tee(iun_log,' FULL DIFFERENTIAL CORRECTIONS=') 
@@ -540,10 +573,10 @@ PROGRAM fitobs
 ! ===================================================================== 
 ! recompute first guess with the identif algorithm                      
 ! ===================================================================== 
-        IF(el0%coo.ne.'EQU'.or.elp%coo.ne.'EQU')THEN
-           WRITE(*,*)'not possible unless EQU, given ', el0%coo, elp%coo
-           GOTO 54
-        ENDIF
+!        IF(el0%coo.ne.'EQU'.or.elp%coo.ne.'EQU')THEN
+!           WRITE(*,*)'not possible unless EQU, given ', el0%coo, elp%coo
+!           GOTO 54
+!        ENDIF
         CALL fident(6,cov0,covp,el0,elp,unc0,uncp,elide,ff)
         IF(ff)THEN 
            el=elide 
@@ -583,16 +616,48 @@ PROGRAM fitobs
      ELSE 
         icov=1 
      ENDIF
+     IF(iprop.le.5)THEN
 ! ===================================================================== 
-! selection of target epoch                                             
+! propagation                                                           
 ! ===================================================================== 
-     IF(iprop.eq.4)THEN 
-        tr= meanti(obs(1:m)%time_tdt,obsw(1:m)%rms_coord(1),        &
+        IF(iprop.eq.4)THEN ! selection of target epoch
+           tr= meanti(obs(1:m)%time_tdt,obsw(1:m)%rms_coord(1),        &
      &           obsw(1:m)%rms_coord(2),m) 
-     ELSEIF(iprop.eq.5)THEN 
-        tr= meanti(obs(m+1:m+mp)%time_tdt,obsw(m+1:m+mp)%rms_coord(1),&
+        ELSEIF(iprop.eq.5)THEN 
+           tr= meanti(obs(m+1:m+mp)%time_tdt,obsw(m+1:m+mp)%rms_coord(1),&
      &           obsw(m+1:m+mp)%rms_coord(2),mp) 
-     ELSEIF(iprop.ge.6.and. iprop.le.8)THEN 
+! warning: funny result if mp=0; check obsp?                            
+        ELSE 
+           WRITE(*,*)' propagate to epoch (MJD)?   ' 
+           READ(*,*)tr 
+        ENDIF
+        IF(iprop.eq.1.or.iprop.eq.4)THEN
+           iarc=1
+           iunelc=iunel0
+        ELSEIF(iprop.eq.2.or.iprop.eq.5)THEN 
+           iarc=2
+           iunelc=iunelp
+        ELSEIF(iprop.eq.3)THEN 
+           iarc=3
+           iunelc=iunelt
+        ENDIF
+        CALL orb_sel2(.true.,iarc)
+        CALL fstpro(.false.,icov,inic,covc,iun_log,iun_covar,ok,       &
+     &         elc,uncc,tr,elc,uncc)                               
+        IF(ok)THEN 
+! problem with name for identification; used arc 1, but...  
+           CALL write_elems(elc,astnac,'ML',dummyfile,iunelc,uncc)
+           CALL nomoid(elc%t,elc,moid0,dnp0,dnm0) 
+           write(*,199)moid0,0,dnp0,dnm0 
+           write(iunelc,198)moid0,0,dnp0,dnm0 
+! copy into the right state
+           CALL sta_cop(2,iarc)
+        ENDIF
+        GOTO 50
+     ELSEIF(iprop.gt.5.and.iprop.le.8)THEN
+! ===================================================================== 
+! ephemerides (orbital elements) generation                             
+! ===================================================================== 
         WRITE(*,*)' Current time is : ',el0%t,'(MJD).' 
         WRITE(*,*)' begin ephemerides from epoch (MJD)?   ' 
         READ(*,*)tr 
@@ -603,14 +668,8 @@ PROGRAM fitobs
         WRITE(*,*) 'Is data correct? (y/n)' 
         READ(*,*)ans 
         IF(ans(1:1).eq.'n' .or. ans(1:1).eq.'N') GOTO 55 
-!   determine number of steps before t0                         
-        IF(tf .lt. el0%t)THEN 
-           interv=tf-tr 
-        ELSEIF(tr .gt. el0%t)THEN 
-           interv=0 
-        ELSE 
-           interv=el0%t-tr 
-        ENDIF
+!   determine total number of steps (with margin)                       
+        interv=tf-tr 
         numsav=interv/step+10 
 ! determine type of elements output                                     
         menunam='coord' 
@@ -622,55 +681,22 @@ PROGRAM fitobs
         ELSE
            cooy=cootyp(icoord)
         ENDIF
-! warning: funny result if mp=0; check obsp?                            
-     ELSE 
-        WRITE(*,*)' propagate to epoch (MJD)?   ' 
-        READ(*,*)tr 
-     ENDIF
-! ===================================================================== 
-! propagation                                                           
-! ===================================================================== 
-     IF(iprop.eq.1.or.iprop.eq.4)THEN
-        iarc=1
-        iunelc=iunel0
-     ELSEIF(iprop.eq.2.or.iprop.eq.5)THEN 
-        iarc=2
-        iunelc=iunelp
-     ELSEIF(iprop.eq.3)THEN 
-        iarc=3
-        iunelc=iunelt
-     ENDIF
-     CALL orb_sel2(.true.,iarc)
-     CALL fstpro(.false.,icov,inic,covc,iun_log,iun_covar,ok,       &
-     &         elc,uncc,tr,elc,uncc)                               
-     IF(ok)THEN 
-! problem with name for identification; used arc 1, but...  
-        CALL write_elems(elc,astnac,'ML',dummyfile,iunelc,uncc)
-        CALL nomoid(elc%t,elc,moid0,dnp0,dnm0) 
-        write(*,199)moid0,0,dnp0,dnm0 
-        write(iunelc,198)moid0,0,dnp0,dnm0 
-! copy into the right state
-        CALL sta_cop(2,iarc)
-     ENDIF
-     GOTO 50
-! ===================================================================== 
-! ephemerides (orbital elements) generation                             
-! ===================================================================== 
-     IF(iprop.eq.6)THEN 
-        iarc=1
-     ELSEIF(iprop.eq.7)THEN 
-        iarc=2
-     ELSEIF(iprop.eq.8)THEN 
-        astnaj=astna0//'joint' 
-        iarc=3
-     ENDIF
-     CALL orb_sel2(.true.,iarc)
-     CALL fsteph(astnac,'.',inic,ok,elc,                &
+        IF(iprop.eq.6)THEN 
+           iarc=1
+        ELSEIF(iprop.eq.7)THEN 
+           iarc=2
+        ELSEIF(iprop.eq.8)THEN 
+           astnaj=astna0//'joint' 
+           iarc=3
+        ENDIF
+        CALL orb_sel2(.true.,iarc)
+        CALL fsteph(astnac,'.',inic,ok,elc,                &
      &           tr,tf,step,numsav,.true.,cooy,.true.) 
 ! if some data are not available, this cannot be done                   
-     IF(.not.ok)THEN 
-        WRITE(iun_log,*)'    DATA NOT AVAILABLE' 
-        GOTO 55 
+        IF(.not.ok)THEN 
+           WRITE(iun_log,*)'    DATA NOT AVAILABLE' 
+           GOTO 55 
+        ENDIF
      ENDIF
 ! ===================================================================== 
   ELSEIF(ifun.eq.6)THEN 
@@ -1035,10 +1061,12 @@ PROGRAM fitobs
         elc=el
      ENDIF
      menunam='dummy' 
-     CALL menu(iatt,menunam,3,'What to do with attributable?=', &
+     CALL menu(iatt,menunam,2,'What to do with attributable?=', &
  &                    'Assign r, rdot to form ATT elements=',       &
- &                    'Compare with predictions=',                  &
- &                    'Output to file=')
+ &                    'Compute arc type=')
+! &                    'Compare with predictions=',                  &
+! &                    'Output to file=')
+
      IF(iatt.eq.0) GOTO 50
      IF(iatt.eq.1)THEN
 599     WRITE(*,*) 'assign r (AU) '
@@ -1068,6 +1096,13 @@ PROGRAM fitobs
            WRITE(*,*)' ATT elements for identification'
            WRITE(*,*) elc
         ENDIF
+     ELSEIF(iatt.eq.2)THEN
+        CALL obs_cop(1,iarc)
+        artyp=arc_type(obsc,obswc,mc,geoc_chi,acce_chi,chi,nigarc,fail_arty)
+        WRITE(*,*)' arc type of arc ', iarc,' is ', artyp
+        WRITE(*,177)mc,nigarc,fail_arty,geoc_chi,acce_chi,chi
+ 177    FORMAT('nobs=',I4,' nights=',i3,' errcode=',i4/         &
+&              'geoc_chi=',1p,d9.2,' acce_chi=',d9.2,' chi=',d9.2)
      ELSE
         WRITE(*,*)iatt, ' option not operational'
      ENDIF

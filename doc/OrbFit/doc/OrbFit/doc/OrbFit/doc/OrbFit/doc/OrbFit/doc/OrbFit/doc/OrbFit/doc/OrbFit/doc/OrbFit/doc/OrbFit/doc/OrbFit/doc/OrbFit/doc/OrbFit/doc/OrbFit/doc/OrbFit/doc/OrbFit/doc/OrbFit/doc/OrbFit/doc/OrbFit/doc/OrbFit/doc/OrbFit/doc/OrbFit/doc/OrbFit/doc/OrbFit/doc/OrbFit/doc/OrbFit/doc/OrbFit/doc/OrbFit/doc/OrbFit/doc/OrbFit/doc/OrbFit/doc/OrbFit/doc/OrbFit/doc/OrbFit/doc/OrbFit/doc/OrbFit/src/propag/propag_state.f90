@@ -1723,13 +1723,14 @@ END SUBROUTINE inivar
 ! WARNING: this version actually checks only for close approaches to the Earth
 ! should be fixed to test for all planets.                              
 !=====================================================                  
-SUBROUTINE clo_test(el0,iplanet) 
+SUBROUTINE clo_test(el0,iplanet,dist0) 
   USE planet_masses
   USE orbit_elements
 ! input: time, asteroid elements
   TYPE(orbit_elem), INTENT(IN) :: el0  
 ! output: planet being approached (0 if none), time to get clear        
   INTEGER, INTENT(OUT) ::  iplanet 
+  DOUBLE PRECISION, OPTIONAL, INTENT(OUT) :: dist0 ! distance
 ! end interface                                                         
   DOUBLE PRECISION xea(6),xast(6),dist
   INTEGER fail_flag
@@ -1742,8 +1743,10 @@ SUBROUTINE clo_test(el0,iplanet)
   CALL coo_cha(el0,'CAR',elcar,fail_flag) 
   xast=elcar%coord
 ! distance                                                              
-  dist=sqrt((xea(1)-xast(1))**2+(xea(2)-xast(2))**2+                &
-     &      (xea(3)-xast(3))**2)                                        
+  dist=sqrt((xea(1)-xast(1))**2+(xea(2)-xast(2))**2+(xea(3)-xast(3))**2)
+  IF(PRESENT(dist0))THEN
+     dist0=dist
+  ENDIF
 ! test                                                                  
   IF(dist.le.dmin(3))THEN 
 !        WRITE(*,*)' clotest: warning! close approach to Earth'         

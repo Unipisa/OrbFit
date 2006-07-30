@@ -11,6 +11,7 @@ finopt.o: \
 
 fitobs.o: \
 	../include/doclib.h90 \
+	../propag/arc_control.mod \
 	../propag/force_model.mod \
 	../propag/least_squares.mod \
 	../propag/multiple_sol.mod \

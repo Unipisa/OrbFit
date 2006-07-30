@@ -139,8 +139,8 @@
             endif
 !      rim=IMAG(zr1(j))                                                 
       rim=DIMAG(zr1(j)) 
-      IF(ABS(rim).LT.10.d-4) THEN                                      
-!      IF(ABS(rim).LT.rad(j)) THEN 
+!      IF(ABS(rim).LT.10.d-4) THEN                                      
+      IF(ABS(rim).LT.rad(j)) THEN 
 !      IF(ABS(rim).LT.2.d0*rad(j)) THEN 
 !      IF(ABS(rim).LT.4.d0*rad(j)) THEN 
          rre=DBLE(zr1(j)) 

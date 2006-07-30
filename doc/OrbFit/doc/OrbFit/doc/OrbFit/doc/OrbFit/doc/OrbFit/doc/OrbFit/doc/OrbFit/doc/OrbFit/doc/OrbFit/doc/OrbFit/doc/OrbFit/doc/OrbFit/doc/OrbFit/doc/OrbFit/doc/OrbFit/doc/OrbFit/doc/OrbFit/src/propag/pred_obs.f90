@@ -865,7 +865,7 @@ SUBROUTINE pre_obs_att(el,tobs,alpha,delta,adot,ddot,twobo)
 END SUBROUTINE pre_obs_att
 ! ===================================================================== 
 ! ALPH_DEL  vers. 3.0
-! A. Milani, November 2002                                                              
+! A. Milani, November 2002                    
 ! ===================================================================== 
 ! Computation of alpha and delta and their derivatives                  
 ! ===================================================================== 
@@ -913,7 +913,7 @@ SUBROUTINE alph_del (el,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
   DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: pha0,dis0,dsun0,elo0,gallat0 ! phase, 
              ! distance to Earth, distance to Sun, elongation, galactic latitude
 ! =============END INTERFACE=========================================   
-  double precision xea(6) ! cartesian coordinates of the Earth   
+  double precision xea(6),xobs(6) ! cartesian coordinates of the Earth, of the observer   
   double precision xast(6) ! asteroid cartesian coordinates
   double precision dadx(3),dddx(3) ! first derivatives of alpha, delta, w.r. to coord
   DOUBLE PRECISION :: adot,ddot,pha,dis,dsun,elo,gallat ! proper motion, data to compute magnitude
@@ -927,6 +927,10 @@ SUBROUTINE alph_del (el,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
 ! Orbit propagation:                                                    
 ! full n-body numerical integration                                     
   call propag (el,tauj,xast,xea,ider,dxde,twobo)
+  xobs(1:3)=xea(1:3)+pos
+  xobs(4:6)=xea(4:6)+vel
+!  WRITE(11,899)tauj,xast,xobs
+!899 FORMAT(f15.9,3(1x,f15.12),3(1x,f15.12),3(1x,f15.12),3(1x,f15.12))
 !  IF(kill_propag) STOP '**** alph_del: kill propag *****'
   IF(kill_propag) RETURN
 ! Computation of observations                                           
@@ -1311,7 +1315,7 @@ SUBROUTINE r_rdot (el,tr,ioc,tech,posr,post,r,v,drde,dvde,ider)
   rsta=vsize(rre) 
   rstad=prscal(rre,vre)/rsta 
   call deldop1(rast,rastd,rhor,rhord,rsta,rstad,deldopre) 
-  v=v-0.5d0*(deldoptr+deldopre) 
+  v=v+0.5d0*(deldoptr+deldopre) 
 ! -- troposheric stuff                                                  
 ! a) at transmit passage -->                                            
   rgeo=vsize(xtr) 
@@ -1321,7 +1325,7 @@ SUBROUTINE r_rdot (el,tr,ioc,tech,posr,post,r,v,drde,dvde,ider)
   rgeo=vsize(xre) 
   rgeod=prscal(xre,yre)/rgeo 
   call deldop2(xast,xre,yre,rgeo,rgeod,rhorv,rhordv,rhor,rhord,deldopre)
-  v=v-0.5d0*(deldoptr+deldopre) 
+  v=v+0.5d0*(deldoptr+deldopre) 
 ! rem interplanetary environment effects (e^- plasma) neglected         
 ! ==========================================================            
 ! Derivatives                                                           
@@ -1412,7 +1416,7 @@ CONTAINS
     double precision brac1,brac2 
 ! ================================                                      
 ! relativistic range-rate correction                                    
-    brac1=q*(edot+pdot)-qdot*(e+p) 
+    brac1=-q*(edot+pdot)-qdot*(e+p) 
     brac2=((e+p)**2)-(q**2) 
     deldop=4.d0*gms*brac1/brac2/(vlight**2) 
   END SUBROUTINE deldop1

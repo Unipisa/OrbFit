@@ -446,7 +446,8 @@ CONTAINS
 !   2nd degree poly bigness parameter
     REAL(KIND=8),PARAMETER :: big_root=1.d25
 !   evaluation smallness parameter
-    REAL(KIND=8),PARAMETER :: eps_eval=1.d-3  
+!    REAL(KIND=8),PARAMETER :: eps_eval=1.d-3  
+    REAL(KIND=8),PARAMETER :: eps_eval=1.d-5  
 !   --------- end interface ------------------------------------------
     REAL(KIND=8) :: svcomtil,cvcomtil,sVpltil,cVpltil
     REAL(KIND=8) :: sx,cx,sy,cy

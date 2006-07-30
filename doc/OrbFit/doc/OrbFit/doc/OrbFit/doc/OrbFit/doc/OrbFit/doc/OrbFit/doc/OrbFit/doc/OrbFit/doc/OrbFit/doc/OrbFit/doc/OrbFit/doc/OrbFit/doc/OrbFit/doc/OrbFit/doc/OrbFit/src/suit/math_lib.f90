@@ -299,7 +299,12 @@ END subroutine lincom
          npiv=i 
          amax=dabs(a(i,j)) 
       ENDDO
-      if(amax.eq.0.d0)return 
+! modification 2006: error flag must be set
+      IF(amax.eq.0.d0)THEN
+         ising=1
+         RETURN 
+      ENDIF
+! end modification
       if(npiv.eq.j)goto 6 
       nsc=p(npiv) 
       p(npiv)=p(j) 
@@ -460,7 +465,7 @@ subroutine tchinv(c,n,cinv,ws,indp)
      endif
   ENDDO
   cond=(omax/omin)**2 
-  IF(cond.gt.1.d9)write(*,111)n,n,cond 
+  IF(cond.gt.1.d12)write(*,111)n,n,cond 
 111 format(' Conditioning of ',i2,'x',i2,'matrix=',d12.4) 
 ! ===========================================================           
 ! inversion                                                             
@@ -807,7 +812,106 @@ subroutine linfi3(tv,angv,rate,rms,cost,res,npo)
    rms=dsqrt(rms/npo) 
 
  END SUBROUTINE linfi3
-                      
+
+
+ SUBROUTINE quadratic_fit(x,y,sy,m,ntime,g2,g3,s2,s3,rms_2,rms_3,ising)
+    IMPLICIT NONE
+!INPUT:
+    INTEGER,INTENT(IN) :: m, ntime ! number of data, 
+            ! separate observation times
+    DOUBLE PRECISION, INTENT(IN) :: x(m),y(m),sy(m) ! fit done
+        ! on y, with RMS sy, as polynomial in x
+!OUTPUT
+    DOUBLE PRECISION, INTENT(OUT), DIMENSION(2) :: s2  ! linear sol.
+    DOUBLE PRECISION, INTENT(OUT), DIMENSION(3) :: s3  ! quadratic sol.
+! covariance matrices
+    DOUBLE PRECISION, INTENT(OUT) :: g2(2,2), g3(3,3) !of linear, quadratic fit
+    DOUBLE PRECISION, INTENT(OUT) :: rms_2, rms_3 ! RMS of linear/quadr fit
+    INTEGER, INTENT(OUT) :: ising ! row of degeneracy
+!END INTERFACE
+    DOUBLE PRECISION :: sw,swx,swx2,swxy,swy,sr,ww,detc, d2(2) 
+            !sums, weight, determinant, right hand side
+    DOUBLE PRECISION :: c2(2,2), c3(3,3) ! normal matr. of lin/quadr fit
+    DOUBLE PRECISION :: aa(3,4),det,swx4,swx3,swx2y,tmp 
+            ! linear system for degree 2
+    INTEGER j
+! total weight and central time
+    sw=0.d0
+    swx=0.d0
+! normal matrix and right hand side
+    swx2=0.d0
+    swxy=0.d0
+    swy=0.d0 
+! for curvature
+    swx3=0.d0
+    swx4=0.d0
+    swx2y=0.d0
+    DO j=1,m
+       ww=1/sy(j)**2
+       sw=sw+ww
+       swx=swx+x(j)*ww
+       swx2=swx2+x(j)**2*ww
+       swy=swy+y(j)*ww
+       swxy=swxy+x(j)*y(j)*ww
+! for curvature
+       swx3=swx3+x(j)**3*ww
+       swx4=swx4+x(j)**4*ww
+       swx2y=swx2y+x(j)**2*y(j)*ww      
+    ENDDO
+!    IF(abs(swx).gt.100*epsilon(1.d0))WRITE(*,*)' central time trouble ',swx
+! normal matrix for linear fit
+    c2(1,1)=swx2
+    c2(1,2)=swx
+    c2(2,1)=swx
+    c2(2,2)=sw
+    d2(1)=swxy !right hand side for linear fit
+    d2(2)=swy
+    detc=c2(1,1)*c2(2,2)-c2(1,2)*c2(2,1)
+    IF(abs(detc).lt.epsilon(detc)*c2(1,1)*100)THEN
+       WRITE(*,*)' lin_reg: var(x) too small', detc,c2
+    ENDIF
+    g2(1,1)=c2(2,2)/detc ! covariance matrix for linear fit 
+    g2(2,2)=c2(1,1)/detc
+    g2(2,1)=-c2(2,1)/detc
+    g2(1,2)=-c2(1,2)/detc
+! solution
+    s2=MATMUL(g2,d2)
+! rms of residuals
+    sr=0.d0
+    DO j=1,m
+       ww=1/sy(j)**2
+       sr=sr+ww*(y(j)-s2(1)*x(j)-s2(2))**2
+    ENDDO
+    rms_2=sqrt(sr/m)
+! check if quadratic fit is possible
+    IF(m.gt.2.and.ntime.gt.2)THEN
+       aa(1,1)=swx4
+       aa(1,2)=swx3
+       aa(2,1)=swx3
+       aa(2,2)=swx2
+       aa(3,1)=swx2
+       aa(1,3)=swx2
+       aa(3,2)=swx
+       aa(2,3)=swx
+       aa(3,3)=sw
+       aa(1,4)=swx2y
+       aa(2,4)=swxy
+       aa(3,4)=swy
+       c3=aa(1:3,1:3)
+       CALL matin(aa,det,3,1,3,ising,1)
+       g3=aa(1:3,1:3)
+       s3=aa(1:3,4)
+! post fit residuals
+        sr=0.
+        DO j=1,m
+           ww=1/sy(j)**2
+           tmp=ww*(y(j)-s3(1)*x(j)**2-s3(2)*x(j)-s3(3))**2
+!              write(*,*)j,tmp
+           sr=sr+tmp
+        ENDDO
+        rms_3=sqrt(sr/m)
+    ENDIF
+  END SUBROUTINE quadratic_fit            
 ! =========================================================== 
 ! SORTING
 ! =========================================================== 

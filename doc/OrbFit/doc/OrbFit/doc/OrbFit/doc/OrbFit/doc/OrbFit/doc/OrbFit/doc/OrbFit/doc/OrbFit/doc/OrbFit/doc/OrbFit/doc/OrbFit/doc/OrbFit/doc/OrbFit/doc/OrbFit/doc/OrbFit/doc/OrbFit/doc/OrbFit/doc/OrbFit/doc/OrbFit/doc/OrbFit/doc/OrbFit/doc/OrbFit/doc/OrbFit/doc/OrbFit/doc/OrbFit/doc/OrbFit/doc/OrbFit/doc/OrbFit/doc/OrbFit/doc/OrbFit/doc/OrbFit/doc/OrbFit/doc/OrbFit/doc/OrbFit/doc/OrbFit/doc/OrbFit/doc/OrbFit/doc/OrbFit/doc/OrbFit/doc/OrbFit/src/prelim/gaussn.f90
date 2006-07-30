@@ -156,171 +156,167 @@
                                                                         
 ! Orbital elements of preliminary solution                              
       DO 20 ir=1,nroots 
-      DO 69 i=1,3 
-      DO 69 k=1,3 
-      esse(i,k)=esse0(i,k) 
-      esse1(i,k)=esse0(i,k) 
-      sinv(i,k)=sinv0(i,k) 
-   69 CONTINUE 
-      r2m3=1.d0/(roots(ir)**3) 
-      c(1)=a(1)+b(1)*r2m3 
-      c(2)=-1.d0 
-      c(3)=a(3)+b(3)*r2m3 
-      CALL prodmv(gcap,xt,c) 
-      CALL prodmv(crhom,sinv,gcap) 
-      DO 13 k=1,3 
-      rho(k)=-(crhom(k)/c(k)) 
-   13 END DO 
+         esse=esse0 
+         esse1=esse0 
+         sinv=sinv0 
+         r2m3=1.d0/(roots(ir)**3) 
+         c(1)=a(1)+b(1)*r2m3 
+         c(2)=-1.d0 
+         c(3)=a(3)+b(3)*r2m3 
+         CALL prodmv(gcap,xt,c) 
+         CALL prodmv(crhom,sinv,gcap) 
+         DO 13 k=1,3 
+            rho(k)=-(crhom(k)/c(k)) 
+13       END DO
                                                                         
 ! Position of the asteroid at the time of observations                  
-      DO 14 k=1,3 
-      DO 14 i=1,3 
-      xp(i,k)=xt(i,k)+rho(k)*esse(i,k) 
-   14 CONTINUE 
+         DO 14 k=1,3 
+            xp(1:3,k)=xt(1:3,k)+rho(k)*esse(1:3,k) 
+14       ENDDO
                                                                         
 ! Gibbs' transformation, giving the velocity of the planet at the       
 ! time of second observation                                            
-      CALL gibbs(xp,tau1,tau3,vp,gk) 
+         CALL gibbs(xp,tau1,tau3,vp,gk) 
 ! Orbital elements of preliminary orbit                                 
-      DO 15 i=1,3 
-      xv(i)=xp(i,2) 
-      xv(i+3)=vp(i) 
-   15 END DO 
+         DO 15 i=1,3 
+            xv(i)=xp(i,2) 
+            xv(i+3)=vp(i) 
+15       END DO
                                                                         
-      CALL ccek1(vekp,eltyp,xv,gms) 
+         CALL ccek1(vekp,eltyp,xv,gms) 
                                                                         
-      it=0 
-      IF(debug) THEN 
-          WRITE(*,525) ir 
-          IF(eltyp.EQ.'KEP') THEN 
-              WRITE(*,535) 'a',vekp(1),vekp(2) 
-          ELSEIF(eltyp.EQ.'COM') THEN 
-              WRITE(*,535) 'q',vekp(1),vekp(2) 
-          ELSE 
-              STOP '**** gaussn: internal error (02) ****' 
-          END IF 
-      END IF 
-  525 FORMAT(12X,'ROOT NO.',I2) 
-  535 FORMAT(16X,'Preliminary orbit: ',A,' =',F10.5,';  ecc =',F10.5) 
+         it=0 
+         IF(debug) THEN 
+            WRITE(*,525) ir 
+            IF(eltyp.EQ.'KEP') THEN 
+               WRITE(*,535) 'a',vekp(1),vekp(2) 
+            ELSEIF(eltyp.EQ.'COM') THEN 
+               WRITE(*,535) 'q',vekp(1),vekp(2) 
+            ELSE 
+               STOP '**** gaussn: internal error (02) ****' 
+            END IF
+         END IF
+525      FORMAT(12X,'ROOT NO.',I2) 
+535      FORMAT(16X,'Preliminary orbit: ',A,' =',F10.5,';  ecc =',F10.5) 
                                                                         
 ! CORRECTION OF PRELIMINARY ORBIT                                       
                                                                         
-   30 CONTINUE 
-      IF(eltyp.ne.'KEP')GOTO 20 
-      IF(vekp(2).gt.0.99d0)THEN 
-         WRITE(*,*)' gaussn: bizarre orbit ',vekp,eltyp 
-         GOTO 20 
-      ENDIF 
-      CALL modgeq(gk,xp(1,2),xp(1,1),tau1,vekp,eltyp,fs1,gs1,v1) 
-      CALL modgeq(gk,xp(1,2),xp(1,3),tau3,vekp,eltyp,fs3,gs3,v2) 
-                                                                        
-      it=it+1 
-      DO 31 i=1,3 
-   31 vp(i)=(v1(i)+v2(i))/2.d0 
-      fggf=fs1*gs3-fs3*gs1 
-      c(1)=gs3/fggf 
-      c(3)=-(gs1/fggf) 
-                                                                        
-! Updated set of orbital elements                                       
-      DO 33 i=1,3 
-      xv1(i)=xp(i,2) 
-   33 END DO 
-                                                                        
-! Correction for planetary aberration                                   
-      DO 87 k=1,3 
-         IF(vekp(2).gt.1.d0.and.eltyp.eq.'KEP')THEN 
-            WRITE(*,*)' gaussn: inconsistent elements type ',vekp,eltyp 
-            GOTO 20 
-         ELSEIF(vekp(2).gt.0.99d0)THEN 
+30       CONTINUE 
+!         IF(eltyp.ne.'KEP')THEN
+!            WRITE(*,*)' gaussn: cometary orbit ',vekp,eltyp
+!            GOTO 20
+!         ENDIF 
+         IF(vekp(2).gt.0.999d0)THEN 
             WRITE(*,*)' gaussn: bizarre orbit ',vekp,eltyp 
             GOTO 20 
-         ENDIF 
-      CALL ekcc1(vekp,eltyp,xv1,gms,tobs(k)-tis2) 
-      DO 94 i=1,3 
-      vaber(i)=-xv1(i+3) 
-   94 END DO 
-      DO 88 i=1,3 
-      esse(i,k)=esse0(i,k)*rho(k) 
-   88 END DO 
-      CALL aber1(esse(1,k),vaber,esse(1,k)) 
-      vs=vsize(esse(1,k)) 
-      DO 89 i=1,3 
-      esse(i,k)=esse(i,k)/vs 
-   89 END DO 
-   87 END DO 
+         ENDIF
+         CALL modgeq(gk,xp(1,2),xp(1,1),tau1,vekp,eltyp,fs1,gs1,v1) 
+         CALL modgeq(gk,xp(1,2),xp(1,3),tau3,vekp,eltyp,fs3,gs3,v2) 
+                                                                        
+         it=it+1 
+         DO 31 i=1,3 
+            vp(i)=(v1(i)+v2(i))/2.d0
+31       ENDDO 
+         fggf=fs1*gs3-fs3*gs1 
+         c(1)=gs3/fggf 
+         c(3)=-(gs1/fggf) 
+                                                                        
+! Updated set of orbital elements                                       
+         DO 33 i=1,3 
+            xv1(i)=xp(i,2) 
+33       END DO
+                                                                        
+! Correction for planetary aberration                                   
+         DO 87 k=1,3 
+            IF(vekp(2).gt.1.d0.and.eltyp.eq.'KEP')THEN 
+               WRITE(*,*)' gaussn: inconsistent elements type ',vekp,eltyp 
+               GOTO 20 
+            ELSEIF(vekp(2).gt.0.999d0)THEN 
+               WRITE(*,*)' gaussn: bizarre orbit ',vekp,eltyp 
+               GOTO 20 
+            ENDIF
+            CALL ekcc1(vekp,eltyp,xv1,gms,tobs(k)-tis2) 
+            DO 94 i=1,3 
+               vaber(i)=-xv1(i+3) 
+94          END DO
+            DO 88 i=1,3 
+               esse(i,k)=esse0(i,k)*rho(k) 
+88          END DO
+            CALL aber1(esse(1,k),vaber,esse(1,k)) 
+            vs=vsize(esse(1,k)) 
+            DO 89 i=1,3 
+               esse(i,k)=esse(i,k)/vs 
+89          END DO
+87       END DO
                                                                         
 ! Inverse of ESSE matrix                                                
-      DO 65 i=1,3 
-      DO 65 k=1,3 
-      sinv(i,k)=esse(i,k) 
-   65 CONTINUE 
-      CALL matin(sinv,det,3,0,3,ising,1) 
-      IF(ising.NE.0) THEN 
-          IF(debug) WRITE(*,541) it 
-          GOTO 20 
-      END IF 
-  541 FORMAT(16X,'ROOT DISCARDED: singular S matrix at iteration',I3) 
-      CALL prodmv(gcap,xt,c) 
-      CALL prodmv(crhom,sinv,gcap) 
-      DO 23 k=1,3 
-      rho(k)=-(crhom(k)/c(k)) 
-   23 END DO 
-      DO 77 k=1,3 
-      DO 77 i=1,3 
-      xp1(i,k)=xt(i,k)+rho(k)*esse(i,k) 
-   77 CONTINUE 
+         sinv=esse 
+         CALL matin(sinv,det,3,0,3,ising,1) 
+         IF(ising.NE.0) THEN 
+            IF(debug) WRITE(*,541) it 
+            GOTO 20 
+         END IF
+541      FORMAT(16X,'ROOT DISCARDED: singular S matrix at iteration',I3) 
+         CALL prodmv(gcap,xt,c) 
+         CALL prodmv(crhom,sinv,gcap) 
+         DO 23 k=1,3 
+            rho(k)=-(crhom(k)/c(k)) 
+23       END DO
+         DO 77 k=1,3 
+            xp1(1:3,k)=xt(1:3,k)+rho(k)*esse(1:3,k) 
+77       ENDDO
                                                                         
 ! Error with respect to previous iteration                              
-      err=0.d0 
-      sca=0.d0 
-      DO 75 k=1,3 
-      DO 75 i=1,3 
-      err=err+(xp1(i,k)-xp(i,k))**2 
-      sca=sca+xp1(i,k)**2 
-      xp(i,k)=xp1(i,k) 
-   75 CONTINUE 
-      err=SQRT(err/sca) 
-      DO 16 i=1,3 
-      xv1(i)=xp(i,2) 
-      xv1(i+3)=vp(i) 
-   16 END DO 
-      CALL ccek1(vekp,eltyp,xv1,gms) 
-      CALL prodmv(xve(1),roteqec,xv1(1)) 
-      CALL prodmv(xve(4),roteqec,xv1(4)) 
-      CALL ccek1(vekpe,eltype,xve,gms) 
+         err=0.d0 
+         sca=0.d0 
+         DO i=1,3
+            DO k=1,3 
+               err=err+(xp1(i,k)-xp(i,k))**2 
+               sca=sca+xp1(i,k)**2 
+               xp(i,k)=xp1(i,k) 
+            ENDDO
+         ENDDO
+         err=SQRT(err/sca) 
+         DO 16 i=1,3 
+            xv1(i)=xp(i,2) 
+            xv1(i+3)=vp(i) 
+16       END DO
+         CALL ccek1(vekp,eltyp,xv1,gms) 
+         CALL prodmv(xve(1),roteqec,xv1(1)) 
+         CALL prodmv(xve(4),roteqec,xv1(4)) 
+         CALL ccek1(vekpe,eltype,xve,gms) 
                                                                         
 ! Check for anomalous orbits                                            
-      IF(vekp(2).GT.eccmax) THEN 
-          IF(debug) WRITE(*,542) vekp(2),it 
-          GOTO 20 
-      END IF 
-  542 FORMAT(16X,'ROOT DISCARDED: ecc =',1P,E12.4,0P,' at iteration',I3) 
+         IF(vekp(2).GT.eccmax) THEN 
+            IF(debug) WRITE(*,542) vekp(2),it 
+            GOTO 20 
+         END IF
+542      FORMAT(16X,'ROOT DISCARDED: ecc =',1P,E12.4,0P,' at iteration',I3) 
                                                                         
 ! Convergency control                                                   
-      IF(err.LE.errmax) GOTO 26 
-      IF(it.LE.itmax) GOTO 30 
-      IF(debug) WRITE(*,543) 
-  543 FORMAT(16X,'WARNING: iterations not converging') 
+         IF(err.LE.errmax) GOTO 26 
+         IF(it.LE.itmax) GOTO 30 
+         IF(debug) WRITE(*,543) 
+543      FORMAT(16X,'WARNING: iterations not converging') 
                                                                         
 ! Final orbit                                                           
-   26 CONTINUE 
-      nsol=nsol+1 
-      DO 76 i=1,6 
-      elem(i,nsol)=vekpe(i) 
-   76 END DO 
-      eletyp(nsol)=eltype 
-      t0(nsol)=tis2 
-      IF(debug) THEN 
-          IF(eltyp.EQ.'KEP') THEN 
-              WRITE(*,544) 'a',vekp(1),vekp(2),it 
-          ELSE 
-              WRITE(*,544) 'q',vekp(1),vekp(2),it 
-          END IF 
-      END IF 
-  544 FORMAT(16X,'Final orbit:       ',A,' =',F10.5,';  ecc =',F10.5,   &
-     &       ' (',I3,' iterations)')                                    
-                                                                        
-   20 END DO 
+26       CONTINUE 
+         nsol=nsol+1 
+         DO 76 i=1,6 
+            elem(i,nsol)=vekpe(i) 
+76       END DO
+         eletyp(nsol)=eltype 
+         t0(nsol)=tis2 
+         IF(debug) THEN 
+            IF(eltyp.EQ.'KEP') THEN 
+               WRITE(*,544) 'a',vekp(1),vekp(2),it 
+            ELSE 
+               WRITE(*,544) 'q',vekp(1),vekp(2),it 
+            END IF
+         END IF
+544      FORMAT(16X,'Final orbit:       ',A,' =',F10.5,';  ecc =',F10.5,   &
+              &       ' (',I3,' iterations)') 
+20    END DO
                                                                         
       IF(nsol.LE.0) THEN 
           IF(multi) THEN 

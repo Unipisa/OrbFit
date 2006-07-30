@@ -1287,6 +1287,7 @@ CHARACTER(LEN=5)  :: mag_field
 ! Obsolete CALLs (to be substituted by modules)
 DOUBLE PRECISION, EXTERNAL :: tjm1
 INTEGER,          EXTERNAL :: lench
+INTEGER le
 error=.true.
 error_code='undefined'
 
@@ -1315,8 +1316,9 @@ ELSE
 END IF
 
 IF(PRESENT(ons_mode))THEN
-! Object Name: read designation created by the perl script
+! Object Name: read designation created by the perl script, given by the observer, etc.
    obs%objdes=mpcrec(4:12)
+   CALL rmsp(obs%objdes,le)
 ELSE
 ! Object Name
    CALL iaucod(mpcrec(1:12),obs%objdes,err_tmp)
@@ -1581,8 +1583,9 @@ SELECT CASE (obs%type)
 
    CASE ('R', 'V')
 ! Radar observations
+      WRITE(*,*)' mpcrec_add_obspos: MPC radar not alllowed '
+      STOP
       CALL observer_position(obs%time_tdt,obs%obspos,obs%obsvel,OBSCODE=obs%obscod_i,PRECISION=2)
-
    CASE DEFAULT
 ! Unknown type of observation
       error_code='observation type: ' // obs%type

@@ -997,6 +997,7 @@ END SUBROUTINE str_clan
 ! use MOID                                                              
         dmin=va_tp%moid-smax*va_tp%width 
         IF(dmin.lt.0.d0)dmin=0.d0 
+        dmin=MIN(dmin,r)
 ! check for confidence regions too small to allow to get to the MOID    
         IF(va_tp%dd2_ds.gt.0.d0)THEN 
            dmin1=va_tp%d-(va_tp%sigma+smax)*va_tp%stretch

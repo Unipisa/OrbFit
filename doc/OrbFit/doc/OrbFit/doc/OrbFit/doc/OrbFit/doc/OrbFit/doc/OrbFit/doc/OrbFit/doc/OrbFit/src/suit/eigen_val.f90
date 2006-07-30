@@ -505,8 +505,10 @@
 !                machep = 16.0d0**(-13) for long form arithmetic        
 !                on s360 ::::::::::                                     
 !      data machep/z'3410000000000000'/                                 
-      data machep/1.d-16/ 
-!                                                                       
+!      data machep/1.d-16/ 
+      machep=epsilon(1.d0)
+!
+                                                                             
       ierr = 0 
       if (n .eq. 1) go to 1001 
 !                                                                       
@@ -527,7 +529,8 @@
 !     :::::::::: e(n) is always zero, so there is no exit               
 !                through the bottom of the loop ::::::::::              
   110    continue 
-!                                                                       
+!
+         WRITE(*,*) ' tql2: WRONG! m,n=',m,n
   120    if (m .eq. l) go to 220 
   130    if (j .eq. 30) go to 1000 
          j = j + 1 
@@ -544,6 +547,9 @@
 !                                                                       
          f = f + h 
 !     :::::::::: ql transformation ::::::::::                           
+         IF(m.eq.0)THEN
+            WRITE(*,*) 'tql2: ',nm,n,m,l
+         ENDIF
          p = d(m) 
          c = 1.0d0 
          s = 0.0d0 

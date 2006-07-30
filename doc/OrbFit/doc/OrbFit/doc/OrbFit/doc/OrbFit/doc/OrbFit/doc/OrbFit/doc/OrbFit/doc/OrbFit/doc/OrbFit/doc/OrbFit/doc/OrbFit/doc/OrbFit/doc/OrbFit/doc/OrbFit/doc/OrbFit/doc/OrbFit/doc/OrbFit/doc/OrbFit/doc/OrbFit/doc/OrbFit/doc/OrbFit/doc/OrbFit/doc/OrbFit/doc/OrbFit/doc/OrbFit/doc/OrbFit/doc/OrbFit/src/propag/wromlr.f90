@@ -43,7 +43,7 @@ SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,nore,defnor,h,g,mass)
   CHARACTER*(idnamvir_len) name
   INCLUDE 'parcmc.h90'
   INTEGER l1,ln,i,k,iwd,j 
-  DOUBLE PRECISION cnv(6),std(6), ele(6)
+  DOUBLE PRECISION cnv(6),std(6), ele(6), princ
   INTEGER lench 
   EXTERNAL lench 
 ! eigenvalues, eigenvectors                                             
@@ -75,7 +75,8 @@ SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,nore,defnor,h,g,mass)
   ele=elem
   IF(eltype.EQ.'KEP') THEN 
      cnv(3:6)=degrad 
-     if(ele(6).lt.0.d0)ele(6)=ele(6)+dpig 
+     ele(6)=princ(ele(6))
+!     if(ele(6).lt.0.d0)ele(6)=ele(6)+dpig 
      if(ele(5).lt.0.d0)ele(5)=ele(5)+dpig 
      if(ele(4).lt.0.d0)ele(4)=ele(4)+dpig 
      WRITE(unit,201) comcha 
@@ -90,10 +91,7 @@ SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,nore,defnor,h,g,mass)
 102  FORMAT(' CAR ',1P,6E22.14) 
   ELSEIF(eltype.EQ.'EQU') THEN 
      cnv(6)=degrad 
-     IF(ele(6).lt.0.d0)THEN 
-        IF(verb_io.ge.9) WRITE(*,*) ' wromlr: negative mean longitude', ele(6)*cnv(6) 
-        ele(6)=ele(6)+dpig 
-     ENDIF
+     ele(6)=princ(ele(6))
      WRITE(unit,203) comcha 
   203 FORMAT(A,' Equinoctial elements: a, e*sin(LP), e*cos(LP),',       &
      &         ' tan(i/2)*sin(LN), tan(i/2)*cos(LN), mean long.') 
@@ -106,8 +104,13 @@ SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,nore,defnor,h,g,mass)
      WRITE(unit,204) comcha 
   204 FORMAT(A,' Cometary elements: q, e, i, long. node,', &
            &         ' arg. peric., pericenter time')  
-     WRITE(unit,114) (ele(i)*cnv(i),i=1,6) 
-114  FORMAT(' COM ',1P,E22.14,0P,1x,F18.15,1x,3(F18.13,1x),F18.10) 
+     IF(abs(ele(6)).lt.1.d6)THEN
+        WRITE(unit,114) (ele(i)*cnv(i),i=1,6) 
+114     FORMAT(' COM ',1P,E22.14,0P,1x,F18.15,1x,3(F18.13,1x),F18.10)
+     ELSE
+        WRITE(unit,215) (ele(i)*cnv(i),i=1,6) 
+215     FORMAT(' COM ',1P,E22.14,0P,1x,F18.15,1x,3(F18.13,1x),1P,D18.11)
+     ENDIF 
   ELSEIF(eltype.eq.'ATT') THEN
      cnv(1:4)=degrad
      IF(ele(1).lt.0.d0)ele(1)=ele(1)+dpig
@@ -150,7 +153,7 @@ SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,nore,defnor,h,g,mass)
         IF(eigval(i).gt.0.d0)THEN 
            eigval(i)=sqrt(eigval(i)) 
         ELSE 
-           IF(eigval(i).lt.-1.d-10)THEN
+           IF(eigval(i).lt.-1.d-10.and.verb_io.gt.9)THEN
               WRITE(*,*)'wromlr: zero/negative eigenvalue', eigval(i),'  for asteroid ',name(l1:ln)
            ENDIF 
            eigval(i)=-sqrt(-eigval(i)) 

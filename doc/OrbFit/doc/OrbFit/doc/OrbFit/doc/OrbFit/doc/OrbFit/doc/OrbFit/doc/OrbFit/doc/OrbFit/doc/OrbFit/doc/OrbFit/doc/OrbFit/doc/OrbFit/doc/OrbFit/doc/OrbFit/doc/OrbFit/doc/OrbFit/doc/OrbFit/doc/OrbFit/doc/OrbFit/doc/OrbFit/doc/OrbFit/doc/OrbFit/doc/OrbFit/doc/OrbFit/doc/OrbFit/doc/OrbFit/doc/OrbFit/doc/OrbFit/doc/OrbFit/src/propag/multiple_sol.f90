@@ -12,7 +12,7 @@ PRIVATE
 ! LIST OF PUBLIC ENTITIES
 ! PUBLIC ROUTINEs
 PUBLIC :: f_multi, nmulti, mult_input
-PUBLIC :: fmuobs, fmupro, fmuplo, outmul, prop_sig
+PUBLIC :: fmuobs, fmupro, fmuplo, outmul, prop_sig, step_fit2
 ! former lov_int.mod
 PUBLIC :: lovinit,lovobs,lovmagn,lovinterp
 ! PUBLIC data
@@ -427,6 +427,203 @@ SUBROUTINE nmulti(nam0,elc,uncert,csinor,delnor,            &
   CALL filclo(iuncat,' ') 
 !=============================================                          
 END SUBROUTINE nmulti
+!
+! Copyright 2006, The Orbfit Consortium                                 
+! ===================================================================   
+! STEP_FIT2 differential corrector slippping along the LOV by steps  
+! ===================================================================   
+! version 3.3.2, 10 January 2006; with prop_sig for smooth slipping
+!                                        
+! Input: m observations number                                          
+!        obs observations
+!        obsw weights/bias
+! Input/Output corrected:
+!        el0 asteroid elements (replaced by corrected if successful)
+!        unc0 includes covariance matrix and inverse
+!        csino0 residuals norm
+!        delno0 differential corrections norm
+! Output 
+!        nused  number of non-discarded obs
+!        succ success flag; the solution is nominal, or a better one along LOV, 
+!           if succ=.true.   
+! ============= REMARK ===============================================  
+! The weights are constant in this routine                              
+! =============INTERFACE===== ========================================= 
+SUBROUTINE step_fit2(m,obs,obsw,el0,unc0,csino0,delno0,nused,succ)
+! ===================================================================== 
+  USE pred_obs
+  USE close_app, ONLY: kill_propag
+! ================input data==========================
+  INTEGER, INTENT(IN) ::  m ! number of observations
+  TYPE(ast_obs), DIMENSION(m), INTENT(IN)  :: obs
+  TYPE(ast_wbsr), DIMENSION(m), INTENT(INOUT) :: obsw 
+! ================input/output ==========================
+  TYPE(orbit_elem), INTENT(INOUT) :: el0  ! epoch time, initial elements       
+                     ! assumed to be on the LOV, anyway check
+  TYPE(orb_uncert), INTENT(INOUT)  :: unc0 ! normal and covar. matrix
+  DOUBLE PRECISION, INTENT(INOUT) :: delno0,csino0 ! corr,res norm 
+! ================output ==========================
+  INTEGER, INTENT(OUT) ::  nused ! no obs. used 
+  LOGICAL, INTENT(OUT) ::  succ ! success flag 
+! =============END INTERFACE============================================
+  DOUBLE PRECISION :: deq6_lov(6),deq6_const(6),ecc ! diff. corrections, eccentricity 
+  DOUBLE PRECISION :: peq(6),deq6(6),deq(6),sdir, units(6) ! LOV vector, correction, step
+  TYPE(orbit_elem) :: elc  ! corrected elements
+  TYPE(orb_uncert) :: uncert ! normal and covar. matrix
+  DOUBLE PRECISION :: delnor,csinor ! corr,res norm 
+  TYPE(orbit_elem) elb ! temporary elements
+! input data sorted 
+  INCLUDE 'parobx.h90' 
+  TYPE(ast_obs),DIMENSION(nobx) :: obs_s
+  TYPE(ast_wbsr),DIMENSION(nobx) :: obsw_s        
+  INTEGER iposs(nobx), nsolv
+  INTEGER icor6(6) ! variables to be solved
+  DOUBLE PRECISION csino1, delnor_lov, delnor_const, snorm, rescov, mu, dn
+  LOGICAL lov_step, bizarre, fail
+  INTEGER it,itst,itc,i,j, ir ! loop indexes
+  INTEGER, PARAMETER :: itcmax=10 ! max no of constrained iterations
+  INTEGER, PARAMETER :: itstmax=20 ! max no of iterations along LOV
+! ==================================================================== 
+! number of solve-for variables                                         
+  icor6=1 ! for final matrices
+! definition of blocks if necessary
+  CALL blockset(m,obs,obsw)
+! sort of times and reordering of obs. and weights                      
+  CALL sort_obs(el0%t,obs,obsw,m,iposs,obs_s,obsw_s)                         
+! Initialisation with starting value for elements                       
+  elc=el0;  csino1=csino0; succ=.false.
+  if(verb_dif.gt.9)write(iun_log,*)'starting values ', el0 
+  if(verb_dif.gt.19) write(*,*)'starting values ',  el0 
+! ================== main loop on step iterations=========================
+  it=0 ! counter of all iterations
+  itst=0 ! counter of LOV steps only (limited by itstmax)
+  itc=0  ! constrained correction iterations (limited by itcmax)
+60 CONTINUE 
+  CALL sin_cor(m,obs_s,obsw_s,elc,icor6,iun_log,.true.,delnor,csinor,uncert,deq6)
+  IF(.not.uncert%succ) GOTO 9
+  it=it+1 
+  CALL weak_dir(uncert%g,peq,sdir,-1,elc%coo,elc%coord,units)
+  deq6=deq6/units ! diff. corr. in scaled coords
+  IF(DOT_PRODUCT(peq,deq6).lt.0.d0) peq=-peq ! sign rule to decrease Q 
+  deq6_lov=DOT_PRODUCT(peq,deq6)*peq ! component along the LOV
+  deq6_const=deq6-deq6_lov ! component orthogonal to the LOV
+  deq6_lov=deq6_lov*units ! in unscaled coordinates
+  deq6_const=deq6_const*units ! in unscaled coordinates
+  delnor_lov=snorm(deq6_lov,uncert%c,6,6) ! how big the diff.cor. along the LOV
+  delnor_const=snorm(deq6_const,uncert%c,6,6) ! how big the diff.cor. normal to the LOV
+! Check if we need another constrained iteration
+  IF(delnor_const.ge.del_constr)THEN
+! yes, need to get back to the LOV
+     itc=itc+1
+     IF(verb_dif.ge.19)write(*,*)' constr.corr., delnor_const=',delnor_const
+     IF(verb_dif.ge.9)write(iun_log,*)' constr.corr., delnor_const=',delnor_const
+     lov_step=.false.
+! use constrained corrections  
+     deq=deq6_const
+  ELSEIF(delnor_lov.lt.delcr)THEN
+! no, and also no need to move along the LOV
+     succ=.true.
+     IF(verb_dif.ge.19)write(*,*)' success, nominal solution, RMS, norms ',delnor_const,delnor_lov
+     write(iun_log,*)' success, nominal solution, RMS, norms ',delnor_const,delnor_lov
+     goto 70
+  ELSE
+! no, is the current result better than the stored one?
+     IF(csinor.lt.csino1)THEN ! potential LOV output
+        el0=elc; unc0=uncert; csino0=csinor; delno0=delnor; csino1=csinor
+        succ=.true.
+        IF(verb_dif.ge.19)write(*,*)' success, LOV solution, RMS, norms ',csinor,delnor_const,delnor_lov
+        write(iun_log,*)' success, LOV solution, RMS, norms ',csinor,delnor_const,delnor_lov
+     ENDIF
+! but it is useful to try and move along the LOV
+     itc=0 !restart count of constr. steps for next time
+     itst=itst+1 ! LOV step
+! use unconstrained corrections, of limited length in the weak direction
+     IF(verb_dif.ge.19)write(*,*)' full corr., delnor_lov=',delnor_lov
+     IF(verb_dif.ge.9)write(iun_log,*)' full corr., delnor_lov=',delnor_lov
+     lov_step=.true.
+     IF(delnor_lov.gt.step_sig)THEN
+!        dn=step_sig
+        deq=deq6_const+deq6_lov*(step_sig/delnor_lov)
+     ELSE
+!        dn=delnor_lov
+        deq=deq6_const+deq6_lov
+     ENDIF
+! ALTERNATIVE METHOD
+!     elb=elc
+!     CALL prop_sig(.true.,elb,elc,dn,sdir,m,obs,obsw,peq,sdir,units,fail)
+! END ALTERNATIVE METHOD
+  ENDIF
+! relaxation loop
+  elb=elc
+  DO ir=1,4
+! Update solution 
+     elb%coord=elc%coord+deq 
+     IF(bizarre(elb,ecc))THEN
+        IF(verb_dif.ge.19)WRITE(*,*)' constr_fit: short step to avoid ecc=',ecc
+        IF(verb_dif.ge.9)WRITE(iun_log,*)' constr_fit: short step to avoid ecc=',ecc
+        deq=deq/2.d0
+        elb%coord=elc%coord+deq 
+     ELSE
+        EXIT
+     ENDIF
+  ENDDO
+  elc=elb
+  delnor=snorm(deq,uncert%c,6,6) ! full norm of the actual correction used
+  IF(verb_dif.ge.9)write(iun_log,200)it,itc,csinor,delnor,elc%coord
+  IF(verb_dif.ge.19)write(*,200)it,itc,csinor,delnor,elc%coord 
+200 FORMAT(' *** iteration ',i3,2x,I3,' RMS residuals =',1p,d12.4,    &
+   &        '   norm corr =',d12.4,'  new elem values:'/0p,6f13.7/)
+! control against hyperbolic and bizarre orbits                         
+  IF(bizarre(elc,ecc))THEN 
+     IF(verb_dif.ge.19)write(*,*)' step_fit: iter. ',it,' bizarre; e=',ecc
+     IF(verb_dif.ge.9)write(iun_log,*)' step_fit: iter. ',it,' bizarre; e=',ecc
+     RETURN
+  ENDIF
+! check if iterations can go on
+  IF(itc.gt.itcmax.or.itst.gt.itstmax)THEN
+     GOTO 70 !interrupt attempt
+  ELSE
+     GOTO 60 ! keep trying
+  ENDIF
+70 CONTINUE
+  IF(.not.succ)THEN
+     IF(verb_dif.ge.19)THEN
+        WRITE(*,*)' non convergent after ',it,itst,itc,' iterations ' 
+     ELSEIF(verb_dif.gt.2)THEN
+        WRITE(iun_log,*)' non convergent after ',it,itst,itc,' iterations '
+     ENDIF
+  ENDIF
+! =========covariance (and normal matrix) rescaling==============
+  nsolv=6 
+  nused=0 
+  DO i=1,m 
+     IF(obsw_s(i)%sel_coord.gt.0)THEN
+        IF(obs_s(i)%type.eq.'O'.or.obs_s(i)%type.eq.'S')THEN
+           nused=nused+2
+        ELSEIF(obs_s(i)%type.eq.'R'.or.obs_s(i)%type.eq.'V')THEN
+           nused=nused+1
+        ENDIF
+     ENDIF
+  ENDDO
+  mu=rescov(nsolv,nused,csinor) 
+! apply rescaling to both covariance and normal matrix 
+  uncert%g=uncert%g*mu**2 
+  uncert%c=uncert%c/mu**2 
+! Output final result, with norm of the residuals                            
+  IF(verb_dif.ge.9.and.verb_dif.lt.19)write(*,201)it,csinor,delnor 
+201  format(' done constr. iter. ',i3,'  RMS=',1p,d12.4,' last corr. =',d12.4)
+!  IF(verb_dif.lt.9.and.verb_dif.gt.2)write(iun,201)it,csinor,delnor 
+! reordering the residuals for output                                   
+  CALL unsort_obs(iposs,m,obsw_s,obsw)
+  RETURN ! normal ending
+9 CONTINUE ! impossible normal matrix inversion: give up
+  WRITE(*,*)' inversion failed '
+  WRITE(iun_log,*)' inversion failed '
+  succ=.false.
+  csinor=csino0
+END SUBROUTINE step_fit2
+
+
 ! =======================================                               
 ! mult_input initializes storage of multiple solution data              
 ! =======================================                               
@@ -1340,7 +1537,7 @@ SUBROUTINE lovinterp(rindex,deltasig,el0,unc0,succ)
   CALL constr_fit(m_m,obs_m,obsw_m,el0,wdir,elc,unc0,csinew,delnew,rmshnew,nused,succ)
 ! exit if not convergent                                                
   IF(.not.succ) THEN 
-     WRITE(*,*)'lovinterp: diff_vin failed for ',rindex 
+     WRITE(*,*)'lovinterp: const_fit failed for ',rindex 
      RETURN 
   ELSE
      el0=elc 

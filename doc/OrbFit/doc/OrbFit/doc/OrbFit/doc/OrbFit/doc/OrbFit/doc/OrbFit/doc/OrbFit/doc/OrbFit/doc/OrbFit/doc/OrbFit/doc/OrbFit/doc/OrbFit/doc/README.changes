@@ -15,4 +15,6 @@ iers_ser.f90 use of a single file for IERS Earth rotation data
 
 ./doc/*.help revised the help files, taking into account the comments by Manca
 (Sormano).
-./src/suit/io_elems.f90 provision for numbered asteroid 100000 NOT DONE!!!
+
+?????
+./src/suit/io_elems.f90 provision for numbered asteroid 100000 

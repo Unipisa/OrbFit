@@ -37,7 +37,7 @@ END SUBROUTINE filnam
 ! handling of name with multiple solutions                              
 SUBROUTINE splinam(name0,name1,m) 
   IMPLICIT NONE 
-  CHARACTER*19 name0 
+  CHARACTER*(*) name0 
   CHARACTER*9 name1 
   INTEGER m 
   INTEGER i 
@@ -134,7 +134,7 @@ CHARACTER*10 FUNCTION dircom4(name0,le)
   nodir=number/1000 
   dircom4=' ' 
   IF(nodir.gt.99)THEN
-     WRITE(dircom4,'(I3)')nodir
+     WRITE(dircom4,'(I3)')nodir 
      le=3
   ELSEIF(nodir.gt.9)THEN 
      WRITE(dircom4,'(I2)')nodir 

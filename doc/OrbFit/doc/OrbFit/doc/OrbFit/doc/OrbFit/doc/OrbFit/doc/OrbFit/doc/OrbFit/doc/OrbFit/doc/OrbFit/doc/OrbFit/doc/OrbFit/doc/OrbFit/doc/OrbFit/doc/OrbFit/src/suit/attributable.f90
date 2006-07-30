@@ -1,8 +1,37 @@
 MODULE attributable
 USE fund_const
 USE name_rules
+USE output_control
 IMPLICIT NONE
 PRIVATE
+
+! new data type: attributable, including covariance but compressed for memory saving
+TYPE attrib_c
+
+DOUBLE PRECISION :: tdtobs, tutobs ! average time of observations, MJD, TDT/UT 
+
+DOUBLE PRECISION :: arc, sph ! arc length in time, in angle
+
+INTEGER :: obscodi ! numeric obscode, 500 (geocentric) if nsta >1
+
+INTEGER :: nsta ! number of different observatories, nsta=2 if more than 1
+
+INTEGER :: nobs, ntime! number of observations, 
+ ! of different times, of radar obs.
+
+DOUBLE PRECISION, DIMENSION(4) :: angles ! alpha, delta, alphadot, deltadot
+                         ! unit radians and radians/day
+
+DOUBLE PRECISION :: apm ! apparent magnitude, average; =0 if not available
+
+DOUBLE PRECISION, DIMENSION(10) :: gv        ! covariance of attributable, only below diagonal
+
+LOGICAL lin_fit  ! are we using the linear fit? if false, the quadratic
+                 !  fit is being used
+
+DOUBLE PRECISION :: eta ! proper motion
+
+END TYPE attrib_c
 
 ! new data type: attributable, including covariance and curvature information
 TYPE attrib
@@ -43,6 +72,7 @@ DOUBLE PRECISION rms_a, rms_d, rms_obs ! RMS of residuals, for alpha*cos(delta)
 !DOUBLE PRECISION acc_corr, curv_corr ! topocentric corrections to etadot, geocurv
 
 END TYPE attrib
+
 DOUBLE PRECISION, DIMENSION(4), PARAMETER :: zero_4d_vect = &
 &    (/ 0.d0, 0.d0, 0.d0, 0.d0 /)
 DOUBLE PRECISION, DIMENSION(4,4), PARAMETER :: zero_4x4_matrix = &
@@ -72,6 +102,16 @@ PUBLIC attri_comp, wri_attri, spher_dist , rea_attri, att_diff
 PUBLIC sphdistx
 
 CONTAINS
+
+!TYPE(attrib_c) FUNCTION drop_curv(att)
+!  TYPE(attrib), INTENT(IN) :: att
+!  drop_curv%angles=att%angles
+!  drop_curv%tdtobs=att%tdtobs 
+!  drop_curv%tutobs=att%tutobs
+  
+!END FUNCTION drop_curv
+
+
 SUBROUTINE rea_attri(iunatt,iunrat,name0,att,trou,eof)
   TYPE(attrib), INTENT(OUT) :: att
   CHARACTER*(name_len), INTENT(OUT) :: name0 
@@ -284,8 +324,8 @@ END SUBROUTINE wri_attri
      IF(t(j)-t(j-1).gt.100*epsilon(1.d0))ntime=ntime+1
   ENDDO
   IF(ntime.eq.1)THEN
-    WRITE(*,*)' attri_comp: what do you want with one observation?' 
-    WRITE(*,*) obs%time_tdt
+    WRITE(ierrou,*)' attri_comp: what do you want with one observation?' 
+    WRITE(ierrou,*) obs%time_tdt
     error=.true.
     RETURN
   ENDIF 
@@ -332,8 +372,8 @@ END SUBROUTINE wri_attri
   IF(att%sph.le.sphdistx*radeg)      &
 &         att%sph= max_sphdist(obs(1:m)%coord(1),obs(1:m)%coord(2),m)
   IF(att%sph.le.1000*epsilon(1.d0))THEN
-    WRITE(*,*)' attri_comp: what do you want with a fixed star?' 
-    WRITE(*,*) att%sph
+    WRITE(ierrou,*)' attri_comp: what do you want with a fixed star?' 
+    WRITE(ierrou,*) att%sph
     error=.true.
     RETURN
   ENDIF 
@@ -420,104 +460,6 @@ END SUBROUTINE wri_attri
   ENDIF
   END SUBROUTINE attri_comp
 
-  SUBROUTINE quadratic_fit(x,y,sy,m,ntime,g2,g3,s2,s3,rms_2,rms_3,ising)
-!INPUT:
-    INTEGER,INTENT(IN) :: m, ntime ! number of data, 
-            ! separate observation times
-    DOUBLE PRECISION, INTENT(IN) :: x(m),y(m),sy(m) ! fit done
-        ! on y, with RMS sy, as polynomial in x
-!OUTPUT
-    DOUBLE PRECISION, INTENT(OUT), DIMENSION(2) :: s2  ! linear sol.
-    DOUBLE PRECISION, INTENT(OUT), DIMENSION(3) :: s3  ! quadratic sol.
-! covariance matrices
-    DOUBLE PRECISION, INTENT(OUT) :: g2(2,2), g3(3,3) !of linear, quadratic fit
-    DOUBLE PRECISION, INTENT(OUT) :: rms_2, rms_3 ! RMS of linear/quadr fit
-    INTEGER, INTENT(OUT) :: ising ! row of degeneracy
-!END INTERFACE
-    DOUBLE PRECISION :: sw,swx,swx2,swxy,swy,sr,ww,detc, d2(2) 
-            !sums, weight, determinant, right hand side
-    DOUBLE PRECISION :: c2(2,2), c3(3,3) ! normal matr. of lin/quadr fit
-    DOUBLE PRECISION :: aa(3,4),det,swx4,swx3,swx2y,tmp 
-            ! linear system for degree 2
-    INTEGER j
-! total weight and central time
-    sw=0.d0
-    swx=0.d0
-! normal matrix and right hand side
-    swx2=0.d0
-    swxy=0.d0
-    swy=0.d0 
-! for curvature
-    swx3=0.d0
-    swx4=0.d0
-    swx2y=0.d0
-    DO j=1,m
-       ww=1/sy(j)**2
-       sw=sw+ww
-       swx=swx+x(j)*ww
-       swx2=swx2+x(j)**2*ww
-       swy=swy+y(j)*ww
-       swxy=swxy+x(j)*y(j)*ww
-! for curvature
-       swx3=swx3+x(j)**3*ww
-       swx4=swx4+x(j)**4*ww
-       swx2y=swx2y+x(j)**2*y(j)*ww      
-    ENDDO
-!    IF(abs(swx).gt.100*epsilon(1.d0))WRITE(*,*)' central time trouble ',swx
-! normal matrix for linear fit
-    c2(1,1)=swx2
-    c2(1,2)=swx
-    c2(2,1)=swx
-    c2(2,2)=sw
-    d2(1)=swxy !right hand side for linear fit
-    d2(2)=swy
-    detc=c2(1,1)*c2(2,2)-c2(1,2)*c2(2,1)
-    IF(abs(detc).lt.epsilon(detc)*c2(1,1)*100)THEN
-       WRITE(*,*)' lin_reg: var(x) too small', detc,c2
-    ENDIF
-    g2(1,1)=c2(2,2)/detc ! covariance matrix for linear fit 
-    g2(2,2)=c2(1,1)/detc
-    g2(2,1)=-c2(2,1)/detc
-    g2(1,2)=-c2(1,2)/detc
-! solution
-    s2=MATMUL(g2,d2)
-! rms of residuals
-    sr=0.d0
-    DO j=1,m
-       ww=1/sy(j)**2
-       sr=sr+ww*(y(j)-s2(1)*x(j)-s2(2))**2
-    ENDDO
-    rms_2=sqrt(sr/m)
-! check if quadratic fit is possible
-    IF(m.gt.2.and.ntime.gt.2)THEN
-       aa(1,1)=swx4
-       aa(1,2)=swx3
-       aa(2,1)=swx3
-       aa(2,2)=swx2
-       aa(3,1)=swx2
-       aa(1,3)=swx2
-       aa(3,2)=swx
-       aa(2,3)=swx
-       aa(3,3)=sw
-       aa(1,4)=swx2y
-       aa(2,4)=swxy
-       aa(3,4)=swy
-       c3=aa(1:3,1:3)
-       CALL matin(aa,det,3,1,3,ising,1)
-       g3=aa(1:3,1:3)
-       s3=aa(1:3,4)
-! post fit residuals
-        sr=0.
-        DO j=1,m
-           ww=1/sy(j)**2
-           tmp=ww*(y(j)-s3(1)*x(j)**2-s3(2)*x(j)-s3(3))**2
-!              write(*,*)j,tmp
-           sr=sr+tmp
-        ENDDO
-        rms_3=sqrt(sr/m)
-    ENDIF
-  END SUBROUTINE quadratic_fit
-
 ! covariance of geodetic curvature and acceleration
   SUBROUTINE covar_curvacc(eta,a,d,da,dd,dda,ddd,g3a,g3d,gked)
     DOUBLE PRECISION, INTENT(IN) :: eta,a,d,da,dd,dda,ddd
@@ -596,7 +538,7 @@ END SUBROUTINE wri_attri
   DOUBLE PRECISION FUNCTION spher_dist(obs1,obs2)
     DOUBLE PRECISION, INTENT(IN), DIMENSION(2) :: obs1,obs2
     DOUBLE PRECISION :: alpha1,delta1,alpha2,delta2
-    DOUBLE PRECISION x1(3), x2(3),prscal,pp
+    DOUBLE PRECISION x1(3), x2(3),prscal,cp,sp, xx(3),vsize
 ! unit vectors
     alpha1=obs1(1)
     delta1=obs1(2)
@@ -609,12 +551,15 @@ END SUBROUTINE wri_attri
     x2(2)=cos(delta2)*sin(alpha2) 
     x2(3)=sin(delta2)
 ! cosine as scalar product
-    pp=prscal(x1,x2)
-    IF(abs(pp).gt.1.d0-100*epsilon(1.d0))THEN
-       spher_dist=0.d0
-    ELSE
-       spher_dist=acos(pp)
-    ENDIF
+    cp=prscal(x1,x2)
+!    IF(abs(pp).gt.1.d0-100*epsilon(1.d0))THEN
+!       spher_dist=0.d0
+!    ELSE
+!       spher_dist=acos(pp)
+!    ENDIF
+    CALL prvec(x1,x2,xx)
+    sp=vsize(xx)
+    spher_dist=atan2(sp,cp)
 END FUNCTION spher_dist
 
 ! attributables differences

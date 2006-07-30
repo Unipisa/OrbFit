@@ -9,7 +9,7 @@
 !
       LOGICAL amfit
       INTEGER iicidn
-      DOUBLE PRECISION delcr
+!      DOUBLE PRECISION delcr
       COMMON/cmidn1/amfit
       COMMON/cmidn2/iicidn
-      COMMON/cmidn3/delcr
+!      COMMON/cmidn3/delcr

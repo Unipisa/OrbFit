@@ -1,4 +1,9 @@
 
+arc_control.o: \
+	../suit/astrometric_observations.mod \
+	../suit/attributable.mod \
+	../suit/output_control.mod 
+
 close_app.o: \
 	../include/nvarx.h90 \
 	../suit/ever_pitkin.mod \
@@ -50,6 +55,11 @@ force_model.o: \
 	force_model.o \
 	yark_pert.o 
 
+gaussdeg8.o: \
+	../suit/fund_const.mod \
+	../suit/reference_systems.mod \
+	orbit_elements.o 
+
 least_squares.o: \
 	../include/parobx.h90 \
 	../suit/astrometric_observations.mod \
@@ -69,12 +79,14 @@ moid_compute.o: \
 	orbit_elements.o 
 
 multiple_sol.o: \
+	../include/parobx.h90 \
 	../include/sysdep.h90 \
 	../suit/astrometric_observations.mod \
 	../suit/fund_const.mod \
 	../suit/name_rules.mod \
 	../suit/output_control.mod \
 	../suit/util_suit.mod \
+	close_app.o \
 	least_squares.o \
 	obssto.o \
 	orbit_elements.o \

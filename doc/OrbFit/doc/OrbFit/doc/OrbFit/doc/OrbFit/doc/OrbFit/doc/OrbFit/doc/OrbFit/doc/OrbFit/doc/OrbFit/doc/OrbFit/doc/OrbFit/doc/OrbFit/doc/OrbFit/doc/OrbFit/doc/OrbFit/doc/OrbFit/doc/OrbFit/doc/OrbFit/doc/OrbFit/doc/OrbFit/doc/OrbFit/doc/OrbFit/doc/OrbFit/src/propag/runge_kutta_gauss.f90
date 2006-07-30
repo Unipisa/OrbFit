@@ -366,8 +366,8 @@ END SUBROUTINE rkstep
       ep(it)=ep(it)/isrk_c 
       IF(it.gt.1)THEN
          IF(ep(it).gt.ep(it-1)*1.1d0)THEN 
-            WRITE(*,*)' rkg: stop at iteration ',it, ' before too late' 
-            WRITE(*,*)t1,(ep(jj),jj=it-1,it) 
+            WRITE(iun_log,*)' rkg: stop at iteration ',it, ' before too late' 
+            WRITE(iun_log,*)t1,(ep(jj),jj=it-1,it) 
             GOTO 77 
          ENDIF
       ENDIF 
@@ -382,8 +382,8 @@ END SUBROUTINE rkstep
       IF(ep(it).gt.eprk)THEN 
          IF(it.ge.lit1_c)THEN 
 !  too many gauss-seidel iterations                                     
-            WRITE(*,*)' rkg: non convergent after ',it,' iterations' 
-            WRITE(*,*)t1,ep(it) 
+            WRITE(iun_log,*)' rkg: non convergent after ',it,' iterations' 
+            WRITE(iun_log,*)t1,ep(it) 
          ENDIF 
          it=it+1 
          ips=-1 

@@ -36,6 +36,8 @@ END MODULE char_str
 ! spflds	split fields (separated by comma) in a character string        
 ! titast        strings with ast. names to use in graphics and file name
 ! sv2int         translation of string-valued keywords to integer       
+! char_count    count how many times one character appears in a string
+
 !      
 ! HEADERS:          
 !      
@@ -699,3 +701,14 @@ ENDIF
 10 CONTINUE
 
 END SUBROUTINE real2string
+
+INTEGER FUNCTION char_count(string,le,cha)
+  INTEGER, INTENT(IN) :: le ! length of string
+  CHARACTER*(le), INTENT(IN) :: string
+  CHARACTER*1, INTENT(IN) :: cha ! character to be counted in string
+  INTEGER i
+  char_count=0
+  DO i=1,le
+    IF(string(i:i).eq.cha) char_count=char_count+1
+  ENDDO
+END FUNCTION char_count

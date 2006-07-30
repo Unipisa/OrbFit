@@ -7,7 +7,7 @@ USE attributable
 IMPLICIT NONE
 PRIVATE
 
-INTEGER, PARAMETER :: nobs_shx=50 ! max number of obs
+INCLUDE 'par_sharc.h90'
 
 TYPE vsa
 

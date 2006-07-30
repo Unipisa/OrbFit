@@ -1150,6 +1150,12 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
          GOTO 40 
       END IF 
       GOTO 3 
+
+40    CONTINUE
+      lf=lench(orbfn) 
+      WRITE(*,240) orbfn(1:lf),orbnr 
+240   FORMAT(' ERROR in covariance, file ',A,' at line',I6) 
+
 4     CONTINUE 
       IF(noep) THEN 
          IF(deft0) THEN 
@@ -1205,10 +1211,6 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
    WRITE(*,200) orbfn(1:lf),orbnr 
 200 FORMAT(' ERROR in file ',A,' at line',I6) 
    STOP '**** rdorb: abnormal end ****' 
-40 CONTINUE
-   lf=lench(orbfn) 
-   WRITE(*,240) orbfn(1:lf),orbnr 
-240 FORMAT(' ERROR in covariance, file ',A,' at line',I6) 
 END SUBROUTINE rdorb
 ! ===============================================================
 ! OUTPUT ELEMENTS
@@ -1304,7 +1306,7 @@ SUBROUTINE wro1lr(unit,name,elem,eltype,t0,h,g)
   CHARACTER*(*) name,eltype 
 ! Expected max length of name                                           
   INTEGER, PARAMETER :: namtl=12 
-  DOUBLE PRECISION cnvele(6)                                         
+  DOUBLE PRECISION cnvele(6), princ                                         
   INTEGER ln,nb,i 
   CHARACTER*(namtl) blanks
   INTEGER lench 
@@ -1334,6 +1336,7 @@ SUBROUTINE wro1lr(unit,name,elem,eltype,t0,h,g)
      &        '1p,5(e25.16),0p,f14.6,'//                            &
      &        '0p,2F6.2)'                             
   ELSEIF(eltype .eq. 'EQU')THEN 
+     cnvele(6)=princ(cnvele(6))
      cnvele(6)=cnvele(6)*degrad 
      elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
      &        'F16.12,4(1x,f12.9),1x,F12.7,'//                      &
