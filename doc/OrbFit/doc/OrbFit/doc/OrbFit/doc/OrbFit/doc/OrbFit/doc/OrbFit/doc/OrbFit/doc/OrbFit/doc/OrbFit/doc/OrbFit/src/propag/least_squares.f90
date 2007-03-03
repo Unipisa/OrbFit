@@ -326,8 +326,8 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,    &
   TYPE(orbit_elem), INTENT(INOUT) :: el0  ! epoch time, initial elements       
 ! ================output ==========================
   TYPE(orbit_elem), INTENT(INOUT) :: elc  ! corrected elements
-  TYPE(orb_uncert), INTENT(OUT)  :: uncert,uncert4 ! normal and covar. matrix
-                                      ! both rank 6 and rank4
+  TYPE(orb_uncert), INTENT(OUT)  :: uncert4,uncert ! normal and covar. matrix
+                                      ! both rank 4 and rank 6
   DOUBLE PRECISION, INTENT(OUT) :: delnor,csinor,rmsh ! corr,res norm 
   INTEGER nused ! no obs. used 
   LOGICAL succ ! success flag 
@@ -3281,13 +3281,14 @@ END FUNCTION meanti
 ! uses parameters set in bizset                                         
 LOGICAL FUNCTION bizarre(el,ecc)
   USE orbit_elements                                      
+  USE output_control
   IMPLICIT NONE                                                     
 ! input elements 
   TYPE(orbit_elem), INTENT(IN) :: el
   DOUBLE PRECISION, INTENT(OUT) :: ecc
 ! controls                                                              
-  DOUBLE PRECISION ecclim0, samin0,samax0,phmin0,ahmax0             
-  COMMON / bizcon /ecclim0, samin0,samax0,phmin0,ahmax0             
+  DOUBLE PRECISION ecclim0, samin0,samax0,phmin0,ahmax0,qmax0             
+  COMMON / bizcon /ecclim0, samin0,samax0,phmin0,ahmax0,qmax0             
 ! local variables                                                       
   DOUBLE PRECISION a, eps, vsize, prscal, r, gm, alpha, q, qg, enne
   DOUBLE PRECISION eq(6),x(3),y(3),ang(3),vlenz(3)
@@ -3302,15 +3303,18 @@ LOGICAL FUNCTION bizarre(el,ecc)
      a=eq(1)                                                           
      IF(ecc.ge.ecclim0.or.a.ge.samax0.or.a.le.samin0)bizarre=.true. 
      IF(a*(1.d0-ecc).le.phmin0.or.a*(1.d0+ecc).ge.ahmax0)bizarre=.true.
+     IF(a*(1.d0-ecc).ge.qmax0)bizarre=.true.
   ELSEIF(el%coo.eq.'KEP')THEN
      eq=el%coord                                  
      ecc=eq(2)                                       
      a=eq(1)  
      IF(ecc.ge.ecclim0.or.a.ge.samax0.or.a.le.samin0)bizarre=.true. 
      IF(a*(1.d0-ecc).le.phmin0.or.a*(1.d0+ecc).ge.ahmax0)bizarre=.true.
-  ELSEIF(el%coo.eq.'COM')THEN
+     IF(a*(1.d0-ecc).ge.qmax0)bizarre=.true.
+  ELSEIF(el%coo.eq.'COM'.or.el%coo.eq.'COT')THEN
      eq=el%coord                                  
-     ecc=eq(2)  
+     ecc=eq(2)
+     IF(eq(1).ge.qmax0) bizarre=.true.   
      IF(ecc.ge.1.d0-eps)THEN
         If(ecc.ge.ecclim0) bizarre=.true. 
         IF(eq(1).le.phmin0) bizarre=.true.
@@ -3325,7 +3329,8 @@ LOGICAL FUNCTION bizarre(el,ecc)
         IF(r.ge.1000.d0)THEN
            bizarre=.true.
            ecc=1.d0
-           WRITE(*,*)' bizset: range too large=',r
+!           WRITE(ierrou,*)' bizarre: range too large=',r
+!           numerr=numerr+1
            RETURN
         ENDIF
      ELSEIF(el%coo.eq.'ATT')THEN
@@ -3349,13 +3354,13 @@ END FUNCTION bizarre
 ! ===============================                                       
 ! BIZSET                                                                
 ! assign/default values of bizarre orbit control parameters             
-SUBROUTINE bizset(ecclim,samin,samax,phmin,ahmax)                 
+SUBROUTINE bizset(ecclim,samin,samax,phmin,ahmax,qmax)                 
   IMPLICIT NONE                                                     
 ! controls                                                              
-  DOUBLE PRECISION, INTENT(IN) :: ecclim, samin,samax,phmin,ahmax
+  DOUBLE PRECISION, INTENT(IN) :: ecclim, samin,samax,phmin,ahmax,qmax
 ! hidden output- available only to bizarre                  
-  DOUBLE PRECISION ecclim0, samin0,samax0,phmin0,ahmax0             
-  COMMON / bizcon /ecclim0, samin0,samax0,phmin0,ahmax0             
+  DOUBLE PRECISION ecclim0, samin0,samax0,phmin0,ahmax0,qmax0             
+  COMMON / bizcon /ecclim0, samin0,samax0,phmin0,ahmax0,qmax0             
 ! check if zero, then select default                                    
   IF(ecclim.eq.0.d0)THEN                                            
 ! exclude only almost hyperbolic                                        
@@ -3384,6 +3389,12 @@ SUBROUTINE bizset(ecclim,samin,samax,phmin,ahmax)
   IF(ahmax.eq.0.d0)THEN                                             
 ! exclude long periodic comets                                          
      ahmax0=400.d0                                                  
+  ELSE                                                              
+     ahmax0=ahmax                                                   
+  ENDIF
+  IF(qmax.eq.0.d0)THEN                                             
+! exclude objects too far to be seen                                          
+     qmax0=1000.d0                                                  
   ELSE                                                              
      ahmax0=ahmax                                                   
   ENDIF
@@ -3520,7 +3531,7 @@ SUBROUTINE weak_dir(gamma,wdir,sdir,iun8,coo,coord,units)
      sdir=sqrt(eigval(6)) 
   ENDIF 
 ! axial vector continued as true vector
-  IF(coo.eq.'EQU'.or.coo.eq.'KEP'.or.coo.eq.'COM')THEN
+  IF(coo.eq.'EQU'.or.coo.eq.'KEP'.or.coo.eq.'COM'.or.coo.eq.'COT')THEN
 ! if coo='EQU', 'KEP' a growing with sigma, if 'COM' q growing with sigma 
      IF(wdir(1).lt.0.d0) wdir=-wdir
   ELSEIF(coo.eq.'ATT')THEN
@@ -3573,15 +3584,19 @@ CONTAINS
        units(2)=1.d0
        units(3)=pig
        units(4:6)=dpig
-    ELSEIF(coo.eq.'COM')THEN
+    ELSEIF(coo.eq.'COM'.or.coo.eq.'COT')THEN
        units(1)=coord(1)  ! q:perihelion distance
        units(2)=1.d0
        units(3)=pig
        units(4)=dpig
        units(5)=dpig
+       IF(coo.eq.'COM')THEN
 ! T: period T=2pi*sqrt(a^3/gm)....a=q/(1-e) SINGULAR for e=1
 !     units(6)=dpig*sqrt(((coord(1)**3)/(1-coord(2))**3)/gms)    
-       units(6)=dpig/gk*sqrt(coord(1)**3)/sqrt(1-coord(2))
+          units(6)=dpig/gk*sqrt(coord(1)**3)/sqrt(1+coord(2)) !WARNING changed sign
+       ELSEIF(coo.eq.'COT')THEN
+          units(6)=dpig
+       ENDIF
     ELSEIF(coo.eq.'ATT')THEN
        units(1)=dpig
        units(2)=pig

@@ -20,7 +20,7 @@
                                                                         
       LOGICAL found,fail1 
       fail=.false.                                                       
-      errmax=1.D-14 
+      errmax=1.D-10 
       CALL rdnrea('init_orbdet.gauss.','max_err',errmax,.false.,found,  &
      &            fail1,fail)                                           
                                                                         

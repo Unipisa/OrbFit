@@ -340,13 +340,10 @@ CONTAINS
 ! =====================================================                 
       CALL rapred(ncl,x,v,t,t2,f1,b,nv) 
       DO k=1,nv 
-        IF(abs(x(k)).gt.1.d15.and.nwrite.lt.nwritx)THEN 
-            WRITE(*,*)' rapred ',k,x(k),v(k),f1(k) 
+        IF((abs(x(k)).gt.1.d15.or.abs(v(k)).gt.1.d15).and.nwrite.lt.nwritx)THEN 
+            WRITE(ierrou,*)' rapred ',k,x(k),v(k),f1(k) 
             nwrite=nwrite+1
-        ENDIF 
-        IF(abs(v(k)).gt.1.d15.and.nwrite.lt.nwritx)THEN 
-            WRITE(*,*)' rapred ',k,x(k),v(k),f1(k) 
-            nwrite=nwrite+1
+            numerr=numerr+1
         ENDIF 
       ENDDO 
 ! =====================================================                 

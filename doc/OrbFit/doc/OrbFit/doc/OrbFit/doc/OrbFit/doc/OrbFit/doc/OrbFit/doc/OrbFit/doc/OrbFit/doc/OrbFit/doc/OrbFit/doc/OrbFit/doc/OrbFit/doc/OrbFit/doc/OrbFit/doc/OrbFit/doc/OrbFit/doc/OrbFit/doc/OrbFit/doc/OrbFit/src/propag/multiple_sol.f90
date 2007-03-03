@@ -857,18 +857,28 @@ SUBROUTINE fmupro(iun20,tr)
   WRITE(iun20,223) tr
   WRITE(*,223) tr 
 223 FORMAT(' elements at time ',f8.1,' (MJD):') 
-  CALL tee(iun20,                                                   &
-     &  'no.,     a      h      k      p      q      lambda=')          
+  IF(elm(1)%coo.eq.'EQU')THEN 
+     CALL tee(iun20,'no       a      h      k      p      q      lambda=')
+  ELSEIF(elm(1)%coo.eq.'CAR')THEN 
+     CALL tee(iun20,'no       x      y      z    xdot    ydot    zdot=')
+  ELSEIF(elm(1)%coo.eq.'KEP')THEN 
+     CALL tee(iun20,'no       a      e      I    Omeg    omeg    mean.an=')
+  ELSEIF(elm(1)%coo.eq.'COM')THEN
+    CALL tee(iun20,'no        q      e      I    Omeg    omeg    t.peri=')
+  ELSEIF(elm(1)%coo.eq.'ATT')THEN
+    CALL tee(iun20,'no      alpha  delta   adot  ddot     r      rdot=')
+  ENDIF
   DO i=imim,imip 
      WRITE(*,144)i,elm(i)%coord 
-144  FORMAT(i3,6f12.8) 
+144  FORMAT(i5,6f12.8) 
      WRITE(iun20,144)i,elm(i)%coord
   ENDDO
+
   CALL tee(iun20,'no.,  magn,  MOID ,  nod+  ,  nod-=') 
   DO i=imim,imip 
      WRITE(*,145)i,(i),moid_m(i),dnp_m(i),dnm_m(i),iconv(i) 
      WRITE(iun20,145)i,elm(i)%h_mag,moid_m(i),dnp_m(i),dnm_m(i),iconv(i) 
-145  FORMAT(i3,2x,f5.2,1x,f8.5,1x,f8.5,1x,f8.5,1x,i2) 
+145  FORMAT(i4,2x,f5.2,1x,f8.5,1x,f8.5,1x,f8.5,1x,i2) 
   ENDDO
 END SUBROUTINE fmupro
 !                                                                       

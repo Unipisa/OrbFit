@@ -1,4 +1,9 @@
 
+admis_reg.o: \
+	fund_const.o \
+	reference_systems.o \
+	station_coordinates.o 
+
 angle_var.o: \
 	fund_const.o 
 
@@ -19,8 +24,14 @@ attributable.o: \
 	name_rules.o \
 	output_control.o 
 
+bin_search.o: \
+	name_rules.o 
+
 char_str.o: \
 	char_str.o 
+
+delaunay_triang.o: \
+	fund_const.o 
 
 ever_pitkin.o: \
 	fund_const.o \

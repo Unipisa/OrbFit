@@ -670,7 +670,7 @@ SUBROUTINE sel_met(ecc,q,qg,hmax)
 ! EKO       
   ELSEIF(qg.gt.32.d0.and.q.gt.20.d0.and.ecc.lt.eccmax)THEN 
 ! physical model      
-     iplut=1 
+     iplut=0 
      icrel=0 
      imerc=0 
 ! numerical integration method  
@@ -698,7 +698,7 @@ SUBROUTINE sel_met(ecc,q,qg,hmax)
   else 
      icmet=3 
      icrel=0 
-     iplut=1
+     iplut=0
      imerc=1 
   endif
 ! control on stepsize to avoid instability due to Mercury

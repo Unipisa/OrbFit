@@ -316,6 +316,7 @@
           nit=nit+1 
           IF(nit.GT.nitutc) THEN 
               WRITE(*,100) mjd1,sec1,scale 
+              WRITE(*,*)mjd1,sec1
               STOP' **** timnf: abnormal END ****' 
           END IF 
           IF(sec.LT.0.d0) THEN 
@@ -354,6 +355,7 @@
     3     nit=nit+1 
           IF(nit.GT.nitmax) THEN 
               WRITE(*,100) mjd1,sec1,scale 
+              WRITE(*,*)mjd1,sec1
               STOP' **** timnf: abnormal END ****' 
           END IF 
           k=sec/86400.d0 

@@ -658,7 +658,11 @@ DOUBLE PRECISION FUNCTION snorm(v,a,n,nnx)
         snorm=snorm+v(i)*v(k)*a(i,k) 
      ENDDO
   ENDDO
-  snorm=sqrt(snorm/n) 
+  IF(snorm.gt.0.d0)THEN
+     snorm=sqrt(snorm/n) 
+  ELSE
+     snorm=0.d0
+  ENDIF
 END FUNCTION snorm
 ! ===========================================                           
 ! SNORMD RMS norm of vector v with diagonal metric a                    
@@ -676,7 +680,11 @@ DOUBLE PRECISION FUNCTION snormd(v,a,n,nused)
      snormd=snormd+(v(i)**2)*a(i) 
      IF(a(i).gt.0.d0)nused=nused+1 
   ENDDO
-  snormd=sqrt(snormd/nused) 
+  IF(snormd.gt.0.d0.and.nused.gt.0)THEN
+     snormd=sqrt(snormd/nused)
+  ELSE
+     snormd=0.d0
+  ENDIF 
 END FUNCTION snormd
 ! =========================================================== 
 ! CONVERTCOV, CONVERTNOR
@@ -813,6 +821,65 @@ subroutine linfi3(tv,angv,rate,rms,cost,res,npo)
 
  END SUBROUTINE linfi3
 
+ SUBROUTINE cubic_fit(x,y,sy,m,ntime,g4,s4,rms_4,ising)
+    IMPLICIT NONE
+!INPUT:
+    INTEGER,INTENT(IN) :: m, ntime ! number of data, 
+            ! separate observation times
+    DOUBLE PRECISION, INTENT(IN) :: x(m),y(m),sy(m) ! fit done
+        ! on y, with RMS sy, as polynomial in x
+!OUTPUT
+    DOUBLE PRECISION, INTENT(OUT), DIMENSION(4) :: s4  ! cubic sol.
+! covariance matrices
+    DOUBLE PRECISION, INTENT(OUT) :: g4(4,4) !of cubic fit
+    DOUBLE PRECISION, INTENT(OUT) :: rms_4 ! RMS of cubic fit
+    INTEGER, INTENT(OUT) :: ising ! row of degeneracy
+!END INTERFACE
+    DOUBLE PRECISION :: sw,swxy(0:3),swy,sr,ww,detc
+            !sums, weight, determinant, right hand side
+    DOUBLE PRECISION :: c4(4,4) ! normal matr. of cubic fit
+    DOUBLE PRECISION :: aa(4,5),det,swx(0:6),tmp 
+            ! linear system for degree 2
+    INTEGER j,k
+! total weight and central time
+    sw=0.d0
+    swx=0.d0
+! normal matrix and right hand side
+    swxy=0.d0
+    swy=0.d0 
+    DO j=1,m
+       ww=1/sy(j)**2
+       sw=sw+ww
+       DO k=0,6
+          swx(k)=swx(k)+ww*x(j)**k
+       ENDDO
+       swy=swy+y(j)*ww
+       DO k=0,3
+          swxy(k)=swxy(k)+(x(j)**k)*y(j)*ww
+       ENDDO
+    ENDDO
+    IF(m.gt.3.and.ntime.gt.3)THEN
+       DO j=1,4
+         DO k=1,4
+           aa(j,k)=swx(8-k-j)
+         ENDDO
+         aa(j,5)=swxy(4-j)
+       ENDDO
+    ELSE
+       STOP
+    ENDIF
+    CALL matin(aa,det,4,1,4,ising,1)
+    g4=aa(1:4,1:4)
+    s4=aa(1:4,5)
+! post fit residuals
+    sr=0.d0
+    DO j=1,m
+       ww=1/sy(j)**2
+       tmp=ww*(y(j)-s4(1)*x(j)**3-s4(2)*x(j)**2-s4(3)*x(j)-s4(4))**2
+       sr=sr+tmp
+    ENDDO
+    rms_4=sqrt(sr/m)
+ END SUBROUTINE cubic_fit
 
  SUBROUTINE quadratic_fit(x,y,sy,m,ntime,g2,g3,s2,s3,rms_2,rms_3,ising)
     IMPLICIT NONE
@@ -829,7 +896,7 @@ subroutine linfi3(tv,angv,rate,rms,cost,res,npo)
     DOUBLE PRECISION, INTENT(OUT) :: rms_2, rms_3 ! RMS of linear/quadr fit
     INTEGER, INTENT(OUT) :: ising ! row of degeneracy
 !END INTERFACE
-    DOUBLE PRECISION :: sw,swx,swx2,swxy,swy,sr,ww,detc, d2(2) 
+    DOUBLE PRECISION :: sw,swx,swx2,swxy,swy,sr,ww,detc,d2(2) 
             !sums, weight, determinant, right hand side
     DOUBLE PRECISION :: c2(2,2), c3(3,3) ! normal matr. of lin/quadr fit
     DOUBLE PRECISION :: aa(3,4),det,swx4,swx3,swx2y,tmp 

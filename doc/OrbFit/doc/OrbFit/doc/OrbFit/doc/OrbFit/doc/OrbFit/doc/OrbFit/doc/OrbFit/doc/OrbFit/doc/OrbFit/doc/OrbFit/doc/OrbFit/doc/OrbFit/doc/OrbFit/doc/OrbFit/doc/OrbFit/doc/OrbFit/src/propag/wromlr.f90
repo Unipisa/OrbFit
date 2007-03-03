@@ -111,6 +111,16 @@ SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,nore,defnor,h,g,mass)
         WRITE(unit,215) (ele(i)*cnv(i),i=1,6) 
 215     FORMAT(' COM ',1P,E22.14,0P,1x,F18.15,1x,3(F18.13,1x),1P,D18.11)
      ENDIF 
+  ELSEIF(eltype.EQ.'COT') THEN 
+     cnv(3:6)=degrad 
+     if(ele(5).lt.0.d0)ele(5)=ele(5)+dpig 
+     if(ele(4).lt.0.d0)ele(4)=ele(4)+dpig
+     if(ele(6).lt.0.d0)ele(6)=ele(6)+dpig
+     WRITE(unit,206) comcha 
+  206 FORMAT(A,' Cometary elements: q, e, i, long. node,', &
+           &         ' arg. peric., true anomaly')  
+     WRITE(unit,117) (ele(i)*cnv(i),i=1,6) 
+117  FORMAT(' COM ',1P,E22.14,0P,1x,F18.15,1x,4(F18.13,1x))
   ELSEIF(eltype.eq.'ATT') THEN
      cnv(1:4)=degrad
      IF(ele(1).lt.0.d0)ele(1)=ele(1)+dpig

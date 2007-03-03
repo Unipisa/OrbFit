@@ -143,6 +143,7 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
      WRITE(*,*) ' no close approach to ', despla, ' found up to time MJD ',tmcla
      RETURN
   ENDIF
+  REWIND(iuncla)
 ! shower analysis
   CALL showret3tp(iun_log,no,vas_tr,dt,tgap,isho,nsho,iret,nret)
 ! main loop on returns                                                  
@@ -316,6 +317,7 @@ SUBROUTINE f_gaussdeg8(uniele,name,deforb,defcov,          &
   LOGICAL fail, debug
   CHARACTER*(20) msg 
   TYPE(orbit_elem), DIMENSION(3) :: elv
+  DOUBLE PRECISION :: rr(3) ! topocentric distance
   DOUBLE PRECISION rms
 ! select obs: first, last closest to mean time
      defcov=.false.
@@ -346,10 +348,11 @@ SUBROUTINE f_gaussdeg8(uniele,name,deforb,defcov,          &
     alpha3(j)=obs(isel(j))%coord(1)
     delta3(j)=obs(isel(j))%coord(2)
     obscod(j)=obs(isel(j))%obscod_i
+    obsw(isel(j))%sel_coord=2
   ENDDO
 ! find solution(s)
   debug=.true.
-  CALL gaussdeg8(tobs,alpha3,delta3,obscod,elv,nroots,nsol,fail,msg,debug)
+  CALL gaussdeg8(tobs,alpha3,delta3,obscod,elv,nroots,nsol,rr,fail,msg,debug)
   IF(msg.ne.' ')WRITE(*,*)' error message from gaussdeg8=',msg
 ! assess solutions
   IF(nsol.eq.0)THEN
@@ -840,7 +843,7 @@ SUBROUTINE fident(id_dim,cov0,covp,el0,elp,unc0,uncp,elid,ff)
   TYPE(orbit_elem), INTENT(IN) :: el0,elp
   LOGICAL,INTENT(IN) :: cov0,covp
   TYPE(orb_uncert), INTENT(IN) :: unc0,uncp
-  TYPE(orbit_elem), INTENT(OUT) :: elid
+  TYPE(orbit_elem), INTENT(INOUT) :: elid
 ! two input elements, their uncertainties
   DOUBLE PRECISION eq0(6),eqp(6)
   DOUBLE PRECISION c0(6,6),cp(6,6),g0(6,6),gp(6,6) 

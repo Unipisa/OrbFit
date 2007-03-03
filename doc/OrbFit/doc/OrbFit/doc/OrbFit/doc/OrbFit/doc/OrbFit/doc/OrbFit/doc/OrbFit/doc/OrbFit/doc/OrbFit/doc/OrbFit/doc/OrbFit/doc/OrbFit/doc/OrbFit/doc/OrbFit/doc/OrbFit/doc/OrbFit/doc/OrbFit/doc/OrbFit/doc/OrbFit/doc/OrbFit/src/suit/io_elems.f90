@@ -1174,6 +1174,8 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
       cnv(3:6)=radeg 
    ELSEIF(eltype.EQ.'COM') THEN 
       cnv(3:5)=radeg 
+   ELSEIF(eltype.EQ.'COT')THEN
+      cnv(3:6)=radeg
    ELSEIF(eltype.EQ.'EQU') THEN 
       cnv(6)=radeg 
    ELSEIF(eltype.EQ.'CAR') THEN 
@@ -1265,10 +1267,16 @@ SUBROUTINE wro1lh(unit,rsys,epoch,eltype)
 202  FORMAT(A,' Name, Epoch(MJD), cartesian position and velocity',' vectors')
   ELSEIF(eltype.EQ.'EQU') THEN 
      WRITE(unit,203) comcha 
-203  FORMAT(A,' Name, Epoch(MJD), a, e*sin(LP), e*cos(LP),',' tan(i/2)*sin(LN), tan(i/2)*cos(LN), mean long.')     
+203  FORMAT(A,' Name, Epoch(MJD), a, e*sin(LP), e*cos(LP),',' tan(i/2)*sin(LN), tan(i/2)*cos(LN), mean long.')
   ELSEIF(eltype.EQ.'COM') THEN
      WRITE(unit,204) comcha 
 204  FORMAT(A,' Name, Epoch(MJD), q, e, i, long. node,',' arg. peric., perihelion time')
+  ELSEIF(eltype.EQ.'COT') THEN
+     WRITE(unit,205) comcha 
+205  FORMAT(A,' Name, Epoch(MJD), q, e, i, long. node,',' arg. peric., true anomaly')
+  ELSEIF(eltype.eq.'ATT')THEN
+     WRITE(unit,206) comcha 
+206  FORMAT(A,' Name, Epoch(MJD), R.A., DEC, R.A.dot, DECdot, r, rdot,')
   END IF
 END SUBROUTINE wro1lh
 ! Copyright (C) 1997-1998 by Mario Carpino (carpino@brera.mi.astro.it)  
@@ -1335,6 +1343,10 @@ SUBROUTINE wro1lr(unit,name,elem,eltype,t0,h,g)
      elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
      &        '1p,5(e25.16),0p,f14.6,'//                            &
      &        '0p,2F6.2)'                             
+  ELSEIF(eltype .eq. 'COT')THEN 
+     cnvele(3:6)=cnvele(3:6)*degrad 
+     elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
+     &        '1p,6(e25.16),0p,2F6.2)'
   ELSEIF(eltype .eq. 'EQU')THEN 
      cnvele(6)=princ(cnvele(6))
      cnvele(6)=cnvele(6)*degrad 

@@ -2,7 +2,6 @@ all:
 	(cd suit;   touch modules.flags; make depend; make)
 	(cd prelim; touch modules.flags; make depend; make)
 	(cd propag; touch modules.flags; make depend; make)
-	(cd moid;   touch modules.flags; make depend; make)
 	(cd bineph; touch modules.flags; make depend; make)
 	(cd fitobs; touch modules.flags; make depend; make)
 	(cd jpleph; make)
@@ -23,6 +22,8 @@ nondistribution:
 	-(cd util90; make)
 	-(cd orb9; make depend; make)
 	-(cd propneo2; make depend; make)
+	-(cd panst; make depend; make)
+	-(cd moid_research; make depend; make)
 #	-(cd skymap; make depend; make)
 #	-(cd starcat; make)
 
@@ -38,6 +39,8 @@ nondistclean:
 	-(cd triang; make clean)
 	-(cd test; make clean)
 	-(cd propneo2; make clean)
+	-(cd panst; make clean)
+	-(cd moid_research; make clean)
 #	-(cd skymap; make clean)
 #	-(cd starcat; make clean)
 
@@ -46,7 +49,6 @@ clean:
 	(cd suit; make clean)
 	(cd prelim; make clean)
 	(cd propag; make clean)
-	(cd moid; make clean)
 	(cd bineph; make clean)
 	(cd fitobs; make clean)
 	(cd orbfit; make clean)
@@ -57,7 +59,6 @@ distclean:
 	touch `cat ../conf/list.modfla`
 	(cd suit; make distclean)
 	(cd prelim; make distclean)
-	(cd moid; make clean)
 	(cd propag; make distclean)
 	(cd bineph; make distclean)
 	(cd fitobs; make distclean)

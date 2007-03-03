@@ -2146,9 +2146,10 @@ INTEGER FUNCTION find_obs(obst,obs,m,double)
            IF(double.eq.0)THEN
               double=j
               IF(ierrou.gt.0)THEN
-                 WRITE(ierrou,*)'findob: two same time',find_obs,j,obst%time_utc,        &
-     &                  obst%obscod_s, obst%tech 
-                 numerr=numerr+1
+                 IF(obst%tech.ne.'X'.and.obs(find_obs)%tech.ne.'X')THEN
+                    WRITE(ierrou,*)'findob: two same time',find_obs,j,obst%time_utc,obst%obscod_s,obst%tech 
+                    numerr=numerr+1
+                 ENDIF
               ELSE
                  IF(verb_io.gt.9)WRITE(*,*)'findob: two same time', find_obs,j,obst%time_utc, obst%obscod_s
               ENDIF

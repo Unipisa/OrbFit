@@ -56,7 +56,7 @@ SUBROUTINE rmodel
   logical fail,fail1,found 
   integer ll,ia 
 ! controls for bizarre orbits                                           
-  DOUBLE PRECISION ecclim, samin,samax,phmin,ahmax 
+  DOUBLE PRECISION ecclim, samin,samax,phmin,ahmax,qmax 
 !****************                                                       
 !   static memory not required (used only once)                         
 !****************                                                       
@@ -129,7 +129,8 @@ SUBROUTINE rmodel
   samax=0.d0 
   phmin=0.0d0 
   ahmax=0.d0 
-  CALL bizset(ecclim,samin,samax,phmin,ahmax) 
+  qmax=0.d0
+  CALL bizset(ecclim,samin,samax,phmin,ahmax,qmax) 
 ! availability of covarinace matrix is false at start                   
   CALL cov_not_av 
 ! verbosity is set at the minimum level by default                      

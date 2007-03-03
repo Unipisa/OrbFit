@@ -12,7 +12,7 @@ SUBROUTINE finopt(progna,run,astna0,astnap,error_model)
   CHARACTER*(*),INTENT(OUT) :: astna0,astnap 
   CHARACTER*(20),INTENT(OUT) :: error_model ! error model file name
 ! hidden output through bizset: controls for bizarre orbits
-  DOUBLE PRECISION ecclim,samin,samax,phmin,ahmax 
+  DOUBLE PRECISION ecclim,samin,samax,phmin,ahmax,qmax 
 ! ==========END INTERFACE============================================   
   integer le
   character*90 file 
@@ -92,6 +92,9 @@ SUBROUTINE finopt(progna,run,astna0,astnap,error_model)
   phmin=0.d0 !leave at the bizset default
   comment='min perihelion'
   CALL input_rea_opt(progna,'phmin',phmin,ireq,found,comment,iunout)
+  qmax=0.d0 !leave at the bizset default
+  comment='max perihelion'
+  CALL input_rea_opt(progna,'qmax',qmax,ireq,found,comment,iunout)
 ! ================control on bizarre orbits================ 
-  CALL bizset(ecclim,samin,samax,phmin,ahmax) 
+  CALL bizset(ecclim,samin,samax,phmin,ahmax,qmax) 
 END SUBROUTINE finopt

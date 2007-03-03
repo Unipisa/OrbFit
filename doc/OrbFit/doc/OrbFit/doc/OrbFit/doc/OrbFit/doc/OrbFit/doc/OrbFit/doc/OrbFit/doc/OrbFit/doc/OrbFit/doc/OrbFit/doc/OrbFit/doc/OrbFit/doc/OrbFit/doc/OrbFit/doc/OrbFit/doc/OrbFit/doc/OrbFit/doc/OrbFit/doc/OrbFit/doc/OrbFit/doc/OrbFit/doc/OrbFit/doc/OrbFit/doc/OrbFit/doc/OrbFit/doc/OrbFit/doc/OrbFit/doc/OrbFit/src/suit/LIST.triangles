@@ -1,0 +1,60 @@
+MODULE triangles
+! interfaccia Pan-STARRS
+ SUBROUTINE triang_outer(npo,pmult,nroots,roots,c,refs,xo,vo, &
+ END SUBROUTINE triang_outer
+ SUBROUTINE triangulate(att,npo,pmult,h_max,roots3,nroots,rshoot &
+ END SUBROUTINE triangulate
+ DOUBLE PRECISION FUNCTION shstar_lim(apm,h_max,phase)
+ END FUNCTION shstar_lim
+
+! libreria di Mattia
+    SUBROUTINE triangola(xRR,yRR,nodiest,noditot,triang,nt)
+    END SUBROUTINE triangola
+  SUBROUTINE nuovotriangolo(triangnew1,segnew,xR1,yR1,xR2,yR2, &
+  END SUBROUTINE nuovotriangolo
+  SUBROUTINE nuovotriangolo2(triangnew1,segnew,xR1,yR1,xR2,yR2, &
+      END SUBROUTINE nuovotriangolo2
+  SUBROUTINE listaswap(triangnew,xRnew,yRnew,xcirccentrnew,seg, &
+  END SUBROUTINE listaswap
+  SUBROUTINE swappalista(triangnew,xRnew,yRnew,xcirccentrnew,seg, &
+  END SUBROUTINE swappalista
+  SUBROUTINE cercatriangolivicini(triang,nt,quale,quantivicini,&
+  END SUBROUTINE cercatriangolivicini
+  SUBROUTINE verificaint(triang,nt,xR5,yR5,intersez2,&
+  END SUBROUTINE verificaint
+   SUBROUTINE cercanodivicini(quale,seg,xR,yR,density,nt)
+   END SUBROUTINE cercanodivicini
+   SUBROUTINE smoothing(eps,nodiest,noditot,nt,seg,xR,yR,density,triang)
+   END SUBROUTINE smoothing
+
+! interfaccia generale
+      SUBROUTINE merge_triang(frv1,rdot1,npotot1,triang1,ntri1, &
+      END SUBROUTINE merge_triang
+
+! interfaccia PS
+SUBROUTINE sample_bound(E_bound,eta2,r1,r2,npotmp,pmult,npoout,c0,&
+END SUBROUTINE sample_bound
+  SUBROUTINE sample_bound_ne1(E_bound,eta2,r1,rder0,r2,npotmp,pmult,&
+  END SUBROUTINE sample_bound_ne1
+
+! interfaccia generale?
+  SUBROUTINE uniform(xRR,yRR,nodiinit,nodifin,quali,npoxmul)
+  END SUBROUTINE uniform
+
+! intefaccia PS
+    DOUBLE PRECISION FUNCTION rdot_comp(c,fr,c1mez_flag,r2)
+    END FUNCTION rdot_comp
+    DOUBLE PRECISION FUNCTION f_func(r,sigma)
+    END FUNCTION f_func
+    DOUBLE PRECISION FUNCTION f_inv(y,sigma)
+      END FUNCTION f_inv
+     DOUBLE PRECISION FUNCTION f_r_rdot0(c,r2)
+    END FUNCTION f_r_rdot0
+
+END MODULE triangles
+
+!libreria Mattia
+SUBROUTINE outtriang(trifil,noditot,nt,xR,yR,triang)
+END SUBROUTINE outtriang
+SUBROUTINE intriang(trifil,noditot,nt,xR,yR,triang)
+END SUBROUTINE intriang

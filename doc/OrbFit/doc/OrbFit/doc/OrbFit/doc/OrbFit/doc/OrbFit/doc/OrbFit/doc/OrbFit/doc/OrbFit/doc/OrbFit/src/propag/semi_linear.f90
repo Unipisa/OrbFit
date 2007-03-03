@@ -138,7 +138,7 @@ SUBROUTINE ellips(daddet,gamm0,sig,axes,gamad)
      IF(eigval(i).gt.0.d0)THEN 
         sig(i)=sqrt(eigval(i)) 
      ELSE 
-        write(*,*) 'non positive eigenvalue' 
+        write(*,*) 'ellips: non positive eigenvalue' 
         sig(i)=0.d0 
      ENDIF
   ENDDO
@@ -148,6 +148,7 @@ END SUBROUTINE ellips
 ! compute covariance ellipsoid of four observables                         
 ! ===================================================================== 
 SUBROUTINE ellipsoid(daddet,gamm0,sig,axes,gamad) 
+  USE output_control
   IMPLICIT NONE 
 ! input covariance matrix                                               
   DOUBLE PRECISION gamm0(6,6) 
@@ -174,7 +175,8 @@ SUBROUTINE ellipsoid(daddet,gamm0,sig,axes,gamad)
      IF(eigval(i).gt.0.d0)THEN 
         sig(i)=sqrt(eigval(i)) 
      ELSE 
-        write(*,*) 'non positive eigenvalue' 
+        write(ierrou,*) 'ellipsoid: non positive eigenvalue ',eigval(i)
+        numerr=numerr+1 
         sig(i)=0.d0 
      ENDIF
   ENDDO
@@ -666,7 +668,7 @@ END SUBROUTINE preob4
         IF(eigval(i).gt.0.d0)THEN 
            sig(i)=sqrt(eigval(i)) 
         ELSE 
-           write(*,*) 'non positive eigenvalue' 
+           write(*,*) 'ellip4: non positive eigenvalue' 
            sig(i)=0.d0 
         ENDIF 
       ENDDO 

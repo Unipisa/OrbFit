@@ -87,12 +87,12 @@
 ! Temporary designation       
          tail=' '                                          
          if(desfield(5:8).eq.'0000')then 
-!           1999AA = J99A0000A  
+!           1999AA = J99A00A  
          elseif(desfield(5:7).eq.'000')then 
-!           1999AA1 = J99A0001A 
+!           1999AA1 = J99A01A 
             tail=desfield(8:8)
           elseif(desfield(5:6).eq.'00')then 
-!           1999AA12 = J99A0012A
+!           1999AA12 = J99A12A
             tail=desfield(7:8)
          elseif(desfield(5:5).eq.'0')then 
 !           1999AA123 = J99A0123A
@@ -162,7 +162,7 @@
 ! check if numbered 
       numfield=mpccod(1:5) 
       CALL rmsp(numfield,ln)                                
-      IF(ln.ne.0) THEN
+      IF(ln.eq.5) THEN
 ! Numbered asteroids  
          IF(isnum(numfield(1:1)))THEN
 ! standard number

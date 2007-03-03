@@ -208,6 +208,8 @@ CONTAINS
    USE output_control
    USE runge_kutta_gauss
    USE planet_masses
+   USE critical_points
+   USE orbit_elements
 ! INPUT                                                                 
 ! current position and velocity                                         
    INTEGER nv 
@@ -237,12 +239,13 @@ CONTAINS
    INTEGER it,i 
 ! ======for ID========                                                
    DOUBLE PRECISION moid0 
-! variables for call to compute_minima                                  
+! variables for call to dmintil_rms                                  
    DOUBLE PRECISION x6(6) 
+   TYPE(orbit_elem) el1,el2
 ! cartesian coordinates asteroid and planet at minimum                  
-   DOUBLE PRECISION cmin(3,16),cplmin(3,16) 
+   DOUBLE PRECISION c1min(3,nminx),c2min(3,nminx) 
 !     SQUARED DISTANCE function                                         
-   DOUBLE PRECISION d2(16) 
+   DOUBLE PRECISION dmintil(nminx) 
 !     number of relative minima found                                   
    INTEGER nummin 
    INTEGER, PARAMETER :: itmax_f=50 !iterations of falsi
@@ -267,7 +270,14 @@ CONTAINS
 ! MOID at the beginning of each encounter                               
          x6(1:3)=xa(1:3) 
          x6(4:6)=va(1:3)      
-         CALL compute_minima_ta(x6,xpla,iplam,cmin,cplmin,d2,nummin)
+         el2=undefined_orbit_elem
+         el2%t=t
+         el2%coo='CAR'
+         el1=el2
+         el2%coord=x6 ! asteroid cartesian elements
+         el1%coord=xpla
+!         CALL compute_minima_ta(x6,xpla,iplam,cmin,cplmin,d2,nummin)
+         CALL dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min)
       ENDIF 
 ! end initialisation of close approach                                  
       RETURN 
@@ -290,13 +300,13 @@ CONTAINS
    IF(iplam.eq.3.and.r2.lt.4.2e-5.and.fix_mole)THEN
 ! let this be handled by strclo       
       CALL strclo(iplam,t,xpla,xa,va,nv,jc,r2,rdot2,         &
-     &        d2,cplmin,nummin)                                         
+     &        dmintil,c1min,nummin)                                         
       rdot2=0.d0 
 ! check for minimum distance                                            
    ELSEIF(abs(rdot2).lt.eprdot)THEN 
 ! already at stationary point; WARNING: is it a minimum?                
       CALL strclo(iplam,t,xpla,xa,va,nv,jc,r2,rdot2,         &
-     &        d2,cplmin,nummin)                                         
+     &        dmintil,c1min,nummin)                                         
       rdot2=0.d0 
    ELSEIF(rdot1*di.lt.0.d0.and.rdot2*di.gt.0.d0)THEN 
 ! rdot changes sign, in a way appropriate for a minimum                 
@@ -320,7 +330,7 @@ CONTAINS
          IF(abs(rdot0*dt).lt.eprdot)THEN 
 !  already at stationary point; WARNING: is it a minimum? 
             CALL strclo(iplam,tt,xplat,xat,vat,nv,jc,r0,rdot0,&
-     &             d2,cplmin,nummin)                                    
+     &             dmintil,c1min,nummin)                                    
             GOTO 2 
          ELSEIF(rdot0*rdot1.lt.0.d0)THEN 
             r2=r0 
@@ -337,7 +347,7 @@ CONTAINS
       ENDDO
 ! failed convergence                                                    
       CALL strclo(iplam,t0,xplat,xat,vat,nv,jc,r0,rdot0,     &
-     &        d2,cplmin,nummin)                                         
+     &        dmintil,c1min,nummin)                                         
       WRITE(ierrou,*)' falsi: failed convergence for ',ordnam(iplam) 
       WRITE(ierrou,*)'t1,r1,rdot1,t2,r2,rdot2,dt,tt' 
       WRITE(ierrou,111)t1,r1,rdot1,t2,r2,rdot2,dt,tt 
@@ -420,7 +430,7 @@ END SUBROUTINE tp_fser
 ! store close approach                                                  
 ! ===================================================                   
 SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
-     &             d2,cplmin,nummin) 
+     &             dmintil,c1min,nummin) 
   USE tp_trace
   USE planet_masses
 ! input                                                                 
@@ -429,9 +439,9 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
 ! time current, distance, radial velocity (should be small)             
   DOUBLE PRECISION,INTENT(IN) :: tcur,r,rdot 
 ! cartesian coordinates of planet at local MOID                           
-  DOUBLE PRECISION, INTENT(IN) :: cplmin(3,16) 
+  DOUBLE PRECISION, INTENT(IN) :: c1min(3,nummin) 
 ! SQUARED DISTANCE function at local MOIDs
-  DOUBLE PRECISION, INTENT(IN):: d2(16) 
+  DOUBLE PRECISION, INTENT(IN):: dmintil(nummin) 
 ! number of relative minima (local MOID) found
   INTEGER, INTENT(IN) :: nummin 
 !  planet position and velocity                                         
@@ -467,15 +477,15 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
         moid0=-0.9999d0
         angmoid=0.d0
      ELSE   
-        moid0=sqrt(d2(1)) 
+        moid0=abs(dmintil(1)) 
         angmoid=4.d2 
         angmin=4.d2
         DO j=1,nummin 
-           cosa=prscal(cplmin(1,j),xpla)/(vsize(cplmin(1,j))*vsize(xpla)) 
+           cosa=prscal(c1min(1,j),xpla)/(vsize(c1min(1,j))*vsize(xpla)) 
            angle=acos(cosa) 
            IF(angle.lt.angx*radeg)THEN
               IF(angle.lt.angmin*radeg)THEN 
-                 moid0=sqrt(d2(j)) 
+                 moid0=abs(dmintil(j)) 
                  angmoid=angle*degrad
                  angmin=angle*degrad 
               ENDIF

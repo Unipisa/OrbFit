@@ -218,7 +218,7 @@ CONTAINS
 ! for MTP -> TP conversion
     TYPE(orbit_elem) :: opik, mtpcar, tpcar
     DOUBLE PRECISION :: del(6,6),del1(6,6),del2(6,6),dee(6,6)
-    DOUBLE PRECISION :: dtpcarde(3,6)
+    DOUBLE PRECISION :: dtpcarde(3,6), dtpde6(6,6), tmp26(2,6),tmp62(6,2), tmp22(2,2)
     DOUBLE PRECISION :: xpl(3), vpl(3), vv(3), xx(3), dz, xop(3)
     DOUBLE PRECISION :: r1(3,3), r2(3,3), rr(3,3), rop(3,3), ropt(3,3), rrt(3,3)
     DOUBLE PRECISION :: eigval(2), axes(2,2), fv1(2),fv2(2), sig(2), wtp(2)
@@ -240,7 +240,7 @@ CONTAINS
        planam=ordnam(iplam) 
        lpla=lench(planam) 
        call mjddat(tcla(jc),iday,imonth,iyear,hour) 
-       write(date,'(i4,a1,i2.2,a1,i2.2,f6.5)') iyear,'/',imonth,'/',iday,hour/24d0     
+       write(date,'(i4,a1,i2.2,a1,i2.2,f6.5)') iyear,'/',imonth,'/',iday,hour/24d0  
        IF(tpplane)THEN
 ! use TP with OPiK elements
          mtpcar=undefined_orbit_elem
@@ -285,9 +285,18 @@ CONTAINS
             dxde=MATMUL(dxdx0,dx0de) 
 ! d(opik elements)/de
             dee=MATMUL(del,dxde)
+!            dtpde(1:2,1:6,jc)=dee(4:5,1:6)
             CALL convertunc(unc_store,dee,tp%unc_opik)
+! d(csi,zeta)/de
+            dtpcarde=MATMUL(del1(1:3,1:6),dxde)     
+! WARNING: ignoring the derivatives of vt3 (see Thesis Tommei, pag. 181-182)  
+            dtpde(1:2,1:6,jc)=MATMUL(vt3(2:3,1:3),dtpcarde)
+            tmp26=MATMUL(dtpde(1:2,1:6,jc),unc_store%g)
+            tmp62=TRANSPOSE(dtpde(1:2,1:6,jc))
+            tmp22=MATMUL(tmp26,tmp62)
 ! stretching and width: eigenvalues
-            CALL rs(2,2,tp%unc_opik%g(4:5,4:5),eigval,1,axes,fv1,fv2,ierr) 
+!            CALL rs(2,2,tp%unc_opik%g(4:5,4:5),eigval,1,axes,fv1,fv2,ierr) 
+            CALL rs(2,2,tmp22,eigval,1,axes,fv1,fv2,ierr) 
             DO  i=1,2 
                IF(eigval(i).gt.0.d0)THEN 
                   sig(i)=sqrt(eigval(i)) 
@@ -298,9 +307,6 @@ CONTAINS
             ENDDO
             tp%stretch=sig(2)
             tp%width=sig(1)
-! d(csi,zeta)/de
-            dtpcarde=MATMUL(del1(1:3,1:6),dxde)       
-            dtpde(1:2,1:6,jc)=MATMUL(vt3(2:3,1:3),dtpcarde)
 ! weak direction           
             CALL weak_dir(unc_store%g,wdir,sdir,-1,coo_store,coord_store,units)
             wdir=wdir*units
@@ -568,7 +574,7 @@ CONTAINS
         IF(eigval(i).gt.0.d0)THEN 
            sig(i)=sqrt(eigval(i)) 
         ELSE 
-           write(*,*) 'non positive eigenvalue' 
+           write(*,*) 'mtp_rot3: non positive eigenvalue' 
            sig(i)=0.d0 
         ENDIF 
       ENDDO 
@@ -953,7 +959,7 @@ END SUBROUTINE str_clan
 !    va_tp%rdotcla=va_tp%rdotcla/reau
     va_tp%xytp(1:3)=va_tp%xytp(1:3)/reau
     va_tp%xytp(4:6)=va_tp%xytp(4:6)/reau
-    va_tp%opik%coord(4:5)=va_tp%opik%coord(4:5)/reau
+    va_tp%opik%coord(4:6)=va_tp%opik%coord(4:6)/reau
     va_tp%opik%coord(1)=va_tp%opik%coord(1)/reau
     va_tp%v=va_tp%v/reau
     va_tp%stretch=va_tp%stretch/reau

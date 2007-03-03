@@ -893,20 +893,31 @@ SUBROUTINE initopt(progna0,run0,suffix)
   CHARACTER*6 progna
   character*80 run
   character*120 file 
-  integer iunit,le
+  integer iunit,lerun,le
   LOGICAL found
 ! read option for propagator                                            
   CALL libini 
   CALL namini 
-! default options are only for propag                                   
+! default options for propag                                   
   CALL filopl(iunit,'propag.def') 
   CALL rdnam(iunit) 
   CALL filclo(iunit,' ') 
 ! =============================                                         
+  progna=progna0                                       
+  call rmsp(progna,le) 
+! default options for progna   
+  file=progna(1:le)//'.'//'.def' 
+  INQUIRE(FILE=file,EXIST=found)
+  IF(found)THEN                        
+     CALL filopl(iunit,file) 
+     CALL rdnam(iunit) 
+     CALL filclo(iunit,' ')
+  ENDIF
+! =============================                                         
 ! particular options for this run
   run=run0                                       
-  CALL rmsp(run,le) 
-  file=run(1:le)//'.'//suffix 
+  CALL rmsp(run,lerun) 
+  file=run(1:lerun)//'.'//suffix 
   INQUIRE(FILE=file,EXIST=found) 
   IF(found) THEN 
      CALL filopn(iunit,file,'OLD') 
@@ -916,12 +927,10 @@ SUBROUTINE initopt(progna0,run0,suffix)
      write(*,*)'**** file not found: ',file 
      write(*,*)'******* ',progna0,' using defaults ****' 
   ENDIF
-! =============================                                         
-! check for non-existing options 
-  progna=progna0                                       
-  call rmsp(progna,le) 
+! possible options for progna
   file=progna(1:le)//'.key' 
   CALL rdklst(file) 
+! check for non-existing options 
   CALL chkkey 
 ! ==============================  
 END SUBROUTINE initopt

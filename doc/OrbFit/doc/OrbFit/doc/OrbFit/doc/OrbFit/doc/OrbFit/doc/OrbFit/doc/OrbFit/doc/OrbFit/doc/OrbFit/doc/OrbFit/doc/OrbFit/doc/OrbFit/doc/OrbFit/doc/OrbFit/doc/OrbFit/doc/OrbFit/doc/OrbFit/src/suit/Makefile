@@ -8,6 +8,9 @@ all: ../lib/libsuit.a
 OBS_OBJ=station_coordinates.o astrometric_observations.o observ_rms.o \
      obsvarie.o iorwo_old.o attributable.o very_short_arc.o obs_simul.o
 
+ATTR_OBJ=attributable.o very_short_arc.o obs_simul.o \
+     delaunay_triang.o admis_reg.o
+
 # Reference systems and IERS time series
 REF_OBJ=reference_systems.o iers_ser.o chebi_pol.o
 
@@ -26,8 +29,8 @@ FILE_OBJ=file_oper.o fidinam4.o output_control.o name_rules.o
 # Header and  Main option namelists
 HNAM_OBJ=header_input.o option_input.o
 
-# Character strings
-CHA_OBJ=char_str.o 
+# Character strings and sorting
+CHA_OBJ=char_str.o bin_search.o
 
 # Time and timescales
 TIME_OBJ=time_scales.o
@@ -36,7 +39,7 @@ TIME_OBJ=time_scales.o
 UTIL_OBJ=util_suit.o 
 
 SUIT_OBJ=$(FILE_OBJ) $(HNAM_OBJ) $(CHA_OBJ) $(UTIL_OBJ) $(TIME_OBJ) \
-         $(ELEM_OBJ) $(MATH_OBJ) $(EPH_OBJ) $(REF_OBJ) $(OBS_OBJ)
+         $(ELEM_OBJ) $(MATH_OBJ) $(EPH_OBJ) $(REF_OBJ) $(OBS_OBJ) $(ATTR_OBJ)
 
 ../lib/libsuit.a: $(SUIT_OBJ)
 	ar r ../lib/libsuit.a $(SUIT_OBJ)

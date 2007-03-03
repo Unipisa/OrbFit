@@ -70,8 +70,8 @@
             IF( obsw(k)%res_coord(1).GT.pig) obsw(k)%res_coord(1)=    &
      &       obsw(k)%res_coord(1)-dpig 
             obsw(k)%res_coord(2)=obs(k)%coord(2)-deltac 
-            rms=rms+(COS(obs(k)%coord(2))*obsw(k)%res_coord(1))**2+   &
-     &       obsw(k)%res_coord(2)**2
+            rms=rms+(COS(obs(k)%coord(2))*obsw(k)%res_coord(1)/obsw(k)%rms_coord(1))**2+   &
+     &       (obsw(k)%res_coord(2)/obsw(k)%rms_coord(2))**2
          ENDIF
          ns=ns+1
        ENDDO 

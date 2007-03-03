@@ -1,4 +1,4 @@
-% help file, orbfit 3.1 and later
+% help file, orbfit 3.4 and later
 % this is the coordinate changes menu
 
 COORDINATE CHANGE MAIN
@@ -14,8 +14,10 @@ Conversion of orbital elements, from the current coordinates to:
 
   4 = COMetary... perihelion distance, e, I, Omega, omega, time of perihelion
                   (non singular for e=1)
-
-  5 = ATTributables...alpha, delta, d(alpha)/dt, d(delta)/dt, range, range rate
+  5 = COmetary True anomaly... as COM, but True anomaly instead of time of
+              perihelion (more stable far from perihelion)
+    
+  6 = ATTributables...alpha, delta, d(alpha)/dt, d(delta)/dt, range, range rate
 
 0 = back to the main menu
 

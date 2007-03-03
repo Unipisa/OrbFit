@@ -1,10 +1,10 @@
 
-all: test_moid
+all: test_moidrms
 
-test_moid : min_comp.x 
-	time min_comp.x < test_moid.inp
+test_moidrms : test_moid_rms.x
+	time test_moid_rms.x < test_moid_rms.inp
 
 distclean: clean
 
 clean:
-	(rm -f *.minpts CHECK.* gmon.out mincomp.log mincomp.names.fail *~ \#*\#)
+	(rm -f *.fail *.err *.mou gmon.out *.log *~ \#*\# error_file )

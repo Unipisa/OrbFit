@@ -4,7 +4,7 @@ IMPLICIT NONE
 PRIVATE
 ! length of official IAU designation, without spaces                    
   INTEGER, PUBLIC, PARAMETER :: name_len=9 
-  INTEGER, PUBLIC, PARAMETER :: nmax_ids=12
+  INTEGER, PUBLIC, PARAMETER :: nmax_ids=16
   INTEGER, PUBLIC, PARAMETER :: idname_len=(name_len+1)*nmax_ids-1 
   INTEGER, PUBLIC, PARAMETER :: idnamvir_len=idname_len+6
 

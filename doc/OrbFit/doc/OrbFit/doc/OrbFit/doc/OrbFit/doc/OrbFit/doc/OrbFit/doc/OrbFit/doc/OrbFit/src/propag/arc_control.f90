@@ -247,7 +247,7 @@ CONTAINS
     ENDIF
   END SUBROUTINE check_cons_arcs
 
-! recursive spli until no curvature/Z sign
+! recursive split until no curvature/Z sign
   RECURSIVE INTEGER FUNCTION rec_arc_type(obs,obsw,m,geoc_chi,acce_chi, &
 &                        chi,nig,fail_flag) RESULT(nat) 
 ! =========OBSERVATIONS ==========================================
@@ -268,8 +268,11 @@ CONTAINS
 ! ================================================================
     CALL attri_comp(m, obs, obsw, att, error) !WARNING: rejected obs???
     IF(error)THEN
-       WRITE(*,*) '***rec_arc_type: error from attri_comp, m=', m
-       STOP 
+       WRITE(ierrou,*) '***rec_arc_type: error from attri_comp, m=', m
+       numerr=numerr+1
+       nat=1
+       fail_flag=0
+       nig=nights(m,obs,obsw)
     ENDIF
     CALL test_curv(att,geoc_chi,acce_chi,chi,sign_curv,bad_fit)
 !    WRITE(*,*)' rec_arc_type: m, sign_curv, bad_fit, arc ',m,sign_curv,bad_fit, att%arc

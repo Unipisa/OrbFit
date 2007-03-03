@@ -273,6 +273,11 @@ SUBROUTINE pvobs(t,idsta,dx,dv)
   END IF
 !**************************************
 ! Station name
+  IF(idsta.eq.500)THEN
+     dx=0.d0
+     dv=0.d0
+     RETURN
+  ENDIF
   CALL obscoo(idsta,dxbf,name)
 ! Station position and velocity in the body fixed (equatorial) frame
   CALL prvec(omega,dxbf,dvbf)

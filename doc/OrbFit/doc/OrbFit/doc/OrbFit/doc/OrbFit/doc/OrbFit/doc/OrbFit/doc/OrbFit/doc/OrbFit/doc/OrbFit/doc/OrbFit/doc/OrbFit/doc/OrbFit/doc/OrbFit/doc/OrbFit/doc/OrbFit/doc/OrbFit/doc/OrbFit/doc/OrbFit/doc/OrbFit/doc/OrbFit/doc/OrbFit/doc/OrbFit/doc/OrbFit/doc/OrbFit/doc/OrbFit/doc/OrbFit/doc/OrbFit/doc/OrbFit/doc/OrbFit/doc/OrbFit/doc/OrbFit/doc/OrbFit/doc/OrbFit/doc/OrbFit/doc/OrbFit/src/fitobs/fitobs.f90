@@ -1,3 +1,4 @@
+
 ! Copyright (C) 1997,2003 ORBFIT consortium 
 ! version 3.1: A. Milani December 2003
 ! ===================================================================   
@@ -378,7 +379,7 @@ PROGRAM fitobs
         ENDIF
         CALL tee(iun_log,' PRELIM. ORB.DEG 8,  ARC 2=')
         CALL f_gaussdeg8(iunelp,astnap,inip,covp,          &
-     &     rwofip,obs(m+11:mall),obsw(m+1:mall),mp,error_model,elp)
+     &     rwofip,obs(m+1:mall),obsw(m+1:mall),mp,error_model,elp)
      ENDIF
      IF(iele.eq.9)THEN 
 ! ===================================================================== 
@@ -464,7 +465,9 @@ PROGRAM fitobs
            GOTO 682
         ENDIF
         CALL tee(iun_log,' CONSTRAINED DIFFERENTIAL CORRECTIONS=') 
+        peq=0.d0
         CALL constr_fit(mc,obsc,obswc,elc,peq,elc,uncc,csinoc,delnoc,rmshc,iobc,succ)
+        covc=succ
 ! =========================step-fit=================================
         IF(succ)THEN
            WRITE(*,*)' step_fit along the LOV? 1=yes 0=no'
@@ -974,11 +977,12 @@ PROGRAM fitobs
 ! coordinate changes
      CALL tee(iun_log,'COORDINATE CHANGES=') 
      menunam='coord' 
-     CALL menu(icoord,menunam,5,'Coordinates?=',          &
+     CALL menu(icoord,menunam,6,'Coordinates?=',          &
      &      'KEPlerian=',                                   &
      &      'EQUinoctal=',                                  &
      &      'CARtesian=',                                   &
      &      'COMetary=',                                    &
+     &      'COmetary True anomaly=',                       &
      &      'ATTributables=')
      ok=.true. 
      IF(icoord.eq.0)GOTO 50

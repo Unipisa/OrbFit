@@ -74,6 +74,8 @@
 ! ======================================================================
       SUBROUTINE earcar(t0,xea,ifla) 
       USE reference_systems, ONLY: roteqec 
+      USE fund_const
+      USE planet_masses
       IMPLICIT NONE 
 ! input: epoch time, flag for getting Earth (heliocentric; ifla=1)      
 !        or Sun (barycentric; ifla=2)                                   
@@ -100,6 +102,8 @@
        ntarg=11 
        ncent=12 
       endif 
+! duplicate computation of gmse, in case masjpl has not been called yet 
+      gmse=gms*(1.d0+cval(11)/cval(18)) 
 ! ****** added on Sat Jun 14 1997 ******                                
 ! first istate need to be=2  (dpleph calculates also vel.)              
       istate=2 

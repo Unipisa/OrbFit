@@ -12,7 +12,7 @@ MODULE char_str
 ! ---------------------------------------------------------------------
 ! former PARCH.H
 ! Length of buffer character strings
-  INTEGER, PARAMETER :: lchx=200
+  INTEGER, PARAMETER :: lchx=256
   PUBLIC lchx
 END MODULE char_str
 

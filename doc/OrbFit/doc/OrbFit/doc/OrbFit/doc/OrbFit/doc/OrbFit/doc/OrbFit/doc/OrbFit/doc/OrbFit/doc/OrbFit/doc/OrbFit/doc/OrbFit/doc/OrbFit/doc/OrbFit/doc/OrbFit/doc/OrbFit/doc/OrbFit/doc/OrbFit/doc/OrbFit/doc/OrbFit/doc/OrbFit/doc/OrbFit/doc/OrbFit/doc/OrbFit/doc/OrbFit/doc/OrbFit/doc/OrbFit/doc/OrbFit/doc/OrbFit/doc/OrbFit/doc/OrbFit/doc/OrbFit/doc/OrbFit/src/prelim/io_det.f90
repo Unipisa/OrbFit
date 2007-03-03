@@ -61,7 +61,7 @@ SUBROUTINE io_det(unirep,rwofil,name,obs,obsw,n,error_model,ifo,&
                                                                         
   INTEGER, PARAMETER :: ncx=7 
                                                                  
-  DOUBLE PRECISION elemv(6,8),t0v(8),tdt3(3),alpha3(3),delta3(3) 
+  DOUBLE PRECISION elemv(6,8),t0v(8),tdt3(3),alpha3(3),delta3(3),rtop(3) 
   DOUBLE PRECISION rmsb,rms1,noisea(3),noised(3),dt1,dt2,dtc 
   INTEGER ln,lm,selipt(3),itry,nsol,i,lmsg,ngr,is1,is2,is3,is 
   INTEGER ir(2),irb(2),obsc3(3),nkep,in,selb(3) 
@@ -179,7 +179,7 @@ SUBROUTINE io_det(unirep,rwofil,name,obs,obsw,n,error_model,ifo,&
         END IF
         IF(iodmet(itry).EQ.1) THEN 
            CALL gaussn(tdt3,alpha3,delta3,obsc3,elemv,ieltyv,t0v,        &
-     &                ngr,nsol,fail,msg,(iodvrb.GE.3),iodmul)           
+     &                ngr,nsol,rtop,fail,msg,(iodvrb.GE.3),iodmul)           
            nc(3)=nc(3)+ngr 
            nc(4)=nc(4)+nsol 
            nkep=0 
