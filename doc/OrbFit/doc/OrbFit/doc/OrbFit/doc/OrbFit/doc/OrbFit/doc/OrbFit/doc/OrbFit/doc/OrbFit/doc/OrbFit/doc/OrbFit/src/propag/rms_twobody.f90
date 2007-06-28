@@ -12,9 +12,8 @@
 ! =============================================================
 SUBROUTINE rms_twobody(el,obs,obsw,io1,io2,minrms_prel,rms)
   USE astrometric_observations
-  USE reference_systems, ONLY: roteceq 
   USE ever_pitkin, ONLY: fser_propag
-  USE fund_const, ONLY: gms
+  USE fund_const
   USE orbit_elements
   IMPLICIT NONE 
 ! INPUT observations: new data types

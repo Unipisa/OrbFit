@@ -41,6 +41,7 @@ PROGRAM test_moid_rms
 ! ================== MOID_RMS ===========================
   DOUBLE PRECISION,DIMENSION(nminx) :: dmintil
   DOUBLE PRECISION,DIMENSION(nminx) :: dmintrms
+  DOUBLE PRECISION,DIMENSION(5,nminx) :: ddmintdel2
   DOUBLE PRECISION,DIMENSION(3,nminx) :: car1min,car2min
   DOUBLE PRECISION,DIMENSION(nminx) :: detH,detHrms
   DOUBLE PRECISION,DIMENSION(nminx) :: sint1t2,taurms
@@ -109,13 +110,14 @@ PROGRAM test_moid_rms
 ! Earth orbital elements
      elem1=undefined_orbit_elem
      unc1=undefined_orb_uncert
+     unc1%g=0.d0 ! to be sure Earth has negligible uncertainty
      CALL earth(elem2%t,elem1%coord)
      elem1%coo='EQU'
      elem1%t=elem2%t
      pd_earth=elem1%coord(1)*(1-SQRT(elem1%coord(2)**2+elem1%coord(3)**2))
 ! ------------------------------------------------------------------
      CALL dmintil_rms(elem1,elem2,nummin,dmintil,car1min,car2min,&
-     & unc1,unc2,dmintrms,comp_flag,detH,detHrms,sint1t2,taurms,&
+     & unc1,unc2,dmintrms,ddmintdel2,comp_flag,detH,detHrms,sint1t2,taurms,&
      & sinmutI,sinmutIrms,chk_der)
 ! test skipping optional variables
 !     CALL dmintil_rms(elem1,elem2,nummin,dmintil)

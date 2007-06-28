@@ -21,7 +21,7 @@ ELEM_OBJ=orb_els.o io_elems.o ever_pitkin.o
 MATH_OBJ=math_lib.o pol_zeros.o angle_var.o eigen_val.o
 
 # JPL Digital Ephemeris and binary ephemeris, fund. constants and masses
-EPH_OBJ=jpl_ephem.o fund_const.o planet_masses.o
+EPH_OBJ=jpl_ephem.o read_ephem.o fund_const.o planet_masses.o
 
 # File operations; I/O control
 FILE_OBJ=file_oper.o fidinam4.o output_control.o name_rules.o

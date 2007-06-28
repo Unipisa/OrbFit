@@ -27,10 +27,13 @@ DOUBLE PRECISION, PARAMETER :: radh=dpig/24.0d0              ! Radians from hour
 DOUBLE PRECISION, PARAMETER :: hrad=24.0d0/dpig              ! Hours from radians
 
 !the ones below need to be initialised from JPL ephemerides
-!  relativistic parameters, initialized in jpl_ephem/trange
-      double precision vlight,ckm !speed of light, in AU/s and in km/s 
+!  parameters initialized in read_ephem/trange
+      double precision vlight,ckm !speed of light in current units, in AU/s and in km/s 
 ! part of JPL ephemerides header common; name needs to be changed, initialization
 ! also to be performed in trange aukm=au, emratio=emrat
-      double precision aukm,emratio,reau ! au in km, Earth-Moon mass ratio, Earth radius in AU
+      double precision aukm,emratio,reau ! au in km, Earth-Moon mass ratio, Earth radius in current units
+
+! DATA: matrices of standard rotations
+DOUBLE PRECISION, DIMENSION(3,3), PUBLIC :: roteqec,roteceq
 
 END MODULE fund_const

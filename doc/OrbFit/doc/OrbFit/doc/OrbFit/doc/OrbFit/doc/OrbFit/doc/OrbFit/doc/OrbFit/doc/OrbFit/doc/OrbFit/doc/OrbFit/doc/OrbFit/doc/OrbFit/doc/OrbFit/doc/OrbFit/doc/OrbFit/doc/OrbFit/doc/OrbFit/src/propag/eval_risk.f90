@@ -82,6 +82,22 @@ END FUNCTION palermo
 
 END MODULE eval_risk
 
+DOUBLE PRECISION FUNCTION prob_1dim(be,s0,r0)
+  IMPLICIT NONE 
+!     input data                                                        
+  DOUBLE PRECISION, INTENT(IN) :: be,s0,r0 ! impact cross
+! section radius, stretching, minimum LOV distance 
+!     output: impact probability prob, assuming width=0  
+  DOUBLE PRECISION chord
+  DOUBLE PRECISION, PARAMETER :: span_sigma=70.d0
+  IF(r0.gt.be)THEN
+     prob_1dim=0.d0
+     RETURN
+  ENDIF
+  chord=2.d0*sqrt(be**2-r0**2)
+  prob_1dim=chord/(span_sigma*s0)
+END FUNCTION prob_1dim
+
 !============================================================          
 DOUBLE PRECISION FUNCTION prob(csi0,zeta0,sigma0,w0,s0,r0) 
   IMPLICIT NONE 

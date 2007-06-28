@@ -1,11 +1,11 @@
 ! ******************************************************************
 ! ********* M O D U L E   C R I T I C A L _ P O I N T S ************
 ! *********** for the COMPUTATION of the CRITICAL POINTS *********** 
-! ************* of the KEPLERIAN DISTANCE FUNCTION *****************
-! ********** written by GIOVANNI F. GRONCHI (Jan. 2007) ************
+! ************* of the KEPLERIAN DISTANCE ******** *****************
+! **** written by G.F. GRONCHI, G. TOMMEI, A.MILANI (Mar. 2007) ****
 ! ==================================================================
-! THIS MODULE CONTAINS THE FOLLOWING SUBROUTINES:
-! ROUTINE crit_pts,orbitcoe,matrixdat,compmodsylv16
+! WITH THE FOLLOWING ROUTINES:
+! ROUTINE moid_rms,Habs_rms,crit_pts,orbitcoe,matrixdat,compmodsylv16
 ! ROUTINE solvesystem,hessian,int_eval,d2eval
 ! ROUTINE sign_dmin,mutual_ref,CP_newton_raphson,dmintil_rms,check_rms
 ! ROUTINE comp_rms_com,q_Q_T_rms,tau1_tau2
@@ -17,6 +17,12 @@ MODULE critical_points
   USE output_control
   IMPLICIT NONE
   PRIVATE
+
+  INTEGER, PARAMETER, PUBLIC :: nminx = 7 ! max num of minima
+  INTEGER, PARAMETER, PUBLIC :: poldeg = 16 ! polynomial degree
+! to write all the complex roots of 1-D poly r(w)
+  LOGICAL, PUBLIC :: follow_roots ! follow_roots = .false. do not write
+                  ! follow_roots = .true. write the roots of r(w)
 ! elements in the first 2 rows of the cracovians (see Sitarski 1968)
   REAL(KIND=8) :: PPx,PPy,PPz,QQx,QQy,QQz
   REAL(KIND=8) :: px,py,pz,qx,qy,qz
@@ -29,41 +35,146 @@ MODULE critical_points
 ! ---------------- Sylvester matrix elements ----------
   INTEGER, PARAMETER :: Nev = 16 ! number of evaluations of the 15th deg poly
   INTEGER, PARAMETER :: expo = 4 ! 2^expo = Nev
-  INTEGER, PARAMETER :: poldeg = 16 ! polynomial degree
-  INTEGER, PARAMETER, PUBLIC :: nminx = 7 ! max num of minima
+
   REAL(KIND=8),DIMENSION(Nev) :: p0,p1,p2
   REAL(KIND=8),DIMENSION(Nev) :: q0,q1,q2,q3,q4
   REAL(KIND=8),DIMENSION(Nev) :: r31,r32,r33,r34,r35
   REAL(KIND=8),DIMENSION(Nev) :: r36,r41,r45,r46
-! to write all the complex roots of 1-D poly r(w)
-  LOGICAL :: follow_roots ! follow_roots = .false. do not write
-                  ! follow_roots = .true. write the roots of r(w)
 ! -----------------------------------------------------
-!  PUBLIC :: PPx,PPy,PPz,QQx,QQy,QQz,px,py,pz,qx,qy,qz
-!  PUBLIC :: A1x,A1y,A1z,B1x,B1y,B1z,a2x,a2y,a2z,b2x,b2y,b2z
-!  PUBLIC :: KK,LL,MM,NN
-!  PUBLIC :: Ppl,pcom,Epl,ecom
-!  PUBLIC :: a2Q1,b2Q1,B1a2,B1b2,A1a2,A1b2,A1q2,B1q2,b2A1,b2B1,a2A1,a2B1
-!  PUBLIC :: p0,p1,p2,q0,q1,q2,q3,q4
-!  PUBLIC :: Nev,expo,
-  PUBLIC :: poldeg
-!  PUBLIC :: r31,r32,r33,r34,r35,r36,r41,r45,r46
-  PUBLIC :: follow_roots
-! subroutines
-  PUBLIC :: crit_pts,d2eval !,orbitcoe,matrixdat,compmodsylv16
-!  PUBLIC :: solvesystem,hessian,int_eval
-  PUBLIC :: sign_dmin,mutual_ref,dmintil_rms,q_Q_T_rms
+
+! public routines
+  PUBLIC :: crit_pts,d2eval 
+  PUBLIC :: sign_dmin,mutual_ref,dmintil_rms,q_Q_T_rms, moid_rms
 CONTAINS
 
+! =================================================================
+! MOID_RMS
+! main interface to compute the MOID, optionally its covariance
+! also with the absolute magnitude covariance
+! =================================================================
+  SUBROUTINE moid_rms(elem,moid,uncel,covmh,rmsh)
+   TYPE(orbit_elem), INTENT(IN) :: elem ! asteroid elements
+   DOUBLE PRECISION, INTENT(OUT) :: moid
+   TYPE(orb_uncert), INTENT(IN), OPTIONAL :: uncel ! covariance
+   DOUBLE PRECISION, INTENT(OUT), OPTIONAL :: covmh(2,2) ! covariance
+   DOUBLE PRECISION, INTENT(IN), OPTIONAL :: rmsh ! photometry fit RMS
+      ! matrix of (MOID, H), containing also the photometry uncertainty
+      ! if rmsh is supplied in input WARNING: errors in photmetry and
+      ! in astrometry are assumed to be independent, thus their effects
+      ! are summed in a RMS sense
+! end interface
+   TYPE(orbit_elem) :: elea
+   TYPE(orb_uncert) :: uncea
+   INTEGER nummin
+   DOUBLE PRECISION,DIMENSION(5,nminx) :: ddmintdel2
+   DOUBLE PRECISION,DIMENSION(6) :: dHdel2
+   DOUBLE PRECISION dmintil(nminx),dmintrms(nminx), Hrms
+   DOUBLE PRECISION,DIMENSION(5) :: vectmp
+! Earth's elements at the same time                                    
+   elea=undefined_orbit_elem
+   elea%t=elem%t
+   elea%coo='CAR'
+   CALL earcar(elea%t,elea%coord,1)
+   IF(PRESENT(uncel).and.PRESENT(covmh))THEN
+      covmh=0.d0
+      IF(PRESENT(rmsh))THEN
+         covmh(2,2)=rmsh**2
+      ENDIF
+      uncea=undefined_orb_uncert
+      uncea%g=0.d0
+! compute MOID with sign and its variance
+      CALL dmintil_rms(elea,elem,nummin,dmintil,UNC1=uncea,UNC2=uncel,&
+&          DMINTRMS=dmintrms,DDMINTDEL2=ddmintdel2)
+      moid=abs(dmintil(1))
+      covmh(1,1)= dmintrms(1)**2
+      CALL Habs_rms(elea,elem,uncel,Hrms,dHdel2)
+      covmh(2,2)= covmh(2,2)+Hrms**2
+      vectmp=MATMUL(uncel%g(1:5,1:5),ddmintdel2(1:5,1))
+! WARNING: we are using ONLY the first 5 elements of dHdel2
+      covmh(1,2)= DOT_PRODUCT(dHdel2(1:5),vectmp)
+      covmh(2,1)= covmh(1,2)
+   ELSE
+! compute MOID with sign
+      CALL dmintil_rms(elea,elem,nummin,dmintil)
+      moid=abs(dmintil(1))
+   ENDIF
+ END SUBROUTINE moid_rms
+
+! **************************************************************
+! RMS of the absolute magnitude
+! **************************************************************
+! written by 
+! **************************************************************
+  SUBROUTINE Habs_rms(el1,el2,unc2,Hrms,dHdel2)
+! =====================INTERFACE=======================
+    TYPE(orbit_elem), INTENT(IN) :: el1,el2 ! elements of the Earth 
+                                            ! and of the asteroid
+    TYPE(orb_uncert), INTENT(IN) :: unc2    ! covariance of the asteroid
+    DOUBLE PRECISION, INTENT(OUT) :: Hrms   ! RMS of H due to astrometry
+    DOUBLE PRECISION, INTENT(OUT), OPTIONAL :: dHdel2(6)
+! ------ end interface ---------------------------------------
+    TYPE(orbit_elem) :: elatt2 !ATT elements of the asteroid
+    TYPE(orbit_elem) :: elcar1,elcar2 !CAR elements
+    DOUBLE PRECISION, DIMENSION(6,6) :: dcardel2, dattdel2,gel
+    DOUBLE PRECISION, DIMENSION(6) :: drhodel2,drdel2,dbetadel2,dHtmp 
+    DOUBLE PRECISION :: rho,dHdrho,r,dHdr,cbeta,dHdbeta,Hvar
+    DOUBLE PRECISION :: dcbetadr,tb2,phi1,phi2,gmag
+    DOUBLE PRECISION :: dphi1db,dphi2db
+    DOUBLE PRECISION, DIMENSION(3) :: dbetadx
+    DOUBLE PRECISION :: vsize,rea_sun
+    DOUBLE PRECISION,PARAMETER :: a1=3.33d0, a2=1.87d0 
+    DOUBLE PRECISION,PARAMETER :: b1=0.63d0, b2=1.22d0 
+    INTEGER  fail_flag
+! ============================================================
+    CALL coo_cha(el2,'ATT',elatt2,fail_flag,dattdel2) ! to compute rho
+    CALL coo_cha(el2,'CAR',elcar2,fail_flag,dcardel2) ! to compute r
+! geocentric distance and partials
+    rho = elatt2%coord(5)
+    drhodel2=dattdel2(5,1:6)
+! heliocentric distance and partials
+    r=vsize(elcar2%coord(1:3))
+    drdel2=MATMUL(elcar2%coord(1:3)*(1.d0/r),dcardel2(1:3,1:6))
+! derivatives w.r. to rho,r
+    dHdrho=-5.d0/(log(1.d1)*rho)
+    dHdr=-5.d0/(log(1.d1)*r)
+! computation of beta (phate)
+    CALL coo_cha(el1,'CAR',elcar1,fail_flag) ! used only for beta (phase)
+    rea_sun=vsize(elcar1%coord(1:3))
+    cbeta=(r**2+rho**2-rea_sun**2)/(2.d0*r*rho)
+!    beta=acos(cbeta) ! beta in [0, pi]
+    dcbetadr=(r**2-rho**2+rea_sun**2)/(2*rho*r**2)
+    dbetadx=(-1.d0/sqrt(1.d0-cbeta**2)*dcbetadr/r)*elcar2%coord(1:3)
+! WARNING: missing dependency on phase
+!    tb2=TAN(beta/2.d0) 
+    tb2=sqrt((1.d0-cbeta)/(1.d0+cbeta))
+    phi1=EXP(-a1*tb2**b1) 
+    phi2=EXP(-a2*tb2**b2) 
+    gmag=elatt2%g_mag
+! ***************************************************************
+!    appmag=5.d0*LOG10(ds*dt)+h-2.5d0*LOG10((1.d0-g)*phi1+g*phi2) 
+! *** add reference to Bowell paper for this formula ***
+    dphi1db=-a1*b1*phi1*tb2**(b1-1.d0)/(1.d0+cbeta)
+    dphi2db=-a2*b2*phi2*tb2**(b2-1.d0)/(1.d0+cbeta)
+    dHdbeta=2.5d0/(log(10.d0)*((1.d0-gmag)*phi1+gmag*phi2))* &
+         & ((1.d0-gmag)*dphi1db+gmag*dphi2db)  
+    dbetadel2=MATMUL(dbetadx,dcardel2(1:3,1:6))
+! total derivatives of H w.r. to original elements
+    dHdel2=dHdrho*drhodel2+dHdr*drdel2 +dHdbeta*dbetadel2
+! ------ covariance computation ------
+    gel = unc2%g
+    dHtmp = MATMUL(gel,dHdel2)
+    Hvar = DOT_PRODUCT(dHdel2,dHtmp)
+    Hrms = sqrt(Hvar)
+  END SUBROUTINE Habs_rms
+
 ! ******************************************************************
-! ** MAIN SUBROUTINE for the COMPUTATION of the STATIONARY POINTS **
+! ** MAIN ROUTINE for the COMPUTATION of the STATIONARY POINTS **
 ! *********** written by GIOVANNI F. GRONCHI (Oct.2004) ************
 ! last modified 31/01/2007 GFG
 ! ==================================================================
   SUBROUTINE crit_pts(elpl,elcom,fpl,fcom,nroots, &
        & nummin,nummax,answer,warnflag,sflag,morse,weier,hzflag,hwflag, & 
        & multfl,hevalflag)
-    IMPLICIT NONE
 ! cometary elements of the planet and of the comet
     REAL(KIND=8),INTENT(IN),DIMENSION(5) :: elpl
     REAL(KIND=8),INTENT(IN),DIMENSION(5) :: elcom 
@@ -569,7 +680,8 @@ CONTAINS
     IF(nroots.eq.0)THEN
        write(ierrou,*)'crit_pts: ERROR! no critical point found! nroots=',nroots
        numerr=numerr+1
-       STOP
+       RETURN
+!       STOP
     ENDIF
 
     nummin=0
@@ -2041,8 +2153,8 @@ SUBROUTINE CP_newton_raphson(com1c,com2c,iof1,iof2)
 END SUBROUTINE CP_newton_raphson
 ! =================================================================
 SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
-     & unc1,unc2,dmintrms,comp_flag,detH,detHrms,sint1t2,taurms,&
-     & sinmutI,sinmutIrms,chk_der)
+     & unc1,unc2,dmintrms,ddmintdel2,comp_flag,detH,detHrms, &
+     & sint1t2,taurms,sinmutI,sinmutIrms,chk_der)
   IMPLICIT NONE
 ! ===================== INTERFACE =======================
   TYPE(orbit_elem),INTENT(IN) :: el1,el2 ! orbital elements
@@ -2054,6 +2166,7 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
   DOUBLE PRECISION,OPTIONAL,DIMENSION(3,nminx),INTENT(OUT) :: c1min,c2min
   TYPE(orb_uncert),OPTIONAL,INTENT(IN) :: unc1,unc2
   DOUBLE PRECISION,OPTIONAL,DIMENSION(nminx),INTENT(OUT) :: dmintrms
+  DOUBLE PRECISION,OPTIONAL,DIMENSION(5,nminx),INTENT(OUT) :: ddmintdel2
 ! comp_flag(1) --> sinmutI; comp_flag(2) --> detH; comp_flag(3) --> st1t2
   LOGICAL,INTENT(OUT),OPTIONAL,DIMENSION(3,nminx) :: comp_flag ! check 
 ! detH, detHrms, sint1t2, taurms at local minima
@@ -2316,7 +2429,10 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
            c1min(1:3,i) = car1min(i)%coord(1:3)
            c2min(1:3,i) = car2min(i)%coord(1:3)
         ENDIF
-        IF(chk_der)THEN
+        IF(PRESENT(ddmintdel2))THEN
+           ddmintdel2(1:5,i)=derdmintil(1,6:10)
+        ENDIF
+        IF(chk_der_aux)THEN
            write(ierrou,*)'derivatives of dmintilde w.r.t COM:'
            write(ierrou,100) derdmintil(1,6:10)
            numerr=numerr+1
@@ -4597,7 +4713,7 @@ END SUBROUTINE tau1_tau2
        ENDIF
     ENDDO
     IF((nstat.ne.nstatvar).or.(nummin.ne.numminvar)) THEN
-       WRITE(*,*)'moid_rms: ERROR! nstat',nstat,'nstatvar',nstatvar
+       WRITE(*,*)'derdmintest: ERROR! nstat',nstat,'nstatvar',nstatvar
        WRITE(*,*)'                nummin',nummin,'numminvar',numminvar
        STOP
     ENDIF

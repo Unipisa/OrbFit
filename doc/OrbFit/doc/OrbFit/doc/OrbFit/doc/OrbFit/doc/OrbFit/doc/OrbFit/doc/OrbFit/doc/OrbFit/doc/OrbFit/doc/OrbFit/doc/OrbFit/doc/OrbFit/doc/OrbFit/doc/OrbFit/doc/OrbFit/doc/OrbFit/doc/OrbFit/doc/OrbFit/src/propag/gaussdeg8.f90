@@ -26,7 +26,7 @@
 !           FAIL      -  Error flag                                     
 !           MSG       -  Error message                                  
 !                                                                       
-SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,el,nroots,nsol,rr,fail,msg,debug)
+SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fail,msg,debug)
   USE reference_systems 
   USE fund_const
   USE orbit_elements
@@ -34,6 +34,7 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,el,nroots,nsol,rr,fail,msg,debug)
   IMPLICIT NONE  
   INTEGER, INTENT(IN) ::  obscod(3) 
   DOUBLE PRECISION, INTENT(IN):: tobs(3),alpha(3),delta(3) 
+  DOUBLE PRECISION, INTENT(IN) :: ecc_max, q_max
   TYPE(orbit_elem), INTENT(OUT) :: el(3)
   DOUBLE PRECISION, INTENT(OUT) :: rr(3) ! topocentric distance
   LOGICAL, INTENT(OUT) :: fail
@@ -48,9 +49,11 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,el,nroots,nsol,rr,fail,msg,debug)
   DOUBLE PRECISION esse0(3,3),cosd,det,tau1,tau3,tau13 
   DOUBLE PRECISION roots(8),r2m3 
   DOUBLE PRECISION gcap(3),crhom(3),rho(3),xp(3,3),vp(3),xv(6) ,tis2
-  DOUBLE PRECISION l0,h0,coseps
+  DOUBLE PRECISION l0,h0,coseps,sineps,vvv(3),vsize,r0
   INTEGER fail_flag ! for coordinate change
   TYPE(orbit_elem) elk 
+  DOUBLE PRECISION ecc,q,energy
+  LOGICAL accept8, ecc_cont
 ! ===============================================================
   fail=.true. 
   msg=' ' 
@@ -79,22 +82,22 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,el,nroots,nsol,rr,fail,msg,debug)
   END IF
   tis2=tobs(2) 
 ! A and B vectors                                                       
-  tau1=gk*(tobs(1)-tis2) 
-  tau3=gk*(tobs(3)-tis2) 
-  tau13=tau3-tau1 
-  a(1)= tau3/tau13 
+  tau1=gk*(tobs(1)-tis2) ! mu*t_12
+  tau3=gk*(tobs(3)-tis2) ! mu*t_32
+  tau13=tau3-tau1        ! mu*t_31
+  a(1)= tau3/tau13       
   a(2)=-1.d0 
   a(3)=-(tau1/tau13) 
-  b(1)=a(1)*(tau13**2-tau3**2)/6.d0 
+  b(1)=a(1)*(tau13**2-tau3**2)/6.d0  
   b(2)=0.d0 
   b(3)=a(3)*(tau13**2-tau1**2)/6.d0 
 ! Coefficients of 8th degree equation for r2                            
-  ra=MATMUL(xt,a)  ! CALL prodmv(ra,xt,a) 
-  rb=MATMUL(xt,b)  ! CALL prodmv(rb,xt,b) 
+  ra=MATMUL(xt,a) 
+  rb=MATMUL(xt,b) 
   a2star=sinv0(2,1)*ra(1)+sinv0(2,2)*ra(2)+sinv0(2,3)*ra(3) 
   b2star=sinv0(2,1)*rb(1)+sinv0(2,2)*rb(2)+sinv0(2,3)*rb(3) 
-  r22=xt(1,2)**2+xt(2,2)**2+xt(3,2)**2 
-  s2r2=esse0(1,2)*xt(1,2)+esse0(2,2)*xt(2,2)+esse0(3,2)*xt(3,2) 
+  r22=xt(1,2)**2+xt(2,2)**2+xt(3,2)**2 ! q_2^2 
+  s2r2=esse0(1,2)*xt(1,2)+esse0(2,2)*xt(2,2)+esse0(3,2)*xt(3,2) ! <q_2,rhat_2> 
   coef(8)=1.d0 
   coef(7)=0.d0 
   coef(6)=-(a2star**2)-r22-(2.d0*a2star*s2r2) 
@@ -111,16 +114,27 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,el,nroots,nsol,rr,fail,msg,debug)
   h0=-a2star/b2star*r22**1.5d0
   l0=-1.d0/b2star
   coseps=s2r2/sqrt(r22)
+  CALL prvec(xt(1:3,2),esse0(1:3,2),vvv)
+  sineps=vsize(vvv)/sqrt(r22)
+  r0=sqrt(r22)/(h0**(1.d0/3.d0))
   CALL solv8(coef,roots,nroots) 
+  IF(nroots.LE.0) THEN 
+     WRITE(iun_log,524)
+     WRITE(iun_log,515)l0,h0,coseps,sqrt(r22),sineps,r0
+  ELSE 
+!     WRITE(iun_log,514)(i,roots(i),i=1,nroots)
+     WRITE(iun_log,515)l0,h0,coseps,sqrt(r22),sineps,r0
+  END IF
   IF(debug) THEN 
      IF(nroots.LE.0) THEN 
-        WRITE(iun_log,524)
+        WRITE(*,524)
+        WRITE(*,515)l0,h0,coseps,sqrt(r22),sineps,r0
  524    FORMAT(16X,'no roots of deg.8 equation') 
      ELSE 
-         WRITE(iun_log,514)(i,roots(i),i=1,nroots)
+         WRITE(*,514)(i,roots(i),i=1,nroots)
  514     FORMAT(16X,'r(',i1,')  =',F10.6)
-         WRITE(iun_log,515)l0,h0,coseps,sqrt(r22)
- 515     FORMAT('l0=',1P,D12.5,' h0=',D12.5,' cos(eps)=',D12.5,' R=',D12.5) 
+         WRITE(*,515)l0,h0,coseps,sqrt(r22),sineps,r0
+ 515     FORMAT('l0=',1P,D12.5,' h0=',D12.5,' cos(eps)=',D12.5,' q=',D12.5,' sineps=',D12.5,' r0=',D12.5) 
      END IF
   END IF                                                                        
   IF(nroots.LE.0) THEN 
@@ -149,12 +163,12 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,el,nroots,nsol,rr,fail,msg,debug)
 14   ENDDO
 ! remove spurious root
      IF(rho(2).lt.0.01d0)THEN
-        IF(debug)WRITE(iun_log,*) ' spurious root , r, rho ',roots(ir),rho(2)
+        IF(debug)WRITE(*,*) ' spurious root ',ir,' , r, rho ',roots(ir),rho(2)
+        WRITE(iun_log,*) ' spurious root ',ir,', r, rho ',roots(ir),rho(2)
         CYCLE
      ELSE
-        IF(debug)WRITE(iun_log,*) ' accepted root , r, rho ',roots(ir),rho(2)
-        nsol=nsol+1
-        rr(nsol)=rho(2)
+        IF(debug)WRITE(*,*) ' accepted root ',ir,' , r, rho ',roots(ir),rho(2)
+        WRITE(iun_log,*) ' accepted root ',ir,' , r, rho ',roots(ir),rho(2)
      ENDIF
 ! Gibbs' transformation, giving the velocity of the planet at the       
 ! time of second observation
@@ -162,14 +176,24 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,el,nroots,nsol,rr,fail,msg,debug)
 ! conversion to ecliptic coordinates
      xv(1:3)=MATMUL(roteqec,xp(1:3,2))
      xv(4:6)=MATMUL(roteqec,vp)
+! hyperbolic control
+     accept8=ecc_cont(xp(1:3,2),vp,gms,ecc_max,q_max,ecc,q,energy)
+     IF(accept8)THEN
+        nsol=nsol+1
+        rr(nsol)=rho(2)
+     ELSE
+        IF(debug)WRITE(*,*) ' hyperbolic, ecc,q  ',ecc,q
+        WRITE(iun_log,*)' hyperbolic, ecc,q  ',ecc,q 
+        CYCLE ! try next root
+     ENDIF  
 ! Orbital elements of preliminary orbit                                 
      el(nsol)=undefined_orbit_elem
      el(nsol)%coord=xv
      el(nsol)%coo='CAR'
 ! planetary aberration 
      el(nsol)%t=tobs(2)-rho(2)/vlight
-     CALL coo_cha(el(nsol),'KEP',elk,fail_flag)
      IF(debug) THEN 
+        CALL coo_cha(el(nsol),'KEP',elk,fail_flag)
         WRITE(iun_log,525) ir, fail_flag 
         IF(elk%coo.EQ.'KEP') THEN 
            WRITE(iun_log,535) 'a',elk%coord(1),elk%coord(2) 
@@ -177,6 +201,12 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,el,nroots,nsol,rr,fail,msg,debug)
            WRITE(iun_log,535) 'q',elk%coord(1),elk%coord(2)
         ELSE 
            STOP '**** gaussdeg8: unknown elem type ****' 
+        END IF
+        WRITE(*,525) ir, fail_flag 
+        IF(elk%coo.EQ.'KEP') THEN 
+           WRITE(*,535) 'a',elk%coord(1),elk%coord(2) 
+        ELSEIF(elk%coo.EQ.'COM'.or.elk%coo.eq.'COT') THEN 
+           WRITE(*,535) 'q',elk%coord(1),elk%coord(2)
         END IF
      END IF
 525  FORMAT(12X,'ROOT NO.',I2,1x,I2) 

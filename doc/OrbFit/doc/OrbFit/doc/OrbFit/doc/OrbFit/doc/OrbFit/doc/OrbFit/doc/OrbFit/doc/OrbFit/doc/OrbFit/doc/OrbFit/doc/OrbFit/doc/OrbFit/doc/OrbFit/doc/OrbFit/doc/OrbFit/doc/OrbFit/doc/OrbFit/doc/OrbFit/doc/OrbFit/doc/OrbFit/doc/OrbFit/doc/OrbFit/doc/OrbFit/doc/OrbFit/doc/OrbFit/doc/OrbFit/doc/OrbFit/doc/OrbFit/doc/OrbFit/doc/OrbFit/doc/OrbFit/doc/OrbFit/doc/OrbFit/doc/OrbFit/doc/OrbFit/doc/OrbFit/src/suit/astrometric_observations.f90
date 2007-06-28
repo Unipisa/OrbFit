@@ -589,7 +589,6 @@ END SUBROUTINE write_rwo_opt
 
 ! Writes second record with position for satellite/roving observations
 SUBROUTINE write_rwo_pos(unit,obs,obsw)
-  USE reference_systems, ONLY: roteqec,roteceq
   INTEGER,        INTENT(IN) :: unit 
   TYPE(ast_obs),  INTENT(IN) :: obs
   TYPE(ast_wbsr), INTENT(IN) :: obsw

@@ -11,6 +11,7 @@ tests_src:
 	(cd tests;  touch modules.flags; make depend; make)
 
 nondistribution:
+	-(cd panst; make depend; make)
 	-(cd allobs; make depend; make)
 	-(cd idconf2; make depend; make)
 #	-(cd stat; make depend; make)
@@ -22,12 +23,12 @@ nondistribution:
 	-(cd util90; make)
 	-(cd orb9; make depend; make)
 	-(cd propneo2; make depend; make)
-	-(cd panst; make depend; make)
 	-(cd moid_research; make depend; make)
 #	-(cd skymap; make depend; make)
 #	-(cd starcat; make)
 
 nondistclean:
+	-(cd panst; make clean)
 	-(cd allobs; make clean)
 	-(cd idconf2; make clean)
 #	-(cd stat; make clean)
@@ -39,7 +40,6 @@ nondistclean:
 	-(cd triang; make clean)
 	-(cd test; make clean)
 	-(cd propneo2; make clean)
-	-(cd panst; make clean)
 	-(cd moid_research; make clean)
 #	-(cd skymap; make clean)
 #	-(cd starcat; make clean)
@@ -68,7 +68,4 @@ distclean:
 	cp ../conf/mf.dist make.flags
 	rm -f *~
 	rm -f .compiler
-
-
-
 

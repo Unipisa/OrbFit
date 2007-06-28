@@ -1508,9 +1508,9 @@ SUBROUTINE diff_cor(m,obs,obsw,el0,icor,iunf,elc,uncert,csinor,delnor,succ)
            itg=0 
         ENDIF
         IF(itg.gt.itgmax)THEN 
-           IF(verb_dif.ge.5)WRITE(*,*)                           &
+           IF(verb_dif.ge.19)WRITE(*,*)                           &
      &           'Done. Target funct. not decreasing after ',it,' passes.'
-           write(iun,*)                               &
+           IF(verb_dif.ge.9)write(iun,*)                               &
      &           'Done. Target funct. not decreasing after ',it,' passes.'
            goto 70 
         ENDIF

@@ -262,8 +262,9 @@ SUBROUTINE wri_attri(iunatt,iunrat,name0,att,trou,nvir)
   ENDIF
 END SUBROUTINE wri_attri
 
-  SUBROUTINE attri_comp(m,obs,obsw,att,error)
+SUBROUTINE attri_comp(m,obs,obsw,att,error,qobs,qpobs,qppobs)
   USE astrometric_observations
+  USE reference_systems
 !INPUT:  observations
   INTEGER,INTENT(IN) :: m ! number of observations 
   TYPE(ast_obs),INTENT(IN),DIMENSION(m) :: obs ! observations 
@@ -271,8 +272,11 @@ END SUBROUTINE wri_attri
 ! OUTPUT: attributable
   TYPE(attrib), INTENT(OUT) :: att 
   LOGICAL, INTENT(OUT), OPTIONAL :: error ! error flag, to avoid stop
+  DOUBLE PRECISION, INTENT(OUT), DIMENSION(3),OPTIONAL :: qobs,qpobs,qppobs 
+! interpolated second derivative of geocentric position delta_X of the observer; 
+! as in Poincare', Bullettin Astronomique, 23 (1906) pages 177-178
 ! END INTERFACE
-  DOUBLE PRECISION :: tc ! central time
+  DOUBLE PRECISION, DIMENSION(3) :: dx0, dxp, dxpp, position,velocity
   INCLUDE 'parobx.h90'
   DOUBLE PRECISION, DIMENSION(nobx) :: t, alpha, delta, rmsa,rmsd, &
     &    alcosd,rmsad,alr
@@ -280,9 +284,9 @@ END SUBROUTINE wri_attri
   DOUBLE PRECISION, DIMENSION(3,3) :: g3a, g3d ! covariance of quadratic fit
 ! RMS of residuals: linear fit, quadr. fit
   DOUBLE PRECISION :: rms_2a, rms_3a, rms_2d, rms_3d 
-  DOUBLE PRECISION :: s2d(2),s2a(2), s3d(3), s3a(3), cosdtc, sindtc, princ
+  DOUBLE PRECISION :: s2d(2),s2a(2), s3d(3), s3a(3), cosdtc, sindtc, princ, cosatc,sinatc
   DOUBLE PRECISION detadv(2), tmp2(2), arc, gked(2,2)
-  DOUBLE PRECISION :: sw,swx,ww
+  DOUBLE PRECISION :: sw,swx,ww, prscal, dx(3,nobx), tc
   INTEGER ng, ntime ! no rev for unwrapping of alpha, no of distinct times
   INTEGER j, ising,nmag
   CHARACTER*7 idst1
@@ -357,9 +361,9 @@ END SUBROUTINE wri_attri
      cosdtc=cos(s3d(3))
      sindtc=sin(s3d(3))
   ENDIF
-!  alcosd(1:m)=alr(1:m)*cosdtc
-!  rmsad(1:m)=rmsa(1:m)*cosdtc
-! fit to alpha*cos(delta*)
+!  alcosd(1:m)=alr(1:m)*cosdtc NO!!! no approx on tangent space
+!  rmsad(1:m)=rmsa(1:m)*cosdtc NO!!!
+! fit to alpha
   CALL quadratic_fit(t,alr,rmsa,m,ntime,g2a,g3a,s2a,s3a,   &
 &           rms_2a,rms_3a,ising)
 ! output attributable
@@ -451,14 +455,29 @@ END SUBROUTINE wri_attri
      att%rms_geocurv=sqrt(gked(1,1)) 
      att%rms_etadot=sqrt(gked(2,2))  
      att%c_curvacc=gked(1,2)/(att%rms_geocurv*att%rms_etadot)
-! compute Vhat, Nhat
-
-! compute for each obs a(t)=Pobs*Nhat, b(t)=Pobs*Vhat
-! quadratic fit of a(t), b(t)
-! curv_corr=\ddot a
-! acc_corr=\ddot b
   ENDIF
-  END SUBROUTINE attri_comp
+  IF(PRESENT(qobs).and.PRESENT(qpobs).and.PRESENT(qppobs))THEN
+     IF(ntime.eq.2)THEN
+        qobs=0.d0
+        qpobs=0.d0
+        qppobs=0.d0
+     ELSE
+! geocentric position of the observer, equator and equinox J2000
+        DO j=1,m        
+           CALL observer_position(obs(j)%time_tdt,position,velocity,obs(j)%obscod_i)
+           dx(1:3,j)=MATMUL(roteceq,position)
+        ENDDO
+! Poincare' interpolation on geocentric position of observer
+        DO j=1,3
+           CALL quadratic_fit(t,dx(j,1:m),rmsa,m,ntime,g2a,g3a,s2a,s3a,rms_2a,rms_3a,ising)
+! WARNING: what to do with residuals, uncertainty of these fits?
+           qppobs(j)=s3a(1)
+           qpobs(j)=s3a(2)
+           qobs(j)=s3a(3)
+        ENDDO
+     ENDIF
+  ENDIF
+END SUBROUTINE attri_comp
 
 ! covariance of geodetic curvature and acceleration
   SUBROUTINE covar_curvacc(eta,a,d,da,dd,dda,ddd,g3a,g3d,gked)

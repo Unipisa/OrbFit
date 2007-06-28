@@ -17,7 +17,7 @@ PUBLIC :: fmuobs, fmupro, fmuplo, outmul, prop_sig, step_fit2
 PUBLIC :: lovinit,lovobs,lovmagn,lovinterp
 ! PUBLIC data
 ! maximum number of multiple solutions
-  INTEGER, PARAMETER::  mulx=4001
+  INTEGER, PARAMETER::  mulx=9999
 ! first, last, reference solution                            
   INTEGER imip,imim,imi0
 ! multiple solution arrays                                                

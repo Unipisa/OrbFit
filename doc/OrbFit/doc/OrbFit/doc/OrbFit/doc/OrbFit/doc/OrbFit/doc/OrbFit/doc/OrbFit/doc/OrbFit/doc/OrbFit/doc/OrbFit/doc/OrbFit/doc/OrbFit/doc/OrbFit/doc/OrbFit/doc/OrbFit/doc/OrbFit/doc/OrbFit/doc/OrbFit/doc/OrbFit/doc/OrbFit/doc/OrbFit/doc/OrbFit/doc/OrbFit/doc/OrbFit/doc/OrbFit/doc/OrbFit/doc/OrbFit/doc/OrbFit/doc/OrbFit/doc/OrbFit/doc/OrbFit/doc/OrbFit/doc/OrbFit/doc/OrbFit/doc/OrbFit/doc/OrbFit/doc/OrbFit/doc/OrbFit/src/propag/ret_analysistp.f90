@@ -790,7 +790,8 @@ CONTAINS
     LOGICAL, INTENT(OUT)         :: fals_conv,fals_notp 
 !======================= END INTERFACE==========================
     INTEGER :: it,nit 
-    INTEGER, PARAMETER :: itmax=200,itma1=itmax+1,itma2=itmax+2 
+!    INTEGER, PARAMETER :: itmax=200,itma1=itmax+1,itma2=itmax+2 
+    INTEGER, PARAMETER :: itmax=30,itma1=itmax+1,itma2=itmax+2 
     DOUBLE PRECISION, DIMENSION(itma1) :: a,b,ta,tb
     DOUBLE PRECISION, DIMENSION(itma1) :: da,db,fa,fb 
     DOUBLE PRECISION, DIMENSION(itma1) :: fw,tw,dw
@@ -813,6 +814,14 @@ CONTAINS
     iunwar=abs(iunwar0)
     iunnew=abs(iunnew0) 
     WRITE(iunwar,*)'findminctp ',type,arrc(1)%tcla,a0,b0 
+    IF(a0.eq.b0)THEN
+       WRITE(iunwar,*) ' supect multiple minimum '
+       fals_conv=.false.
+       niter=0       
+       fals_notp=.false.
+       arrmin=arrc(1)
+       RETURN
+    ENDIF
 !    arrf(1)=arrc(1)
 !    arrf(2)=arrc(2)
 ! consult arrays for initial two points                                 

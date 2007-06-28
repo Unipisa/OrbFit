@@ -5,7 +5,7 @@ IMPLICIT NONE
 
 PRIVATE
 
-PUBLIC fser_propag, fser_propag_der, solve_peri, solve_kepuniv, solve_kepuniv2, pdtime
+PUBLIC fser_propag, fser_propag_der, solve_peri, solve_kepuniv, solve_kepuniv2, pdtime, s_funct
 
 ! PUBLIC s_funct, r_of_psi !maybe to be made private later
 
@@ -239,10 +239,11 @@ CONTAINS
 !           conv_control (optional) is the control on Delta psi
 ! in output, psi is the universal anomaly corresponding to t
 ! =======================================================================
-  SUBROUTINE solve_kepuniv2(dt,r0,sig0,mu,alpha,e0,psi,s0,s1,s2,s3,conv_contr) 
+  SUBROUTINE solve_kepuniv2(dt,r0,sig0,mu,alpha,e0,psi,s0,s1,s2,s3,conv_contr,ds2da,ds0da) 
     DOUBLE PRECISION, INTENT(IN):: dt,r0,sig0,mu,alpha,e0 
     DOUBLE PRECISION, INTENT(IN), OPTIONAL :: conv_contr ! convergence control
     DOUBLE PRECISION, INTENT(OUT):: psi, s0, s1, s2, s3
+    DOUBLE PRECISION, INTENT(OUT), OPTIONAL :: ds2da,ds0da
 ! end interface
     DOUBLE PRECISION contr,dpsi,psi1, fun, funp, pridif !for Newton's method
     DOUBLE PRECISION :: a0, u0, cosu0, u, cosu, enne, du, ell, ell0, princ! elliptic case
@@ -334,7 +335,11 @@ CONTAINS
          WRITE(ierrou,*)' psi, alpha, r0', psi, alpha, r0
          numerr=numerr+1
       ENDIF
-      CALL s_funct(psi,alpha,s0,s1,s2,s3)
+      IF(PRESENT(ds2da).and.PRESENT(ds0da))THEN
+         CALL s_funct(psi,alpha,s0,s1,s2,s3,DS2DA=ds2da,DS0DA=ds0da)
+      ELSE
+         CALL s_funct(psi,alpha,s0,s1,s2,s3)
+      ENDIF
       fun=r0*s1+sig0*s2+mu*s3-dt
       funp=r0*s0+sig0*s1+mu*s2
       dpsi=-fun/funp
@@ -459,12 +464,13 @@ CONTAINS
 ! =======================================================================
 ! S_FUNCT computation of Stumpff's functions s0, s1 s2, s3
 ! =======================================================================
-  SUBROUTINE s_funct(psi,alpha,s0,s1,s2,s3,conv_contr)
+  SUBROUTINE s_funct(psi,alpha,s0,s1,s2,s3,conv_contr,ds2da,ds0da)
     DOUBLE PRECISION, INTENT(IN) :: psi, alpha ! univ. ecc. anom., 2*energ 
     DOUBLE PRECISION, INTENT(OUT) :: s0,s1,s2,s3 ! Stumpff functions
     DOUBLE PRECISION, INTENT(IN), OPTIONAL :: conv_contr ! covergence control
+    DOUBLE PRECISION, INTENT(OUT), OPTIONAL :: ds0da,ds2da
     DOUBLE PRECISION beta, term2, term3, term0, term1, psi2, s02, s12
-    DOUBLE PRECISION contr, dif1, dif2, sval, overfl
+    DOUBLE PRECISION contr, dif1, dif2, sval, overfl, termda
     INTEGER j,jj,nhalf
     INTEGER, PARAMETER:: jmax=70, halfmax=30
     DOUBLE PRECISION, PARAMETER :: betacontr=1.d2 !to make it not operational
@@ -475,18 +481,34 @@ CONTAINS
        contr=100*epsilon(1.d0)
     ENDIF
 !    overfl=HUGE(1.d0)/1.d3
-    overfl=1/epsilon(1.d0)
+    overfl=1.d0/epsilon(1.d0)
 ! compute s2,s3
     beta=alpha*psi**2 
-!    WRITE(*,*)psi,beta,alpha
+! computation of d(s2)/d(alpha)
+    IF(PRESENT(ds2da))THEN
+       termda=psi**4/24.d0
+       ds2da=termda
+       DO j=1,jmax
+         termda=termda*beta/((2.d0*j+4.d0)*(2.d0*j+3.d0))
+         ds2da=ds2da+(j+1)*termda
+         IF(abs(termda*(j+1)).lt.contr)THEN
+!            write(*,*)'j,term_j=',j,termda*(j+1)
+            EXIT
+         ENDIF
+         IF(abs(termda*(j+1)).gt.overfl) EXIT
+       ENDDO
+       IF(j.gt.jmax.or.abs(termda*(j+1)).gt.overfl)THEN
+          WRITE(*,*)' ds2da, termda', ds2da, termda
+       ENDIF
+    ENDIF
 ! if beta>1000 then...
     IF(abs(beta).lt.betacontr)THEN
-       term2=psi**2/2
-       term3=term2*psi/3
+       term2=psi**2/2.d0
+       term3=term2*psi/3.d0
        s2=term2
        s3=term3
        DO j=1,jmax
-          term2=term2*beta/((2*j+1)*(2*j+2))
+          term2=term2*beta/((2.d0*j+1.d0)*(2.d0*j+2.d0))
           s2=s2+term2
           IF(abs(term2).gt.overfl)EXIT
           IF(abs(term2).lt.contr)EXIT
@@ -506,7 +528,9 @@ CONTAINS
 ! recursive formulae
        s1=psi+alpha*s3
        s0=1.d0+alpha*s2
-!       WRITE(*,*)s0,s1,s2,s3
+       IF(PRESENT(ds0da))THEN
+          ds0da=s2+alpha*ds2da
+       ENDIF
     ELSE
        psi2=psi
        nhalf=0

@@ -242,8 +242,8 @@ CONTAINS
     ENDDO
     IF(natc.lt.nat)THEN
 !       WRITE(*,*)' check_cons_arc: correction to type ', natc,nat
-       WRITE(ierrou,*)' check_cons_arc: correction to type ', natc,nat
-       numerr=numerr+1
+!       WRITE(ierrou,*)' check_cons_arc: correction to type ', natc,nat
+!       numerr=numerr+1
     ENDIF
   END SUBROUTINE check_cons_arcs
 

@@ -26,7 +26,12 @@ PROGRAM fitobs
 ! ===== input observations ======================
   INTEGER ifobs ! menu index
 ! ===== input orbital elements===================
-  INTEGER imeth,iele ! to select prelim orbit metod, which arc
+  INTEGER imeth,iele,nselect ! to select prelim orbit metod, which arc
+  TYPE(orbit_elem) el3(3) ! alternate preliminary orbits
+  LOGICAL failpre
+  CHARACTER*(50) msg
+  INTEGER nsolp,nroots ! no preliminary orbits, no roots deg. 8
+  DOUBLE PRECISION rr3(3) ! alternate topocentric distances
 ! ===== differential corrections ==============                  
   LOGICAL succ ! success flag                             
   double precision meanti ! function for time of difcor 
@@ -83,6 +88,7 @@ PROGRAM fitobs
   DOUBLE PRECISION r, rdot ! to complete an attributable to an ATT elem.
   INTEGER artyp, nigarc, fail_arty ! arc type 
   DOUBLE PRECISION rmsmax,geoc_chi, acce_chi, chi !arc type
+  DOUBLE PRECISION dx2n,dx2v ! for Poincare' topocentric correction
 ! ======== output moid =====================                            
   DOUBLE PRECISION moid0, dnp0, dnm0 
 ! ========= calendar to julian =================                        
@@ -296,7 +302,7 @@ PROGRAM fitobs
      WRITE(*,*)' INPUT OF ORBITAL ELEMENTS' 
 ! ================MENU 2: INPUT ELEMENTS======================          
 52   menunam='inputele' 
-     CALL menu(iele,menunam,9,                                      &
+     CALL menu(iele,menunam,11,                                      &
      &      ' Which orbital elements to input/compute?=',               &
      &      ' input arc 1=',' input arc 2=',                            &
      &      ' input both arcs=',                                        &
@@ -305,6 +311,8 @@ PROGRAM fitobs
      &      ' compute both arcs by Gauss/Vaisala=',                     &
      &      ' find multiple solutions of deg. 8 equation, arc 1=',      &
      &      ' find multiple solutions of deg. 8 equation, arc 2=',      &
+     &      ' compute arc 1 by Laplace-Poincare=',                      &
+     &      ' compute arc 2 by Laplace-Poincare=',                      &
      &      ' give to arc 2 ele of arc 1=')
 62   IF(iele.eq.0)GOTO 50 
      IF(iele.eq.1.or.iele.eq.3)THEN 
@@ -381,7 +389,44 @@ PROGRAM fitobs
         CALL f_gaussdeg8(iunelp,astnap,inip,covp,          &
      &     rwofip,obs(m+1:mall),obsw(m+1:mall),mp,error_model,elp)
      ENDIF
-     IF(iele.eq.9)THEN 
+     IF(iele.eq.9)THEN
+! use Laplace method for preliminary orbit, arc1
+        IF(.not.obs0)THEN 
+           WRITE(*,*)'missing observations for arc 1' 
+           GOTO 52 
+        ENDIF
+        CALL tee(iun_log,' PRELIM. ORB. LAPLACE,  ARC 1=')
+        CALL laplace_poincare(m,obs,obsw,el3,nroots,nsolp,rr3,failpre,msg,.true.)
+        IF(nsolp.eq.1)THEN
+           el0=el3(1)
+        ELSEIF(nsolp.gt.1)THEN
+21         WRITE(*,*)' select one solution between 1 and ', nsolp
+           READ(*,*) nselect
+           IF(nselect.lt.1.or.nselect.gt.nsolp) GOTO 21
+           el0=el3(nselect)
+        ELSE
+           WRITE(*,*)' no solution '
+        ENDIF 
+     ELSEIF(iele.eq.10)THEN
+! use Laplace method for preliminary orbit, arc 2                 
+        IF(.not.obsp)THEN 
+           WRITE(*,*)'missing observations for arc 2' 
+           GOTO 52 
+        ENDIF
+        CALL tee(iun_log,' PRELIM. ORB. LAPLACE,  ARC 2=')
+        CALL laplace_poincare(mp,obs(m+1:mall),obsw(m+1:mall),el3,nroots,nsolp,rr3,failpre,msg,.true.)
+        IF(nsolp.eq.1)THEN
+           elp=el3(1)
+        ELSEiF(nsolp.gt.1)THEN
+22         WRITE(*,*)' select one solution between 1 and ', nsolp
+           READ(*,*) nselect
+           IF(nselect.lt.1.or.nselect.gt.nsolp) GOTO 22
+           elp=el3(nselect)
+        ELSE
+           WRITE(*,*)' no solution '
+        ENDIF 
+     ENDIF
+     IF(iele.eq.11)THEN 
 ! ===================================================================== 
 ! copy elements of arc 1 into elements of arc 2                         
         IF(ini0)THEN 

@@ -312,7 +312,7 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
 ! Max number of output fields                                           
   INTEGER, PARAMETER :: nfx=30 
 ! Max number of ephemeris points                                        
-  INTEGER, PARAMETER :: nephx=600 
+  INTEGER, PARAMETER :: nephx=6000 
 ! Max length of output records                                          
   INTEGER, PARAMETER :: lrx=200 
                                          
@@ -334,7 +334,7 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
   INTEGER mjdt,mjdout 
   DOUBLE PRECISION sect,secout,tout 
   DOUBLE PRECISION :: adot,ddot ! proper motion
-  DOUBLE PRECISION :: pha,dis,dsun,elo,gallat ! phase, distance to Earth, distance to Sun                                                 
+  DOUBLE PRECISION :: pha,dis,dsun,elo,gallat,elev,elsun ! phase, distance to Earth, distance to Sun
   INTEGER lench 
   EXTERNAL lench 
                                                                         
@@ -559,15 +559,17 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
      &        alpha,delta,mag,inl,                                    &
      &        UNCERT=unc0,GAMAD=gamad,SIG=sig,AXES=axes,              &
      &        ADOT0=adot,DDOT0=ddot,DIS0=dis,PHA0=pha,DSUN0=dsun,   &
-     &        ELO0=elo,GALLAT0=gallat)
+     &        ELO0=elo,GALLAT0=gallat,ELEV0=elev,ELSUN0=elsun)
      ELSE 
         CALL predic_obs(el0,idsta,tdt,obstyp,  &
      &        alpha,delta,mag,inl,        &
      &        ADOT0=adot,DDOT0=ddot,DIS0=dis,PHA0=pha,DSUN0=dsun,   &
-     &        ELO0=elo,GALLAT0=gallat)
+     &        ELO0=elo,GALLAT0=gallat,ELEV0=elev,ELSUN0=elsun)
      END IF
      CALL set_restart(.false.) 
-                                                                        
+
+     WRITE(11,111)tdt,alpha,delta,elev,elsun
+111  FORMAT(f15.8,1x,f12.9,1x,f12.9,1x,f10.5,1x,f10.5)     
 ! COMPOSITION OF OUTPUT RECORD                                          
 ! Time scale conversion                                                 
      mjdt=FLOOR(tdt) 

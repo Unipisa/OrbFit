@@ -7,6 +7,7 @@
 
 MODULE orbit_elements
 USE output_control
+USE fund_const
 IMPLICIT NONE
 PRIVATE
 
@@ -125,11 +126,12 @@ INTEGER, OPTIONAL, INTENT(IN) :: obscode ! output observer
 INTEGER, INTENT(IN), OPTIONAL :: iplanet ! output center
 ! END INTERFACE
 TYPE(orbit_elem) z
-LOGICAL kepgr_in,kepgr_ou,cargr_in,cargr_ou,opposite
+LOGICAL kepgr_in,kepgr_ou,cargr_in,cargr_ou,opposite, done
 CHARACTER*3 coox
 INTEGER ndim,obscod,planet
 DOUBLE PRECISION, DIMENSION(x%ndim,x%ndim) :: del1,del2 
 
+done=.false.
 fail_flag=0
 coox=x%coo
 ndim=x%ndim
@@ -147,6 +149,7 @@ ENDIF
 IF(coox.eq.cooy)THEN
    y=x
    IF(PRESENT(del)) CALL eye(x%ndim,del)
+   done=.true.
    RETURN
 ENDIF
 IF(.not.PRESENT(obscode).and.(cooy.eq.'ATT'))THEN
@@ -219,63 +222,116 @@ IF(cargr_in)THEN
       ELSE
 ! fail_flag=9,10,20: nothing to do
       ENDIF
+      done=.true.
+      RETURN
    ELSE
       PRINT *, ' coo_cha: this should not happen 1, coox=',coox,' cooy=', cooy
       WRITE(*,*) x
       STOP
    ENDIF
-ELSEIF(kepgr_in)THEN
-   IF(cargr_ou)THEN
+ENDIF
+IF(kepgr_in.and.cargr_ou)THEN
+   IF(PRESENT(del))THEN
+      z=car_elems(x,fail_flag,del1)
+   ELSE
+      z=car_elems(x,fail_flag)
+   ENDIF
+   IF(cooy.eq.'ATT')THEN
       IF(PRESENT(del))THEN
-         z=car_elems(x,fail_flag,del1)
+         y=att_car(z,obscod,del2)
+         del=MATMUL(del2,del1)
       ELSE
-         z=car_elems(x,fail_flag)
+         y=att_car(z,obscod)
       ENDIF
-      IF(cooy.eq.'ATT')THEN
-         IF(PRESENT(del))THEN
-            y=att_car(z,obscod,del2)
-            del=MATMUL(del2,del1)
-         ELSE
-            y=att_car(z,obscod)
-         ENDIF
-      ELSEIF(cooy.eq.'CAR')THEN
-         y=z ! done
-         IF(PRESENT(del))del=del1
-      ENDIF
+   ELSEIF(cooy.eq.'CAR')THEN
+      y=z ! done
+      IF(PRESENT(del))del=del1
+   ENDIF
 ! handle fail_flag
-      IF(fail_flag.gt.0.and.fail_flag.le.3)THEN
-         IF(coox.eq.'EQU')fail_flag=0 ! EQU are differentiable
-         IF(.not.PRESENT(del))fail_flag=0 ! KEP, COM are defined but not diff.
-      ELSE
+   IF(fail_flag.gt.0.and.fail_flag.le.3)THEN
+      IF(coox.eq.'EQU')fail_flag=0 ! EQU are differentiable
+      IF(.not.PRESENT(del))fail_flag=0 ! KEP, COM are defined but not diff.
+   ELSE
 ! fail_flag=5 cannot happen, 9,10,20 cannot be fixed
-      ENDIF
-   ELSEIF(kepgr_ou)THEN ! six cases
-      IF(coox.eq.'KEP'.and.cooy.eq.'EQU')THEN
+   ENDIF
+   done=.true.
+   RETURN
+ENDIF
+IF(kepgr_in.and.kepgr_ou)THEN ! twelfe cases
+! starting from KEP
+   IF(coox.eq.'KEP')THEN
+      IF(cooy.eq.'EQU')THEN
          IF(PRESENT(del))THEN
             y=equ_kep(x,del)
          ELSE
             y=equ_kep(x)
          ENDIF
-      ELSEIF(coox.eq.'EQU'.and.cooy.eq.'KEP')THEN
+      ELSEIF(cooy.eq.'COM')THEN
+         IF(PRESENT(del))THEN
+            y=com_kep(x,fail_flag,del)
+         ELSE
+            y=com_kep(x,fail_flag)
+         ENDIF
+      ELSEIF(cooy.eq.'COT')THEN
+         IF(PRESENT(del))THEN
+            y=cot_kep(x,fail_flag,del)
+         ELSE
+            y=cot_kep(x,fail_flag)
+         ENDIF
+      ENDIF
+      done=.true.
+      RETURN
+   ENDIF
+! starting from EQU
+   IF(coox.eq.'EQU')THEN
+      IF(cooy.eq.'KEP')THEN
          IF(PRESENT(del))THEN
             y=kep_equ(x,fail_flag,del) 
             IF(fail_flag.gt.0) CALl eye(ndim,del)! del non exi, set to identity
          ELSE
             y=kep_equ(x,fail_flag)
          ENDIF
-      ELSEIF(coox.eq.'COM'.and.cooy.eq.'KEP')THEN
+      ELSEIF(cooy.eq.'COM')THEN
+         IF(PRESENT(del))THEN
+            z=kep_equ(x,fail_flag,del1)
+            IF(fail_flag.eq.0)THEN
+               y=com_kep(z,fail_flag,del2)
+               del=MATMUL(del2,del1)
+            ELSE
+               y=com_kep(z,fail_flag)
+               del=del1 ! del2 not existent, set to identity 
+            ENDIF
+         ELSE
+            z=kep_equ(x,fail_flag) ! always existent, maybe not C1
+            y=com_kep(z,fail_flag) 
+         ENDIF
+      ELSEIF(cooy.eq.'COT')THEN
+         IF(PRESENT(del))THEN
+            z=kep_equ(x,fail_flag,del1)
+            IF(fail_flag.eq.0)THEN
+               y=cot_kep(z,fail_flag,del2)
+               del=MATMUL(del2,del1)
+            ELSE
+               y=cot_kep(z,fail_flag)
+               del=del1 ! del2 not existent, set to identity 
+            ENDIF
+         ELSE
+            z=kep_equ(x,fail_flag) ! always existent, maybe not C1
+            y=cot_kep(z,fail_flag) 
+         ENDIF
+      ENDIF
+      done=.true.
+      RETURN
+   ENDIF
+! starting from COM
+   IF(coox.eq.'COM')THEN
+      IF(cooy.eq.'KEP')THEN
          IF(PRESENT(del))THEN
             y=kep_com(x,fail_flag,del)
          ELSE
             y=kep_com(x,fail_flag)
          ENDIF
-      ELSEIF(coox.eq.'KEP'.and.cooy.eq.'COM')THEN
-         IF(PRESENT(del))THEN
-            y=com_kep(x,fail_flag,del)
-         ELSE
-            y=com_kep(x,fail_flag)
-         ENDIF
-      ELSEIF(coox.eq.'COM'.and.cooy.eq.'EQU')THEN
+      ELSEIF(cooy.eq.'EQU')THEN
          IF(PRESENT(del))THEN
             z=kep_com(x,fail_flag,del1)
             IF(fail_flag.lt.4)THEN
@@ -292,47 +348,33 @@ ELSEIF(kepgr_in)THEN
             ELSE
                y=z
             ENDIF
-         ENDIF 
-      ELSEIF(coox.eq.'EQU'.and.cooy.eq.'COM')THEN
-         IF(PRESENT(del))THEN
-            z=kep_equ(x,fail_flag,del1)
-            IF(fail_flag.eq.0)THEN
-               y=com_kep(z,fail_flag,del2)
-               del=MATMUL(del2,del1)
-            ELSE
-               y=com_kep(z,fail_flag)
-               del=del1 ! del2 not existent, set to identity 
-            ENDIF
-         ELSE
-            z=kep_equ(x,fail_flag) ! always existent, maybe not C1
-            y=com_kep(z,fail_flag) 
          ENDIF
-      ELSEIF(coox.eq.'COM'.and.cooy.eq.'COT')THEN
+      ELSEIF(cooy.eq.'COT')THEN
          IF(PRESENT(del))THEN
-!            y=cot_com(x,del)
+            y=cot_com(x,fail_flag,del)
          ELSE
-!            y=cot_com(x)
+            y=cot_com(x,fail_flag)
          ENDIF
-      ELSEIF(coox.eq.'COT'.and.cooy.eq.'COM')THEN
-         IF(PRESENT(del))THEN
-!            y=com_cot(x,fail_flag,del) 
-            IF(fail_flag.gt.0) CALl eye(ndim,del)! del non exi, set to identity
-         ELSE
-!            y=com_cot(x,fail_flag)
-         ENDIF
-      ELSEIF(coox.eq.'COT'.and.cooy.eq.'KEP')THEN
+      ENDIF
+      done=.true.
+      RETURN
+   ENDIF
+! starting from COT
+   IF(coox.eq.'COT')THEN
+      IF(cooy.eq.'KEP')THEN
          IF(PRESENT(del))THEN
             y=kep_cot(x,fail_flag,del)
          ELSE
             y=kep_cot(x,fail_flag)
          ENDIF
-      ELSEIF(coox.eq.'KEP'.and.cooy.eq.'COT')THEN
+      ELSEIF(cooy.eq.'COM')THEN
          IF(PRESENT(del))THEN
-            y=cot_kep(x,fail_flag,del)
+            y=com_cot(x,fail_flag,del) 
+            IF(fail_flag.gt.0) CALl eye(ndim,del)! del non exi, set to identity
          ELSE
-            y=cot_kep(x,fail_flag)
+            y=com_cot(x,fail_flag)
          ENDIF
-      ELSEIF(coox.eq.'COT'.and.cooy.eq.'EQU')THEN
+      ELSEIF(cooy.eq.'EQU')THEN
          IF(PRESENT(del))THEN
             z=kep_cot(x,fail_flag,del1)
             IF(fail_flag.lt.4)THEN
@@ -349,35 +391,16 @@ ELSEIF(kepgr_in)THEN
             ELSE
                y=z
             ENDIF
-         ENDIF 
-      ELSEIF(coox.eq.'EQU'.and.cooy.eq.'COT')THEN
-         IF(PRESENT(del))THEN
-            z=kep_equ(x,fail_flag,del1)
-            IF(fail_flag.eq.0)THEN
-               y=cot_kep(z,fail_flag,del2)
-               del=MATMUL(del2,del1)
-            ELSE
-               y=cot_kep(z,fail_flag)
-               del=del1 ! del2 not existent, set to identity 
-            ENDIF
-         ELSE
-            z=kep_equ(x,fail_flag) ! always existent, maybe not C1
-            y=cot_kep(z,fail_flag) 
          ENDIF
-      ELSE
-         PRINT *, ' coo_cha: this should not happen 2, coox=',coox,' cooy=', cooy
-         WRITE(*,*) x
-         STOP
       ENDIF
-   ELSE
-      PRINT *, ' coo_cha: this should not happen 3, coox=',coox,' cooy=', cooy
+      done=.true.
+      RETURN
+   ENDIF
+   IF(.not.done)THEN
+      PRINT *, ' coo_cha: this should not happen 2, coox=',coox,' cooy=', cooy
       WRITE(*,*) x
       STOP
-   ENDIF 
-ELSE
-   WRITE(*,*)' coo_cha: this should not happen 4, coox=',coox,' cooy=', cooy
-   WRITE(*,*) x
-   STOP
+   ENDIF
 ENDIF
 END SUBROUTINE coo_cha
 ! ====================================================================
@@ -504,7 +527,6 @@ ENDIF
 END SUBROUTINE ecc_peri
 
 DOUBLE PRECISION FUNCTION centerbody_mass(iplanet)
-USE fund_const
 USE planet_masses
 INTEGER,INTENT(IN) :: iplanet
 IF(iplanet.eq.0)THEN
@@ -551,7 +573,6 @@ END FUNCTION coord_translate
 ! ====================================================================
 TYPE(orbit_elem) FUNCTION to_elems(el,cooy,fail_flag,del)
 USE ever_pitkin
-USE fund_const
 TYPE(orbit_elem),INTENT(IN):: el ! must be cartesian
 CHARACTER*3, INTENT(IN) :: cooy ! can be 'KEP', 'EQU', 'COM', 'COT'
 INTEGER, INTENT(OUT) :: fail_flag ! error flag
@@ -749,7 +770,6 @@ END FUNCTION to_elems
 ! ====================================================================
 TYPE(orbit_elem) FUNCTION car_elems(el,fail_flag,del)
 USE ever_pitkin
-USE fund_const
 TYPE(orbit_elem),INTENT(IN):: el ! can be 'KEP', 'EQU', 'COM', 'COT'
 INTEGER, INTENT(OUT) :: fail_flag
 ! optional jacobian matrix. in output: derivatives d(car)/d(el)
@@ -1114,7 +1134,7 @@ INTEGER,INTENT(OUT):: fail_flag
 ! optional jacobian matrix. in output: derivatives d(el)/d(eqn)
 DOUBLE PRECISION, DIMENSION(el%ndim,el%ndim),INTENT(OUT),OPTIONAL :: del
 ! end interface
-DOUBLE PRECISION ecc, eps, gm, enne
+DOUBLE PRECISION ecc, eps, gm, enne, princ
 DOUBLE PRECISION,DIMENSION(6) :: eq
 !
 IF(el%coo.ne.'KEP')THEN
@@ -1135,6 +1155,7 @@ if(eq(3).lt.eps) fail_flag=fail_flag+2 ! but computation is completed
 ! time of pericenter from mean anomaly
 enne=sqrt(gm/eq(1)**3)
 com_kep%coord(6)=el%t-eq(6)/enne 
+com_kep%coord(6)=princ(com_kep%coord(6))
 com_kep%coo='COM'
 IF(PRESENT(del).and.fail_flag.eq.0)THEN
    del=0.d0 ! jacobian is not usable in the nearly singular case
@@ -1147,8 +1168,6 @@ IF(PRESENT(del).and.fail_flag.eq.0)THEN
    del(6,1)= -1.5d0*eq(6)/(enne*eq(1))
    del(6,6)=  -1.d0/enne
 ENDIF
-
-RETURN
 END FUNCTION com_kep
 
 ! =======================================================
@@ -1156,13 +1175,12 @@ END FUNCTION com_kep
 ! cometary elements with true anomaly from keplerian
 ! =======================================================
 TYPE(orbit_elem) FUNCTION cot_kep(el,fail_flag,del)
-USE fund_const
 TYPE(orbit_elem),INTENT(IN):: el ! must be keplerian
 INTEGER,INTENT(OUT):: fail_flag
 ! optional jacobian matrix. in output: derivatives d(el)/d(eqn)
 DOUBLE PRECISION, DIMENSION(el%ndim,el%ndim),INTENT(OUT),OPTIONAL :: del
 ! end interface
-DOUBLE PRECISION ecc, eps, gm, enne
+DOUBLE PRECISION ecc, eps, gm, enne, princ
 DOUBLE PRECISION, DIMENSION(6) :: eq
 DOUBLE PRECISION ell,u,du,cosu,sinu,cosv,sinv,dvdu,dvde,dudell,dude 
 INTEGER, PARAMETER :: itmax=10
@@ -1198,7 +1216,8 @@ WRITE(ierrou,*)' cot_kep: non convergent Kepler equation, u,e,du:', u,ecc,du
 3 CONTINUE
 cosv=(cosu-ecc)/(1.d0-ecc*cosu)
 sinv=sqrt(1.d0-ecc**2)*sinu/(1.d0-ecc*cosu)
-cot_kep%coord(6)=atan2(sinv,cosv) 
+cot_kep%coord(6)=atan2(sinv,cosv)
+cot_kep%coord(6)=princ(cot_kep%coord(6))
 cot_kep%coo='COT'
 IF(PRESENT(del).and.fail_flag.eq.0)THEN
    del=0.d0 ! jacobian is not usable in the nearly singular case
@@ -1215,8 +1234,6 @@ IF(PRESENT(del).and.fail_flag.eq.0)THEN
    del(6,6)=dvdu*dudell
    del(6,2)=dvde+dvdu*dude
 ENDIF
-
-RETURN
 END FUNCTION cot_kep
 ! =======================================================
 ! KEP_COT
@@ -1280,26 +1297,23 @@ IF(PRESENT(del).and.fail_flag.eq.0)THEN
    del(6,6)=delldu*dudv
    del(6,2)=dellde + delldu*dude
 ENDIF
-
-RETURN
 END FUNCTION kep_cot
 ! =======================================================
 ! COT_COM
 ! cometary elements with true anomaly from cometary
 ! =======================================================
 TYPE(orbit_elem) FUNCTION cot_com(el,fail_flag,del)
-USE fund_const
 TYPE(orbit_elem),INTENT(IN):: el ! must be keplerian
 INTEGER,INTENT(OUT):: fail_flag
 ! optional jacobian matrix. in output: derivatives d(el)/d(eqn)
 DOUBLE PRECISION, DIMENSION(el%ndim,el%ndim),INTENT(OUT),OPTIONAL :: del
 ! end interface
-DOUBLE PRECISION ecc, eps, gm, enne
-DOUBLE PRECISION, DIMENSION(6) :: eq
-DOUBLE PRECISION ell,u,du,cosu,sinu,cosv,sinv,dvdu,dvde,dudell,dude 
-INTEGER, PARAMETER :: itmax=10
-INTEGER i
-!
+DOUBLE PRECISION ecc, eps , gm
+DOUBLE PRECISION delcar(6,6),dcarel(6,6)
+TYPE(orbit_elem) elcar,elcot
+DOUBLE PRECISION dt, alpha,v,dvdq,dvde,dvdt0, vel2
+INTEGER fail_flag1, fail_flag2
+! ======================================================
 IF(el%coo.ne.'COM')THEN
    WRITE(*,*)' cot_com: wrong input coordinates',el
    STOP
@@ -1307,49 +1321,112 @@ ENDIF
 fail_flag=0
 gm=centerbody_mass(el%center)
 eps=100*epsilon(1.d0) ! negligible number
-eq=el%coord
+! eq=el%coord
 cot_com=el  !default
-ecc=eq(2)
-cot_com%coord(1)=eq(1)*(1.d0-ecc)
+ecc=el%coord(2)
 !  test on eccentricity                                                 
 if(ecc.lt.eps) fail_flag= 1 ! but computation is completed
 !   test on tangent of half inclination                                 
-if(eq(3).lt.eps) fail_flag=fail_flag+2 ! but computation is completed
-! time of pericenter from mean anomaly
-!enne=sqrt(gm/eq(1)**3)
-! Kepler's equation to find eccentric anomaly
-u=pig
-DO i=1,itmax
-   cosu=cos(u);sinu=sin(u)
-   ell=u-ecc*sinu
-   du=(eq(6)-ell)/(1.d0-ecc*cosu)
-   u=u+du
-   IF(abs(du).lt.eps*10) GOTO 3
-ENDDO
-WRITE(ierrou,*)' cot_kep: non convergent Kepler equation, u,e,du:', u,ecc,du
-3 CONTINUE
-cosv=(cosu-ecc)/(1.d0-ecc*cosu)
-sinv=sqrt(1.d0-ecc**2)*sinu/(1.d0-ecc*cosu)
-cot_com%coord(6)=atan2(sinv,cosv) 
+if(el%coord(3).lt.eps) fail_flag=fail_flag+2 ! but computation is completed
+! find true anomaly from dt
+dt=el%t-el%coord(6)
+alpha=gm*(el%coord(2)-1.d0)/el%coord(1) ! 2* energy
+! CALL ta_from_t0(el%coord(1),ecc,dt,gm,alpha,v,dvdq,dvde,dvdt0)
+! cot_com%coord(6)=v
 cot_com%coo='COT'
-IF(PRESENT(del).and.fail_flag.eq.0)THEN
-   del=0.d0 ! jacobian is not usable in the nearly singular case
-   del(1,1)=  1.d0-ecc
-   del(1,2)=  -eq(1) 
-   del(2,2)=  1.d0
-   del(3,3)=  1.d0
-   del(4,4)=  1.d0
-   del(5,5)=  1.d0
-   dvdu=sqrt((1.d0+ecc)/(1.d0-ecc))*(cosv+1.d0)/(cosu+1.d0)
-   dvde=tan(u/2.d0)*(cosv+1.d0)/sqrt((1.d0+ecc)*(1.d0-ecc)**3)
-   dudell=1.d0/(1.d0-ecc*cosu)
-   dude=sinu/(1.d0-ecc*cosu)
-   del(6,6)=dvdu*dudell
-   del(6,2)=dvde+dvdu*dude
+! use brutal composition of two available changes
+IF(PRESENT(del))THEN
+   CALL coo_cha(el,'CAR',elcar,fail_flag1,delcar)
+   CALL coo_cha(elcar,'COT',elcot, fail_flag2,dcarel)
+   del=MATMUL(dcarel,delcar)
+ELSE
+   CALL coo_cha(el,'CAR',elcar,fail_flag1)
+   CALL coo_cha(elcar,'COT',elcot, fail_flag2)
+ENDIF 
+cot_com=elcot
+! cot_com%coord(6)=v
+IF(PRESENT(del))THEN
+  CALL eye(5,del(1:5,1:5))
+!  del(6,1)=dvdq ! NOT READY
+!  del(6,2)=dvde
+  del(6,3:5)=0.d0
+!  del(6,6)=dvdt0
+  del(1:5,6)=0.d0
 ENDIF
-
 RETURN
+! WARNING: what to do with fail_flag1 and fail_flag2 ???
 END FUNCTION cot_com
+! ======================================================
+! TA_FROM_T0 true anomaly from time of prerihelion
+! ======================================================
+SUBROUTINE ta_from_t0(q,ecc,dt,mu,alpha,v,dvdq,dvde,dvdt0)
+  USE ever_pitkin
+  DOUBLE PRECISION,INTENT(IN) :: q,ecc ! perihelion distance, eccentricity
+  DOUBLE PRECISION,INTENT(IN) :: dt ! dt=t-t0 difference between 
+                       ! present time and time of passage at perihelion
+  DOUBLE PRECISION,INTENT(IN) :: mu, alpha ! grav. constant, 2*energy
+  DOUBLE PRECISION,INTENT(OUT) :: v ! true anomaly
+  DOUBLE PRECISION,INTENT(OUT) :: dvdq,dvde,dvdt0 ! derivatives of true anomaly
+! end interface                                   ! w.r.t. q,e,t0
+  DOUBLE PRECISION :: sig0, rdot, psi, s0,s1,s2,s3, r
+  DOUBLE PRECISION :: cosv,dvdr, dpsidt0, drdt0,drdpsi, ds2da,ds0da, drda
+  DOUBLE PRECISION s0v,s1v,s2v,s3v,dd, psiv, eccv,qv, vv,cosvv
+! *******************************
+! compute psi at time t (psi0=0)
+! *******************************
+  sig0 = 0.d0
+! solve universal Kepler's equation and compute Stumpff's functions
+  CALL solve_kepuniv2(dt,q,sig0,mu,alpha,ecc,psi,s0,s1,s2,s3,DS2DA=ds2da,DS0DA=ds0da)
+  dd=1.d-12
+!  CALL s_funct(psi,alpha+dd,s0v,s1v,s2v,s3v)
+!  CALL solve_kepuniv2(dt,q,sig0,mu,alpha+dd,ecc,psiv,s0v,s1v,s2v,s3v)
+!  WRITE(*,*)' ds2da=',(s2v-s2)/dd, ds2da, s2
+!  WRITE(*,*)' ds0da=',(s0v-s0)/dd, ds0da, s0
+!  WRITE(*,*)' psi=', psi, psiv,psi-psiv
+!  ds2da=(s2v-s2)/dd
+!  ds0da=(s0v-s0)/dd
+! *******************************
+! compute r at time t 
+! *******************************
+  r = q*s0 + sig0*s1 + mu*s2
+  drdpsi = sig0*s0 + (mu+alpha*q)*s1
+  cosv =(-1.d0 + q/r*(1.d0+ecc))/ecc 
+  v=acos(cosv)*sign(1.d0,drdpsi)
+
+  qv=q+dd
+  cosvv =(-1.d0 + qv/r*(1.d0+ecc))/ecc 
+  vv=acos(cosvv)*sign(1.d0,drdpsi)
+  dvdq=(vv-v)/dd
+  WRITE(*,*)' dvdq direct inc=', dvdq
+  eccv=ecc+dd
+  cosvv =(-1.d0 + q/r*(1.d0+eccv))/eccv 
+  vv=acos(cosvv)*sign(1.d0,drdpsi)
+  dvde=(vv-v)/dd
+  WRITE(*,*)' dvde direct inc=', dvde
+
+! derivatives of v w.r. to q,e 
+! ***********WARNING: WRONG***************
+! missing dependence of r from q,e 
+! dr/dq=s0+q*d(s0)/dq+ mu*d(s2)/dq 
+! dr/d(alpha)=q*d(s0)/d(alpha)+ mu*d(s2)/d(alpha)
+! d(sj)/dq=d(sj)/d(alpha) d(alpha)/dq ; d(sj)/de=d(sj)/d(alpha) d(alpha)/de
+! d(alpha)/dq=-alpha/q ; d(alpha)/de= mu/q
+  dvdq = -1.d0/sqrt(1.d0-cosv**2)*(1.d0+ecc)/(r*ecc) *sign(1.d0,drdpsi)
+  WRITE(*,*)' dvdq direct=', dvdq
+  dvdr =  1.d0/sqrt(1.d0-cosv**2)*q*(1.d0+ecc)/(r**2*ecc)*sign(1.d0,drdpsi)! OK
+  drda= q*ds0da + mu*ds2da
+!  drdq=s0+(q*ds0da+mu*ds2da)*(-alpha/q)
+  dvdq=dvdq + dvdr*(drda*(-alpha/q)+s0)
+  dvde = -1.d0/sqrt(1.d0-cosv**2)*(1.d0-q/r)/ecc**2*sign(1.d0,drdpsi)
+  WRITE(*,*)' dvde direct=', dvde
+  dvde= dvde + dvdr*drda*mu/q
+! ************END WARNING*****************
+! derivative of v w.r. to t0
+  dpsidt0 = -1.d0/(q*s0 + sig0*s1 + mu*s2)
+  drdt0 = drdpsi*dpsidt0
+  dvdt0 = dvdr*drdt0
+END SUBROUTINE ta_from_t0
+
 ! =======================================================
 ! COM_COT
 ! cometary elelements from cometary with true anomaly
@@ -1360,64 +1437,38 @@ INTEGER,INTENT(OUT):: fail_flag
 ! optional jacobian matrix. in output: derivatives d(el)/d(eqn)
 DOUBLE PRECISION, DIMENSION(el%ndim,el%ndim),INTENT(OUT),OPTIONAL :: del
 ! end interface
-DOUBLE PRECISION ecc, eps, gm, enne, a, dldn, dt
-DOUBLE PRECISION,DIMENSION(6) :: eq
-DOUBLE PRECISION r,x1,y1,sinu,cosu,u,delldu,dellde,dudv,dude,v2,ell,delldv
-!
+DOUBLE PRECISION ecc, eps, gm !, enne, a, dldn, dt
+!DOUBLE PRECISION,DIMENSION(6) :: eq
+!DOUBLE PRECISION r,x1,y1,sinu,cosu,u,delldu,dellde,dudv,dude,v2,ell,delldv
+DOUBLE PRECISION delcar(6,6),dcarel(6,6)
+TYPE(orbit_elem) elcar,elcom
+INTEGER fail_flag1, fail_flag2
+! =======================================================
 IF(el%coo.ne.'COT')THEN
    WRITE(*,*)' com_cot: wrong input coordinates',el
    STOP
 ENDIF
 fail_flag=0
-gm=centerbody_mass(el%center)
+!gm=centerbody_mass(el%center)
 eps=100*epsilon(1.d0) ! negligible number
-eq=el%coord
+!eq=el%coord
 com_cot=el  !default
-ecc=eq(2) ! eccentricity
+ecc=el%coord(2) ! eccentricity
 !  test on eccentricity                                                 
 IF(ecc.lt.eps) fail_flag= 1 ! but computation is completed
 !   test on inclination                                 
-IF(eq(3).lt.eps) fail_flag=fail_flag+2 ! but computation is completed
-IF(ecc.lt.1.d0-eps)THEN
-   a=eq(1)/(1.d0-ecc)
-! eccentric anomaly from true anomaly
-   r=a*(1.d0-ecc**2)/(1.d0+ecc*cos(eq(6)))
-   x1=r*cos(eq(6)); y1=r*sin(eq(6))
-   sinu=y1/(a*sqrt(1.d0-ecc**2)); cosu=x1/a+ecc
-   u=atan2(sinu,cosu)
-! kepler's equation (easy way)
-   ell=u-ecc*sinu
-! time of preihelion passage
-   enne=sqrt(gm/a**3)
-   dt=ell/enne
+IF(el%coord(3).lt.eps) fail_flag=fail_flag+2 ! but computation is completed
+! use brutal composition of two available changes
+IF(PRESENT(del))THEN
+   CALL coo_cha(el,'CAR',elcar,fail_flag1,delcar)
+   CALL coo_cha(elcar,'COM',elcom, fail_flag2,dcarel)
+   del=MATMUL(dcarel,delcar)
 ELSE
-   STOP
-ENDIF
-com_cot%coord(6)=-dt
-com_cot%coo='COM' ! successful conversion
-IF(PRESENT(del).and.fail_flag.eq.0)THEN
-   del=0.d0 ! jacobian is not usable in the nearly singular case
-   del(1,1)=  1.d0/(1.d0-ecc)
-   del(1,2)=  +eq(1)/(1.d0-ecc)**2 
-   del(2,2)=  1.d0
-   del(3,3)=  1.d0
-   del(4,4)=  1.d0
-   del(5,5)=  1.d0
-   IF(ecc.lt.1.d0-eps)THEN
-! derivatives of mean anomaly (composite through eccentric anomaly)
-      delldu=1.d0-ecc*cosu
-      dellde=-sinu
-      v2=eq(6)/2.d0
-      dudv=sqrt((1.d0-ecc)/(1.d0+ecc))*cos(u/2.d0)**2/cos(v2)**2
-      dude=(-2*tan(v2)*cos(u/2.d0)**2)/sqrt((1.d0-ecc)*(1.d0+ecc)**3)
-      delldv=delldu*dudv
-      dellde=dellde + delldu*dude
-   ELSE
-      STOP
-   ENDIF
-ENDIF
-
-RETURN
+   CALL coo_cha(el,'CAR',elcar,fail_flag1)
+   CALL coo_cha(elcar,'COM',elcom, fail_flag2)
+ENDIF 
+! WARNING: what to do with fail_flag1 and fail_flag2 ???
+com_cot=elcom
 END FUNCTION com_cot
 ! =======================================================
 ! KEP_COM
@@ -1494,8 +1545,7 @@ END FUNCTION kep_com
 ! WARNING: att in equatorial, car in ecliptic coordinates
 ! =======================================================
 TYPE(orbit_elem) FUNCTION att_car(el,obscode,del)
-USE fund_const
-USE reference_systems
+!USE reference_systems
 TYPE(orbit_elem),INTENT(IN):: el
 INTEGER, INTENT(IN) :: obscode
 ! optional jacobian matrix. in output: derivatives d(el)/d(eqn)
@@ -1624,8 +1674,7 @@ END FUNCTION att_car
 ! ITER-OBS
 ! =======================================================
 SUBROUTINE iter_obs(t,x,obscode,xtop,xobs,tobs,r)
-USE fund_const, ONLY: vlight
-USE reference_systems
+USE reference_systems, ONLY: pvobs
 DOUBLE PRECISION, INTENT(IN) :: t, x(6)
 INTEGER, INTENT(IN) :: obscode
 DOUBLE PRECISION, DIMENSION(6), INTENT(OUT):: xtop,xobs ! topocentric ecliptic
@@ -1675,7 +1724,7 @@ END SUBROUTINE noniter_obs
 ! WARNING:  car in ecliptic coordinates, att in equatorial
 ! =======================================================
 TYPE(orbit_elem) FUNCTION car_att(el,del)
-USE reference_systems
+!USE reference_systems
 USE fund_const, ONLY: vlight
 TYPE(orbit_elem),INTENT(IN) :: el
 ! optional jacobian matrix. in output: derivatives d(el)/d(eqn)
@@ -1758,7 +1807,6 @@ END FUNCTION car_att
 !=============================
 SUBROUTINE attelements(att,r,rdot,elatt,unc)
   USE station_coordinates, ONLY: statcode
-  USE fund_const, ONLY: vlight
   USE attributable
   TYPE(attrib), INTENT(IN):: att ! 4-dim attributable
   DOUBLE PRECISION, INTENT(IN) :: r,rdot ! range, range rate
@@ -1845,8 +1893,10 @@ SUBROUTINE att_prelim2(name0,attr,elk,uncatt,fail)
   CALL attelements(attr,rr,rdot,elk,uncatt)
   
   fail=bizarre(elk,ecc)
-  WRITE(iun_log,100)name0,rr,ecc
-100 FORMAT(A,1X,'rho=',f8.3,1X,'ecc=',f8.4)
+  IF(verb_prelim.gt.10)THEN
+     WRITE(iun_log,100)name0,rr,ecc
+100  FORMAT(A,1X,'rho=',f8.3,1X,'ecc=',f8.4)
+  ENDIF
 END SUBROUTINE att_prelim2
 
 
@@ -2158,7 +2208,6 @@ END FUNCTION tpcar_mtpcar
 ! to be computed using the Earth velocity at t0
 ! ====================================================================
 TYPE(orbit_elem) FUNCTION opik_tpcar(el,fail_flag,del,vt3)
-  USE fund_const
   TYPE(orbit_elem), INTENT(IN) :: el ! must be cartesian
   INTEGER, INTENT(OUT) :: fail_flag 
   DOUBLE PRECISION, DIMENSION(6,6), OPTIONAL :: del ! jacobian matrix
@@ -2325,7 +2374,6 @@ END FUNCTION opik_tpcar
 ! I/O submodule
 ! ====================================================================
 SUBROUTINE read_elems(el,name,eof,file,unit,covar)
-  USE fund_const
   USE io_elems, ONLY: obscod
   USE station_coordinates, ONLY: statcode
   TYPE(orbit_elem), INTENT(OUT) :: el

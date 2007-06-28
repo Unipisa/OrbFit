@@ -27,6 +27,8 @@ INTEGER verb_rej
 INTEGER verb_io
 ! for moid computation
 INTEGER verb_moid
+! for preliminary orbits
+INTEGER verb_prelim
 ! general rules: verb_x=10 in fitobs; verb_x=1 (default) in batch
 ! programs running many orbits; verb_x=5 to have more error messages
 ! on the consolle; verb_x>20 to produce huge output, for debugging only

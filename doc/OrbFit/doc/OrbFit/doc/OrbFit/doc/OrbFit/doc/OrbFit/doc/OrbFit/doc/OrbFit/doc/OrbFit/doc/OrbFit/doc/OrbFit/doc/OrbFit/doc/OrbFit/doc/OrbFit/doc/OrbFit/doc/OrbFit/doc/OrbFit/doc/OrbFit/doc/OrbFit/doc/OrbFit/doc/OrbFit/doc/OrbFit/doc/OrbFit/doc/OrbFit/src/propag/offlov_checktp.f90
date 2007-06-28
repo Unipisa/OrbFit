@@ -289,7 +289,7 @@ SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
 ! ====================END INTERFACE========================================
   DOUBLE PRECISION  :: b_e,dcur,vsize,width,stretch,alpha,csi1,zeta1,U 
   DOUBLE PRECISION  :: p_imp,h,mass,v_imp,energy,e_tilde,fb 
-  DOUBLE PRECISION  :: rel_prob,ps,prob 
+  DOUBLE PRECISION  :: rel_prob,ps,prob, prob_1dim
   DOUBLE PRECISION  :: tcl,sigma,deltat,sigimp
   DOUBLE PRECISION  :: chi,fact,p_imp1 
   INTEGER           :: le, iunrisk0,iunrisk1,iunnew0,iunwarn0
@@ -323,12 +323,12 @@ SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
      sigma=va_tracemin%sigma
 ! probability of impact                                                 
      p_imp=prob(csi1,zeta1,sigma,width,stretch,b_e) 
+! 1-dimensional formula to be used in difficult cases
+!     p_imp=prob_1dim(b_e,stretch,csi1)
      IF(iunwarn.lt.0)WRITE(*,*)'Impact Probability ',p_imp
      WRITE(iunwarn0,*)'Impact Probability ',p_imp
 ! write risk file if appropriate                                        
      IF(p_imp.gt.1e-11)THEN 
-
-
 ! palermo scale: need time span and magnitude, U                        
         tcl=va_tracemin%tcla 
         deltat=tcl-t0 
@@ -393,14 +393,14 @@ SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
      &              width,stretch,p_imp1,e_tilde,ps
            WRITE(iunrisk0,200)calend,tcl,sigma,sigimp,dcur,          &
      &              width,stretch,p_imp1,e_tilde,ps                     
-200        FORMAT(a14,1x,f9.3,1x,f6.3,1x,f5.3,1x,f7.2,' +/- ',      &
+200        FORMAT(a14,1x,f10.3,1x,f7.3,1x,f5.3,1x,f7.2,' +/- ',      &
      &              f8.2,1x,1p,e9.2,1x,e9.2,1x,e9.2,1x,0p,f6.2)         
         ELSE
            IF(iunrisk1.lt.0)WRITE(*,100)calend,tcl,sigma,sigimp,dcur,          &
      &              width,stretch,p_imp1,e_tilde,ps
            WRITE(iunrisk0,100)calend,tcl,sigma,sigimp,dcur,          &
      &              width,stretch,p_imp1,e_tilde,ps                     
-100        FORMAT(a14,1x,f9.3,1x,f6.3,1x,f5.3,1x,f7.2,' +/- ',      &
+100        FORMAT(a14,1x,f10.3,1x,f7.3,1x,f5.3,1x,f7.2,' +/- ',      &
      &              f8.3,1x,1p,e9.2,1x,e9.2,1x,e9.2,1x,0p,f6.2)         
         ENDIF
         IF(PRESENT(riskfile))CLOSE(iunrisk0) 
@@ -411,9 +411,9 @@ END SUBROUTINE riskchecktp
 
 SUBROUTINE header_risk(iunrisk)
 INTEGER, INTENT(IN) :: iunrisk ! output unit
-  WRITE(iunrisk,200) '     date        MJD      sigma sigimp  ',    &
+  WRITE(iunrisk,200) '     date         MJD       sigma sigimp  ',    &
      &     ' dist +/-   width    stretch    p_RE    exp. en.    PS  '   
-  WRITE(iunrisk,200) '   YYYY/MM                              ',    &
+  WRITE(iunrisk,200) '   YYYY/MM                                ',    &
      &     ' (RE)       (RE)      RE/sig               MT           '   
   WRITE(iunrisk,200) '----------------------------------------',    &
      &     '--------------------------------------------------------'   
@@ -531,12 +531,12 @@ END SUBROUTINE header_risk
          IF(width.ge.1.0d4)THEN 
             WRITE(iunrisk,200)calend,tcl,sigma,sigimp,dcur,          &
      &              width,stretch,p_imp,e_tilde,ps                     
-200         FORMAT(a14,1x,f9.3,1x,f6.3,1x,f5.3,1x,f7.2,' +/- ',      &
+200         FORMAT(a14,1x,f9.3,1x,f7.3,1x,f5.3,1x,f7.2,' +/- ',      &
      &              f8.2,1x,1p,e9.2,1x,e9.2,1x,e9.2,1x,0p,f6.2)         
          ELSE 
             WRITE(iunrisk,100)calend,tcl,sigma,sigimp,dcur,          &
      &              width,stretch,p_imp,e_tilde,ps                     
-100         FORMAT(a14,1x,f9.3,1x,f6.3,1x,f5.3,1x,f7.2,' +/- ',      &
+100         FORMAT(a14,1x,f9.3,1x,f7.3,1x,f5.3,1x,f7.2,' +/- ',      &
      &              f8.3,1x,1p,e9.2,1x,e9.2,1x,e9.2,1x,0p,f6.2)         
          ENDIF
       ENDIF

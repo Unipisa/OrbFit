@@ -316,6 +316,7 @@ SUBROUTINE f_gaussdeg8(uniele,name,deforb,defcov,          &
   INTEGER nroots,nsol
   LOGICAL fail, debug
   CHARACTER*(20) msg 
+  DOUBLE PRECISION, PARAMETER :: ecc_max=2.d0, q_max=500.d0
   TYPE(orbit_elem), DIMENSION(3) :: elv
   DOUBLE PRECISION :: rr(3) ! topocentric distance
   DOUBLE PRECISION rms
@@ -352,7 +353,7 @@ SUBROUTINE f_gaussdeg8(uniele,name,deforb,defcov,          &
   ENDDO
 ! find solution(s)
   debug=.true.
-  CALL gaussdeg8(tobs,alpha3,delta3,obscod,elv,nroots,nsol,rr,fail,msg,debug)
+  CALL gaussdeg8(tobs,alpha3,delta3,obscod,ecc_max,q_max,elv,nroots,nsol,rr,fail,msg,debug)
   IF(msg.ne.' ')WRITE(*,*)' error message from gaussdeg8=',msg
 ! assess solutions
   IF(nsol.eq.0)THEN
@@ -558,13 +559,15 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
 ! ===================================================================   
 ! ===================================================================   
 ! chose handling of nonlinearity                                        
-57 IF(icov.ge.3)THEN 
+7 IF(icov.ge.3.and.icov.lt.6)THEN 
      menunam='prednonl' 
      CALL menu(inl,menunam,3,'How to handle nonlinearity?=',        &
      &         'linear map=',                                           &
      &         '2-body nonlinearity=',                                  &
      &         'full n-body nonlinearity=')
-     IF(inl.eq.0)GOTO 57 
+     IF(inl.eq.0)GOTO 7 
+  ELSEIF(icov.eq.6)THEN
+     inl=1
   ELSE ! icov=1 for simple obs, icov=2 for use simulated obs
      inl=-1
   ENDIF
@@ -596,6 +599,10 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
         IF(.not.obsp)THEN
            obsp=.true.
            astnap='sim'
+           rwofip='sim.rwo'
+           elefip='sim.fel'
+           CALL rmsp(elefip,le) 
+           CALL filopn(iunelp,elefip(1:le),'unknown')
         ENDIF
         IF(obs0)obstwo=.true.
 ! weights and elements files for identification                         
@@ -607,7 +614,7 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
            eletwo=rwofil(1:le)//'.fel' 
            CALL rmsp(eletwo,le) 
            CALL filopn(iunelt,eletwo(1:le),'unknown') 
-           ! output header                                                         
+! output header
            CALL wromlh (iunelt,'ECLM','J2000') 
         ENDIF
 ! select noise level
@@ -646,11 +653,11 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
 ! check availability of JPL ephemerides and ET-UT table for entire time 
      CALL chetim(t1,t2,ok) 
      IF(.not.ok)RETURN 
-     IF(nint(abs(t2-t1)/dt).gt.500)THEN 
+     IF(nint(abs(t2-t1)/dt).gt.6000)THEN 
         write(*,*)' Too many ephemerides points:',                  &
      &           nint(abs(t2-t1)/dt)                                    
         write(*,*)'Select a time interval and span to ',            &
-     &           'ensure that there are fewer than 500 points.'         
+     &           'ensure that there are fewer than 6000 points.'         
      ELSE 
 ! open ephemerides file in current directory                            
         file=astnam//'.eph' 

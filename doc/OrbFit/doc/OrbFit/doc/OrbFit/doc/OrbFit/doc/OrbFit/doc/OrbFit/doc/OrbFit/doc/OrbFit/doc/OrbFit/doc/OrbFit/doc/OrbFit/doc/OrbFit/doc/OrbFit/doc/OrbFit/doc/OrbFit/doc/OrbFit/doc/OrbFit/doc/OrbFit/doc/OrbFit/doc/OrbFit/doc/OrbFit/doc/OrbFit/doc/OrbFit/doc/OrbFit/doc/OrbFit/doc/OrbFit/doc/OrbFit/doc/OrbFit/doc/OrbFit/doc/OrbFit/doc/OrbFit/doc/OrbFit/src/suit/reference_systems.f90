@@ -28,9 +28,7 @@ DOUBLE PRECISION,               PARAMETER :: t2000 = 51544.5d0
 ! LIST OF PUBLIC ENTITIES
 ! SUBROUTINEs
 PUBLIC :: observer_position, pvobs, pvobs3, rotpn, posobs, ch2ref
-! DATA: matrices of standard rotations
-DOUBLE PRECISION, DIMENSION(3,3) :: roteqec,roteceq
-PUBLIC roteqec,roteceq
+
 
 ! pvobs2,pvobs4 to be removed
 CONTAINS

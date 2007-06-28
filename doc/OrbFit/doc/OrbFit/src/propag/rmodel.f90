@@ -44,6 +44,7 @@ SUBROUTINE rmodel
   USE planet_masses ! 
   USE force_model
   USE astrometric_observations, ONLY: radius ! to set default value
+  USE fund_const
   USE output_control
   USE reference_systems
   implicit none 

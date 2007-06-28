@@ -1,4 +1,4 @@
-% help file, orbfit 3.3.1 and later
+% help file, orbfit 3.4.2 and later
 % this is the input orbital elements menu
 
 MENU INPUTELE
@@ -47,7 +47,13 @@ alternate solutions.
 approximation equation of Gauss method to have information on possible 
 alternate solutions.
 
-9 = give to arc 2 ele of arc 1 ...if arc 2 has too few observations,
+9 = find multiple solutions of deg. 8 equation, by using Laplace's method
+with Poincare'-style topocentric correction, for arc 1.
+
+10 = find multiple solutions of deg. 8 equation, by using Laplace's method
+with Poincare'-style topocentric correction, for arc 2.
+
+11 = give to arc 2 ele of arc 1 ...if arc 2 has too few observations,
 and an orbit can not be reliably computed from the observations in
 obsdirp/namp.obs, while the orbit of arc 1 has already been
 accurately computed (menu DIFFCORR), then it is sometimes appropriate

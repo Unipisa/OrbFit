@@ -39,7 +39,7 @@ SUBROUTINE showret3tp(iunlog,no,vas_trace,dt,tgap,isho,nsho,iret,nret)
   INTEGER, INTENT(OUT) :: nret        ! returns (trails) number
 !==================================================================
 !==================================================================
-  INTEGER, PARAMETER :: nox=200000              ! max close app number, total
+  INTEGER, PARAMETER :: nox=300000              ! max close app number, total
   DOUBLE PRECISION :: tclo(nox)      ! close approach times 
   INTEGER :: lsho                   ! length of shower
   DOUBLE PRECISION :: ts1,ts2       ! time span of showers
@@ -98,7 +98,7 @@ SUBROUTINE showret3tp(iunlog,no,vas_trace,dt,tgap,isho,nsho,iret,nret)
      ENDDO
      WRITE(iunlog,199)js,nshoret,ts1,ts2 
 199  FORMAT(' Shower ',i4,' split in ',i4,' returns',               &
-     &   ' time from ',f11.5 , ' to ', f11.5)                           
+     &   ' time from ',f13.5 , ' to ', f13.5)                           
 ! end loop on showers                                                   
 1 ENDDO
   iret(nret+1)=no+1 

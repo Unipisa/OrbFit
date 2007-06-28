@@ -254,7 +254,7 @@ CONTAINS
 ! Positions of the planets also vel.; space also for asteroids          
     double precision xpla(6,nmassx)                 
     double precision drgr(3,7),frel(3) ! Relativistic perturbations
-    double precision yarkv(21) ! Yarkovsky force                           
+    double precision yarkv(21),yarkvs(21) ! Yarkovsky force, diurnal and seasonal
     integer i,j,k,ir,ic ! loop indexes i=1,npla j=1,3
     double precision sum,var1 ! scalar temporaries
 ! ===========================================================
@@ -308,7 +308,7 @@ CONTAINS
 !            f(j)=f(j)+(-0.15987d-10/2d0/2.5119760)*v(j)                
 !         enddo                                                         
 ! ===========================================================           
-! yarkovsky effect, if required and data are avilable                   
+! yarkovsky effect, if required and data are available                   
    if(iyark.ge.1.and.yarfil)then 
       IF(.not.yarini)THEN 
          WRITE(*,*)' contradiction in non gravitational parameters' 
@@ -320,9 +320,11 @@ CONTAINS
       f(1:3)=f(1:3)+yarkv(1:3) 
 ! seasonal                                                              
       if(iyark.gt.1)then 
-         call yarkse(x,v,yarkv,iyarpt) 
-         f(1:3)=f(1:3)+yarkv(1:3) 
+         call yarkse(x,v,yarkvs,iyarpt) 
+         f(1:3)=f(1:3)+yarkvs(1:3) 
       endif
+      WRITE(22,122)t0,rast,yarkv(1:3),yarkvs(1:3)
+122   FORMAT(F15.7,1X,F12.8,1P,6(1X,D12.5))
    endif
 ! ===========================================================           
 ! Computation of indirect force FI                                      
@@ -396,7 +398,7 @@ CONTAINS
 ! at given time t0                                                      
 ! ======================================                                
    SUBROUTINE planast(t0,ips,imem,velo_intrp,xpla) 
-     USE reference_systems, ONLY: roteqec 
+     USE fund_const
 ! input                                                                 
      DOUBLE PRECISION, INTENT(IN) :: t0 !   time MJD  
 !   flag for recomputation, memory location, flag for velocities, no. bo

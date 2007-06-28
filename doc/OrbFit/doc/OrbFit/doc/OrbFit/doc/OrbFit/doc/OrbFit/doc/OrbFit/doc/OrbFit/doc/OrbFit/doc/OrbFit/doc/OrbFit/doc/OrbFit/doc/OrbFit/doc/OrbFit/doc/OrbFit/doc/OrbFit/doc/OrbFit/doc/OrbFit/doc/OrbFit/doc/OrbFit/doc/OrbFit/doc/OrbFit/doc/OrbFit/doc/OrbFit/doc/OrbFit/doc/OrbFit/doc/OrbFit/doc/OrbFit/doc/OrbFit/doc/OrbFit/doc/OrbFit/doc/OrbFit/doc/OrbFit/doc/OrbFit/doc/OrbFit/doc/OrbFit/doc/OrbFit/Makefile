@@ -26,8 +26,8 @@ distclean:
 	@ exit 1
 
 distribution: distclean notar
-	tar -cvf ../OrbFit3.4.1.tar -X notar . ; \
-	gzip ../OrbFit3.4.1.tar
+	tar -cvf ../OrbFit3.4.2.tar -X notar . ; \
+	gzip ../OrbFit3.4.2.tar
 
 doctar:
 	tar -cvf ../doc.tar --exclude-from notar ./doc; gzip ../doc.tar
@@ -37,11 +37,11 @@ additional_doc:
 
 nondistribute: 
 	cd src; make nondistclean; cd .. 
-	tar -T notar -cvf ../OrbFitwork341.tar ; gzip ../OrbFitwork341.tar
+	tar -T notar -cvf ../OrbFitwork342.tar ; gzip ../OrbFitwork342.tar
 
 panst: 
 	cd src/panst; make clean; cd ../../tests/panst; make distclean
-	tar -czf ../panst3.4.1.tgz src/panst tests/panst lib/orbsrv.key
+	tar -czf ../panst3.4.2.tgz src/panst tests/panst lib/orbsrv.key
 
 starcat:
 	cd ../starcat; make clean; cd ../skymap; make clean; cd ../..;
@@ -51,5 +51,5 @@ nondistclean:
 	cd src; make nondistclean
 
 patch: 
-	tar -T patchlist -cvf ../patch3.4.1.tar ; gzip ../patch3.4.1.tar
+	tar -T patchlist -cvf ../patch3.4.2.tar ; gzip ../patch3.4.2.tar
 

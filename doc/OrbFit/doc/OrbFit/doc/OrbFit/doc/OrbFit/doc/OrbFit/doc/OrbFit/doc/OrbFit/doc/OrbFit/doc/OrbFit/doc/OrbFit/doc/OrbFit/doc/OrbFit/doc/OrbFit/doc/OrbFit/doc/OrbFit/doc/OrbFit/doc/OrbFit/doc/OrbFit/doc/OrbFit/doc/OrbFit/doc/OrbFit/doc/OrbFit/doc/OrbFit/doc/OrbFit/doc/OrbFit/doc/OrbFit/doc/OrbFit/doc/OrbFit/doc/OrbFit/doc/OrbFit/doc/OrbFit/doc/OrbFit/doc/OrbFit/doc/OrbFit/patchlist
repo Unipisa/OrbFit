@@ -4,6 +4,12 @@
 ./README.workinprog
 ./src/vers.h90
 ./notar
-./src/suit/Makefile
-./src/suit/triangles.f90
-./src/suit/delaunay_triang.f90
+./src/suit/ever_pitkin.f90
+./src/propag/orbit_elements.f90
+./src/suit/bin_search.f90
+./src/propag/moid_compute.f90
+./src/propag/test_moid_rms.f90
+./src/propag/critical_points.f90
+./doc/inputele.help
+./src/suit/attributable.f90
+./src/fitobs/fitobs.f90

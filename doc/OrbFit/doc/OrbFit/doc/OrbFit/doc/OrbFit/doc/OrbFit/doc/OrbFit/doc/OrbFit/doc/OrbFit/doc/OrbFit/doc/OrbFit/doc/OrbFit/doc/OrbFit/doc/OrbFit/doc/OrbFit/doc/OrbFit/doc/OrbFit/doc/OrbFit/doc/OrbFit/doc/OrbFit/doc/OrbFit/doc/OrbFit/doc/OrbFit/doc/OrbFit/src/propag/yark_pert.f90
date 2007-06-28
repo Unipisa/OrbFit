@@ -24,7 +24,7 @@ PUBLIC yarkdi, yarkse, yarkinit
 ! fromer yarkov.h 
 ! common containing all physical information
 ! on the current asteroid needed to compute Yarkovsky acceleration
-      DOUBLE PRECISION yarkp(9),beya(7),alya(7)
+      DOUBLE PRECISION yarkp(10),beya(7),alya(7)
       DOUBLE PRECISION spya,sqya,etaya75,fmeaya,thfacya,radfluya
 ! logical flggs: availability of physical data, 
 !  has yarkinit routine been called
@@ -53,7 +53,8 @@ CONTAINS
 !                yarkp(6) ... density of the surface layer              
 !                yarkp(7) ... radius of the body                        
 !                yarkp(8) ... rotation frequency                        
-!                yarkp(9) ... surface absorptivity                      
+!                yarkp(9) ... surface absorptivity   
+!                yarkp(10)... bulk density   
 !                iparti   ... partials (yes=1/no=0)                     
 !                             [presently only partials listed below,    
 !                              a(4) - a(21) are available]              
@@ -84,10 +85,11 @@ CONTAINS
 !    to 2 g/cm^3                                                        
 ! -- the heat capacity of the surface layer (capacity) which is now set 
 !    to 680 J/kg/K                                                      
-      DOUBLE PRECISION, parameter :: densityb=2.d3,capacity=680.d0,solcon=1371.d0
+      DOUBLE PRECISION, parameter :: capacity=680.d0,solcon=1371.d0
       DOUBLE PRECISION, parameter :: emiss=0.9d0,stefboltz=5.66962d-8,clight3=8.99377374d8 
       DOUBLE PRECISION, parameter :: dsqrt2=1.414213562373d0,dsqrt23=1414.213562373d0 
-      DOUBLE PRECISION, parameter :: aceuni=0.049900176d0 
+      DOUBLE PRECISION, parameter :: aceuni=0.049900176d0
+      DOUBLE PRECISION :: densityb 
 ! input: asteroid position, flag for partials                           
       double precision xast(3) 
       integer iparti 
@@ -98,6 +100,7 @@ CONTAINS
       double precision rau2,rau,xn,yn,zn,radfku,tstar, tav1000,surcon,bgama,theta,diudepth,rp 
 ! physical data on the current asteroid                                 
 ! ----------------------------------------------------------------------
+      densityb=yarkp(10)
       rau2=xast(1)*xast(1)+xast(2)*xast(2)+xast(3)*xast(3) 
       rau=dsqrt(rau2) 
       xn=xast(1)/rau 
@@ -232,7 +235,8 @@ CONTAINS
 !                yarkp(6) ... density of the surface layer              
 !                yarkp(7) ... radius of the body                        
 !                yarkp(8) ... rotation frequency                        
-!                yarkp(9) ...  surface absorptivity                     
+!                yarkp(9) ...  surface absorptivity  
+!                yarkp(10)... bulk density   
 !                + some more precomputed useful variables               
 !                                                                       
 ! Output parameters: a(1-3) ... seasonal acceleration                   
@@ -248,14 +252,18 @@ CONTAINS
 ! (queries to vokrouhl@mbox.cesnet.cz)                                  
 ! ..................................................................    
       implicit double precision (a-h,o-z) 
-      integer, parameter:: napprox=7 
-      parameter (densityb=2.d3,capacity=680.d0,dsqrt2=1.414213562373d0) 
+! modified 17/4/2007, to comply with the Golevka code at JPL.
+     integer, parameter:: napprox=7
+!      integer, parameter:: napprox=12
+      parameter (capacity=680.d0,dsqrt2=1.414213562373d0) 
       parameter (emiss=0.9d0,clight3=8.99377374d8,aceuni=0.049900176d0) 
       dimension xast(3),vast(3) 
-      dimension brac(7),bras(7),gcosd(7),gsind(7),a(21) 
+      dimension brac(napprox),bras(napprox),gcosd(napprox),gsind(napprox),a(21)
+      double precision densityb 
       integer iparti
       integer k
 ! ----------------------------------------------------------------------
+       densityb=yarkp(10)
 ! - thermal inertia & seasonal thermal parameter                        
        bgama=dsqrt(yarkp(4)*yarkp(6)*capacity) 
        theta=bgama*thfacya/emiss 
@@ -293,9 +301,7 @@ CONTAINS
         brac(k)=spya*alya(k)*gcosd(k)+sqya*beya(k)*gsind(k) 
         bras(k)=sqya*beya(k)*gcosd(k)-spya*alya(k)*gsind(k) 
    10  continue 
-! mean anomaly detremined                                               
-! - approximated by a linear term only                                  
-!      anomaly=ele0(6)+(fmea*t)                                         
+! mean anomaly determined                                               
 ! - computed from the state vector                                      
       r2=xast(1)*xast(1)+xast(2)*xast(2)+xast(3)*xast(3) 
       v2=vast(1)*vast(1)+vast(2)*vast(2)+vast(3)*vast(3) 
@@ -409,16 +415,20 @@ SUBROUTINE yarkinit(astnam,elem)
 !                yarkp(6) ... density of the surface layer              
 !                yarkp(7) ... radius of the body                        
 !                yarkp(8) ... rotation frequency                        
-!                yarkp(9) ... surface absorptivity                      
+!                yarkp(9) ... surface absorptivity
+!                yarkp(10)... bulk density                      
      yarkp(1)=dcos(lat*radeg)*dcos(long*radeg) 
      yarkp(2)=dcos(lat*radeg)*dsin(long*radeg) 
      yarkp(3)=dsin(lat*radeg) 
+! rotate to ecliptic
+     yarkp(1:3)=MATMUL(roteqec,yarkp(1:3))
      read(unit,*,end=111)yarkp(4) 
      read(unit,*,end=111)yarkp(5) 
      read(unit,*,end=111)yarkp(6) 
      read(unit,*,end=111)yarkp(7) 
      read(unit,*,end=111)yarkp(8) 
      read(unit,*,end=111)yarkp(9) 
+     read(unit,*,end=111)yarkp(10) 
 ! precompute some variables for the seasonal variant of the Yarkovsky   
 ! effect:                                                               
 ! - constants                                                           
@@ -448,6 +458,7 @@ SUBROUTINE yarkinit(astnam,elem)
      sqya=yarkp(1)*qvya(1)+yarkp(2)*qvya(2)+yarkp(3)*qvya(3) 
      cgam=yarkp(1)*nvya(1)+yarkp(2)*nvya(2)+yarkp(3)*nvya(3) 
      obli=dacos(cgam)/radeg 
+     write(*,*)'Incl, Omega, omega (deg) ',elkep(3)/radeg,elkep(4)/radeg,elkep(5)/radeg
      write(*,*)' Obliquity of the spin axis; Yarkovsky: ',obli 
 ! - compute the \alpha(k) and \beta(k) coefficients                     
      eta=dsqrt(1.d0-elkep(2)*elkep(2)) 

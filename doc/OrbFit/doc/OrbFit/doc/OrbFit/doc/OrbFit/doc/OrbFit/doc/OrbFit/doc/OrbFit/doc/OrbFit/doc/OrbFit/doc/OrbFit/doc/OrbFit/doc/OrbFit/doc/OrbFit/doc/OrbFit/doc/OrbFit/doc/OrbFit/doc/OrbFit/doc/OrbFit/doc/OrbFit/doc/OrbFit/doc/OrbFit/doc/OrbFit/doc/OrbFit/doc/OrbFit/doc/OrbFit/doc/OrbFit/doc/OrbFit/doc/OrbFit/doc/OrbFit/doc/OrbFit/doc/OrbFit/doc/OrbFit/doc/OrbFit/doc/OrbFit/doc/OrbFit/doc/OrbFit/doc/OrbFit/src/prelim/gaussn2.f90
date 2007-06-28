@@ -19,7 +19,7 @@
 !           RTOP      -  topocentric distance at central obs
 !           MSG       -  Error message                                  
 !                                                                       
-SUBROUTINE gaussn2(tobs,alpha,delta,obscod,elem,t0,nroots,nsol,rtop,msg,debug)
+SUBROUTINE gaussn2(tobs,alpha,delta,obscod,ecc_max,q_max,elem,t0,nroots,nsol,rtop,msg,debug)
   USE reference_systems 
   USE fund_const
   USE output_control
@@ -28,12 +28,12 @@ SUBROUTINE gaussn2(tobs,alpha,delta,obscod,elem,t0,nroots,nsol,rtop,msg,debug)
   INTEGER, INTENT(IN) :: obscod(3)
   DOUBLE PRECISION, INTENT(IN) ::  tobs(3),alpha(3),delta(3) 
   LOGICAL, INTENT(IN) :: debug 
+  DOUBLE PRECISION, INTENT(IN) :: ecc_max, q_max
   DOUBLE PRECISION, INTENT(OUT) :: elem(6,3),t0(3), rtop(3) 
   CHARACTER*(*),INTENT(OUT) :: msg 
   INTEGER, INTENT(OUT) ::  nroots,nsol
 ! end interface
   DOUBLE PRECISION, PARAMETER :: errmax= 1.d-10 !convergence control
-  DOUBLE PRECISION, PARAMETER :: ecc_max=2.d0, qmax=1.d3 ! control on bizarre orbits
   INTEGER, PARAMETER :: itmax =50 ! max no iterations
   INTEGER i,j,k,ising,ir,it 
   DOUBLE PRECISION xt(3,3),sinv0(3,3),a(3),b(3),c(3) 
@@ -125,10 +125,10 @@ SUBROUTINE gaussn2(tobs,alpha,delta,obscod,elem,t0,nroots,nsol,rtop,msg,debug)
      ENDDO               
 ! remove spurious root WARNING: no theory
      IF(rho(2).lt.0.01d0)THEN
-        IF(debug)WRITE(iun_log,*) ' spurious root , r, rho ',roots(ir),rho(2)
+        IF(debug)WRITE(iun_log,*) ' spurious root ',ir,' , r, rho ',roots(ir),rho(2)
         CYCLE
      ELSE
-        IF(debug)WRITE(iun_log,*) ' accepted root , r, rho ',roots(ir),rho(2)
+        IF(debug)WRITE(iun_log,*) ' accepted root ',ir,' , r, rho ',roots(ir),rho(2)
      ENDIF                                     
 ! Gibbs' transformation, giving the velocity of the planet at the       
 ! time of second observation                                            
@@ -140,7 +140,7 @@ SUBROUTINE gaussn2(tobs,alpha,delta,obscod,elem,t0,nroots,nsol,rtop,msg,debug)
      xve(1:3)=MATMUL(roteqec,xv(1:3)) 
      xve(4:6)=MATMUL(roteqec,xv(4:6))
 ! hyperbolic control
-     accept8=ecc_cont(xp(1:3,2),vp,gms,ecc_max,qmax,ecc,q,energy)
+     accept8=ecc_cont(xp(1:3,2),vp,gms,ecc_max,q_max,ecc,q,energy)
      IF(debug) THEN 
 !     WRITE(*,*)' err=',err,' it=',it, ' ecc,q,E,rho(2) ', ecc,q,energy,rho(2) 
         WRITE(iun_log,525) ir 
@@ -192,7 +192,7 @@ SUBROUTINE gaussn2(tobs,alpha,delta,obscod,elem,t0,nroots,nsol,rtop,msg,debug)
      xv(1:3)=xp(1:3,2) 
      xv(4:6)=vp(1:3)
 ! hyperbolic control
-     accept=ecc_cont(xp(1:3,2),vp,gms,ecc_max,qmax,ecc,q,energy)
+     accept=ecc_cont(xp(1:3,2),vp,gms,ecc_max,q_max,ecc,q,energy)
 !    WRITE(*,*)' err=',err,' it=',it, ' ecc,q,E,rho(2)', ecc,q, energy,rho(2)  
      IF(.not.accept)THEN
         WRITE(iun_log,*)' divergent iteration', it, ' ecc,q,E,rho(2)', ecc,q, energy, rho(2)

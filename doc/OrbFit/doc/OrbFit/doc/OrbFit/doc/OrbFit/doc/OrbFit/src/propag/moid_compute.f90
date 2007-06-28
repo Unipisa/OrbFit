@@ -1,10 +1,9 @@
-! =========MODULE moid_compute==============                            
-! CONTAINS                                                              
+! =========moid_compute==============
 ! ROUTINES                                                              
 !             nomoid                                                    
 !             nodedi                                                    
 !                                                                       
-!  HEADERS  MODULES                                                            
+!  HEADERS                                                             
 ! moid_compute.o:                                                       
 !            parbep.h masses.h masses Earth and Moon                    
 !            fund_const.mod for mass of the Sun
@@ -13,7 +12,7 @@
 ! NOMOID - compute moid using Gronchi's routine                         
 ! nodal distances and Minimum Orbital Intersection Distance             
 ! with respect to the Earth                                             
-! for an orbit, given in equinoctal elements, at a given time           
+! for an orbit, given in any elements, at a given time           
 ! =========================================                             
 SUBROUTINE nomoid(t0,el0,moid,dnp,dnm) 
   USE fund_const

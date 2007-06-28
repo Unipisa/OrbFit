@@ -8,13 +8,15 @@ usage () {
 	echo "          -p  (profiling)"
 	echo "       and <configuration> is one of the following:"
         echo "          lf95    (Lahey-Fujitsu fortran95 compiler"
-        echo "          intel8   (Intel fortran95 compiler vers. 8)"
+        echo "          intel8   (Intel fortran95 compiler vers. 8 and later)"
+        echo "          MAC     (Intel Fortran95 compiler for MAC)"
+        echo "          gfortran (GNU F95 compiler) requires gcc 4.1 and later "
         echo "       the program may compile with the following compilers,"
         echo "       but there are problems: "
         echo "          intel   (Intel fortran95 vers. 7 compiler)"
         echo "          HP90    (HP FORTRAN 90)"
         echo "          g95  (g95 free software, http://g95.sourceforge.net)"
-        echo "          gfortran (GNU compiler under development)"
+
 	exit 1
 }
 

@@ -22,7 +22,8 @@ attributable.o: \
 	astrometric_observations.o \
 	fund_const.o \
 	name_rules.o \
-	output_control.o 
+	output_control.o \
+	reference_systems.o 
 
 bin_search.o: \
 	name_rules.o 
@@ -75,11 +76,7 @@ iorwo_old.o: \
 
 jpl_ephem.o: \
 	../include/jplhdr.h90 \
-	../include/timespan.h90 \
-	comlib.h90 \
-	fund_const.o \
-	planet_masses.o \
-	reference_systems.o 
+	comlib.h90 
 
 obs_simul.o: \
 	astrometric_observations.o \
@@ -109,6 +106,12 @@ option_input.o: \
 
 orb_els.o: \
 	fund_const.o 
+
+read_ephem.o: \
+	../include/jplhdr.h90 \
+	../include/timespan.h90 \
+	fund_const.o \
+	planet_masses.o 
 
 reference_systems.o: \
 	fund_const.o \
