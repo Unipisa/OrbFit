@@ -175,8 +175,8 @@ SUBROUTINE ellipsoid(daddet,gamm0,sig,axes,gamad)
      IF(eigval(i).gt.0.d0)THEN 
         sig(i)=sqrt(eigval(i)) 
      ELSE 
-        write(ierrou,*) 'ellipsoid: non positive eigenvalue ',eigval(i)
-        numerr=numerr+1 
+!        write(ierrou,*) 'ellipsoid: non positive eigenvalue ',eigval(i)
+!        numerr=numerr+1 
         sig(i)=0.d0 
      ENDIF
   ENDDO

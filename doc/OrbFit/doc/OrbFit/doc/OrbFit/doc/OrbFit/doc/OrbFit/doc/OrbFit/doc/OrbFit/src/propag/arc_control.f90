@@ -8,7 +8,7 @@ MODULE arc_control
 
   PUBLIC arc_type, new_quality, check_nobs
 
-  INTEGER, PARAMETER :: ngapx= 20
+  INTEGER, PARAMETER :: ngapx= 12
  ! array of  observations before gaps: unsorted, sorted
   DOUBLE PRECISION,DIMENSION(ngapx) :: tgapv,tgapv_srt 
   INTEGER, DIMENSION(ngapx) :: indgsrt ! sorting (by time) index 
@@ -159,6 +159,7 @@ CONTAINS
     ngap=0
     nat=rec_arc_type(obs,obsw,m, geoc_chi,acce_chi,chi, nig,fail_rec)
 !    WRITE(*,*)'arc_type: nat,nig ', nat,nig
+    WRITE(*,*)tgapv(1:ngap)
     IF(ngap.gt.1)THEN
        CALL heapsort(tgapv,ngap,indgsrt)
        tgapv_srt(1:ngap)=tgapv(indgsrt(1:ngap))
@@ -219,7 +220,12 @@ CONTAINS
            ENDIF
          ENDDO
       ENDIF
-      mm=m2-m1+1
+      mm=m2-m1+1  
+      IF(mm.le.1)THEN
+         natc=nat
+         fail_flag=99
+         RETURN
+      ENDIF
       CALL attri_comp(mm, obs(m1:m2), obsw(m1:m2), att, error)
       IF(error)THEN
          WRITE(*,*) '***check_cons_arc: error from attri_comp, mm=', mm
@@ -297,10 +303,14 @@ CONTAINS
           ENDIF
           IF(mgap.gt.2)THEN
              n1=rec_arc_type(obs(1:mgap),obsw(1:mgap),mgap,geoc_chi1,acce_chi1,chi1,nig1,fail_flag1)
-          ELSE
+          ELSEIF(mgap.gt.0)THEN
              n1=1
              nig1=nights(mgap,obs(1:mgap),obsw(1:mgap))
              fail_flag1=0
+          ELSE
+             n1=1
+             nig1=1
+             fail_flag=7
           ENDIF
           IF(m-mgap.gt.2)THEN
              n2=rec_arc_type(obs(mgap+1:m),obsw(mgap+1:m),m-mgap,geoc_chi2,acce_chi2,chi2,nig2,fail_flag2)
@@ -398,7 +408,10 @@ CONTAINS
           tgap=time(i-1)  
        ENDIF
     ENDDO
-    IF(mgap.eq.0) STOP ' ********* split_by_gap no gap*******'
+    IF(mgap.eq.0)THEN
+       WRITE(ierrou,*) ' ********* split_by_gap no gap*******',time
+       numerr=numerr+1
+    ENDIF
   END SUBROUTINE split_by_gap
 
 END MODULE arc_control

@@ -4,13 +4,26 @@ IMPLICIT NONE
 PRIVATE
 ! length of official IAU designation, without spaces                    
   INTEGER, PUBLIC, PARAMETER :: name_len=9 
-  INTEGER, PUBLIC, PARAMETER :: nmax_ids=16
+  INTEGER, PUBLIC, PARAMETER :: nmax_ids=18
   INTEGER, PUBLIC, PARAMETER :: idname_len=(name_len+1)*nmax_ids-1 
   INTEGER, PUBLIC, PARAMETER :: idnamvir_len=idname_len+6
 
-PUBLIC fullnamparse
-CONTAINS
+PUBLIC fullnamparse, appears
 
+CONTAINS
+!=====================================================================
+! APPEARS name appears in list?
+! ====================================================================
+ LOGICAL FUNCTION appears(secn,sec_nam,nsec)
+   CHARACTER*(name_len), INTENT(IN) :: secn
+   INTEGER, INTENT(IN) :: nsec
+   CHARACTER*(name_len), DIMENSION(nsec), INTENT(IN) :: sec_nam
+   INTEGER i
+   appears=.false.
+   DO i=1,nsec
+     IF(secn.eq.sec_nam(i)) appears=.true.
+   ENDDO
+ END FUNCTION appears
 ! =======================================                               
 ! fullnamparse                                                              
 ! parse asteroid name to find identifications/multiple solutions        

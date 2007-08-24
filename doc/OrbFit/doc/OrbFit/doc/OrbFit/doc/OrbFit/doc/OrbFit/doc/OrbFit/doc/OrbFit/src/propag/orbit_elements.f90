@@ -423,8 +423,10 @@ SUBROUTINE eldiff(el1,el0,del)
   DOUBLE PRECISION, DIMENSION(el0%ndim) :: del
   DOUBLE PRECISION pridif
   IF(el1%coo.ne.el0%coo)THEN
-     WRITE(*,*)'eldiff: different coordinates ',el1%coo, el0%coo
-     STOP
+     WRITE(ierrou,*)'eldiff: different coordinates ',el1%coo, el0%coo
+     numerr=numerr+1
+     del=0.d0
+     RETURN
   ENDIF
   IF(el0%coo.eq.'CAR')THEN
      del=el1%coord-el0%coord

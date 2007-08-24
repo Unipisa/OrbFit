@@ -226,6 +226,9 @@ TYPE(ast_wbsr), PARAMETER :: undefined_ast_wbsr = AST_WBSR( &
 
 INTEGER, PARAMETER :: rwo_version = 1           !  current version of RWO file format
 
+INTEGER, PARAMETER, PUBLIC :: nradobsx=10000 ! max total number of radar observations
+CHARACTER*100, PUBLIC, DIMENSION(nradobsx) :: radar_rec  ! JPL formatted records 
+
 ! LIST OF PUBLIC ENTITIES
 ! Derived TYPEs
 PUBLIC :: ast_obs, ast_wbsr, ast_obs_direct
@@ -900,6 +903,7 @@ USE reference_systems
      obs1%mag_str=mag_str(1:6)
      mag_field=mag_str(1:5)
      CALL rmsp(mag_field,len_mag_field)
+     mag_field=mag_str(1:5) !WARNING: to fix 644 mistake
      IF(len_mag_field>0) THEN
         READ(mag_field,*,ERR=1) obs1%mag
         obs1%mag_def=.true.
@@ -1407,8 +1411,9 @@ END IF
 ! Magnitude
 obs%mag_str=mpcrec(66:71)
 obs%mag_band=mpcrec(71:71)
-mag_field=mpcrec(66:70)
+mag_field=mpcrec(66:70) !WARNING: to fix 644 mistake
 CALL rmsp(mag_field,len_mag_field)
+mag_field=mpcrec(66:70)
 IF(len_mag_field>0) THEN
    error_code='input field: magnitude'
    READ(mag_field,*,ERR=10) obs%mag
@@ -1625,7 +1630,7 @@ integer lench
      l=lench(rec)
      IF(l.eq.0) CYCLE
      nobs=nobs+1
-
+     radar_rec(i)=rec
 ! parse one jpl radar record
      CALL jplradar_transform(rec,obs(i),error)
      IF(error)THEN

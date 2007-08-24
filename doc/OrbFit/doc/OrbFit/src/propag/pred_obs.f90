@@ -482,7 +482,7 @@ SUBROUTINE predic_obs2(el,idsta,tobs,att,uncert,rr,pha,dsun,twobo,dobde)
   att%tdtobs=tobs
 ! find UT of observation
   mjd1=FLOOR(att%tdtobs)
-  sec1=att%tdtobs-mjd1
+  sec1=(att%tdtobs-mjd1)*86400.d0
   CALL cnvtim(mjd1,sec1,'TDT',mjd2,sec2,'UTC')
   att%tutobs=mjd2+sec2/86400.d0
 ! station code
@@ -658,6 +658,16 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
      call pvobs(tobs,iobscod,xo,vo) 
      d(1:3)=d(1:3)-xo  !   topocentric correction in ecliptic coordinates
      d(4:6)=d(4:6)-vo  
+! elevation on horizon 
+     coscoelev=prscal(xo,d)/(vsize(d)*vsize(xo))
+     IF(coscoelev.ge.0.d0.and.coscoelev.lt.1.d0)THEN
+        elev=pig/2.d0-acos(coscoelev)
+     ELSE
+        elev=0.d0
+!        WRITE(ierrou,*) 'oss_dif2: xo,d,dis0, coscoelev',xo,d,dis0,coscoelev
+        WRITE(ierrou,*) 'oss_dif2: coscoelev',coscoelev
+        numerr=numerr+1
+     ENDIF
   endif
 ! ===================================================================== 
 ! Aberration (only time delay)                                          
@@ -678,9 +688,7 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
   IF(sinelo.lt.0.d0)elo0=-elo0
   eclat0=asin(d(3)/dis0)
 ! =====================================================================
-! elevation on horizon, illumination angle at the station
-  coscoelev=prscal(xo,d)/(dis0*vsize(xo))
-  elev=pig/2.d0-acos(coscoelev)
+! illumination angle at the station
   coscoelsun=prscal(d,-xea(1:3))/(dis0*dsun0)
   elsun=pig/2.d0-acos(coscoelsun)
 ! ===================================================================== 

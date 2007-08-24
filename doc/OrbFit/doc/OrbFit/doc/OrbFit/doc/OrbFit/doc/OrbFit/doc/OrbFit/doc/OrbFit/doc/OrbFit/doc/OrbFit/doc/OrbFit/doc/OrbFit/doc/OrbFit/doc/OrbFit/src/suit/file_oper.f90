@@ -149,7 +149,7 @@ SUBROUTINE filopn(iun,name,status)
 !    CALL waste_time(100) 
 !    GOTO 5
 99 continue
-  WRITE(*,*)' error in second INQUIRE'
+  WRITE(*,*)' error in second INQUIRE, file=',name(1:ll)
   STOP '**** filopn: abnormal end ****' 
 END SUBROUTINE filopn
 SUBROUTINE waste_time(n)
