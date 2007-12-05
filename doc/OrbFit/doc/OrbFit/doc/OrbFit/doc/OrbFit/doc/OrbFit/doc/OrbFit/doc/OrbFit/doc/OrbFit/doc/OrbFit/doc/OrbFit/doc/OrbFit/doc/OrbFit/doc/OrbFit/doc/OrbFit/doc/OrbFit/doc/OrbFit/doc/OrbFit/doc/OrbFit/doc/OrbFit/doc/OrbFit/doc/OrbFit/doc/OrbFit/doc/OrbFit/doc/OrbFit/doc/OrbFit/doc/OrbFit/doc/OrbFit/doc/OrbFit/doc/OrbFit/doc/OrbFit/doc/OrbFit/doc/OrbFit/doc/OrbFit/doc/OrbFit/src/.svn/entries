@@ -1,0 +1,152 @@
+8
+
+dir
+2
+file:///home/milani/orbfit/orbfit_svn/trunk/src
+file:///home/milani/orbfit/orbfit_svn
+
+
+
+2007-10-16T12:37:05.866797Z
+2
+milani
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+ff695d02-9b3c-0410-b239-84600c56c42c
+
+test
+dir
+
+jpleph
+dir
+
+include
+dir
+
+triang
+dir
+
+suit
+dir
+
+idconf2
+dir
+
+panst
+dir
+
+orbfit
+dir
+
+util90
+dir
+
+fitobs
+dir
+
+propag
+dir
+
+prelim
+dir
+
+neodys
+dir
+
+moid_research
+dir
+
+newret
+dir
+
+propneo2
+dir
+
+conta
+file
+
+
+
+
+2007-10-16T12:06:40.000000Z
+a298f7618e9f967716cec741790f22c4
+2007-10-16T12:06:24.872038Z
+1
+milani
+has-props
+
+bineph
+dir
+
+lib
+dir
+
+astdys
+dir
+
+make.flags
+file
+
+
+
+
+2007-10-17T07:39:07.000000Z
+66705c02c4dfd297872c5f0a30534238
+2007-10-16T12:06:24.872038Z
+1
+milani
+
+orb9
+dir
+
+allobs
+dir
+
+Makefile
+file
+
+
+
+
+2007-10-16T12:34:58.000000Z
+98cb564780e32f9931f1856606223d98
+2007-10-16T12:37:05.866797Z
+2
+milani
+
+LIST.types
+file
+
+
+
+
+2007-10-16T12:06:40.000000Z
+7387a168324d3f4092bc8f8c59bfc19f
+2007-10-16T12:06:24.872038Z
+1
+milani
+
+vers.h90
+file
+
+
+
+
+2007-10-16T12:06:40.000000Z
+f8a20215b0252bd4299463408112ae0c
+2007-10-16T12:06:24.872038Z
+1
+milani
+

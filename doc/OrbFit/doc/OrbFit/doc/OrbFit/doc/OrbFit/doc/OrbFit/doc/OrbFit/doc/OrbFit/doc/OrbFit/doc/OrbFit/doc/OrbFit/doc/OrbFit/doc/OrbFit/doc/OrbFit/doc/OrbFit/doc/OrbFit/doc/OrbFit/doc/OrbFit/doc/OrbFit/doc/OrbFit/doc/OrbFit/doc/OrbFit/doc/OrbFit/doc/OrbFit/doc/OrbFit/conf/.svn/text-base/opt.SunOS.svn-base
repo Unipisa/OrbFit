@@ -1,0 +1,17 @@
+# Make a symbolic of all the files contained in src/include
+# in the required src subdirectories
+
+files=`ls src/include`
+dirs='suit propag orbfit fitobs bineph prelim'
+
+cd src
+for dir in $dirs
+do
+	cd $dir
+	for file in $files
+	do
+		ln -s ../include/$file
+	done
+	cd ..
+done
+cd ..

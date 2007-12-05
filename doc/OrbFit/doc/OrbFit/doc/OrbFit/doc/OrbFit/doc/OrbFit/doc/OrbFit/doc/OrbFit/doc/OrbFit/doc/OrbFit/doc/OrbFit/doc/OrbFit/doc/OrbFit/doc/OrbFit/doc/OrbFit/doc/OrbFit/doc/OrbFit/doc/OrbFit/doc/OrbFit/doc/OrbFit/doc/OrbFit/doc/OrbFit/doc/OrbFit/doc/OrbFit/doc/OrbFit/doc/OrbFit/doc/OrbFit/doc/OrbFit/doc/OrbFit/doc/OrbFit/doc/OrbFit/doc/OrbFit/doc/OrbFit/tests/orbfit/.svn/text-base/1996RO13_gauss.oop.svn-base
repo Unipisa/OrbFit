@@ -1,0 +1,5 @@
+object1.
+	.name = '1996 RO13'
+
+operations.
+	.diffcor = 0

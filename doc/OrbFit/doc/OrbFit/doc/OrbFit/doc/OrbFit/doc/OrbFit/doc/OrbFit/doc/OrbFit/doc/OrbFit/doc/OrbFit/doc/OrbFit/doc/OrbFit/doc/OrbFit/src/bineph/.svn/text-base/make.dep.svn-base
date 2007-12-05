@@ -1,0 +1,20 @@
+
+bineph.o: \
+	../suit/reference_systems.mod \
+	comast.h90 \
+	dim.h90 
+
+forceb.o: \
+	comast.h90 \
+	comjpl.h90 \
+	dim.h90 
+
+ra15b.o: \
+	dim.h90 
+
+rdoptb.o: \
+	../suit/fund_const.mod \
+	../suit/reference_systems.mod \
+	comast.h90 \
+	comjpl.h90 \
+	dim.h90 

@@ -17,6 +17,8 @@ INTEGER iun_log,iun_covar
 INTEGER verb_clo
 ! for propagator
 INTEGER verb_pro
+! for observartions
+INTEGER verb_obs
 ! for differential corrections
 INTEGER verb_dif
 ! for multiple solutions
@@ -29,6 +31,10 @@ INTEGER verb_io
 INTEGER verb_moid
 ! for preliminary orbits
 INTEGER verb_prelim
+! for output of covariance
+INTEGER verb_covariance
+! for matrix inversion, conditioning
+INTEGER verb_matrix
 ! general rules: verb_x=10 in fitobs; verb_x=1 (default) in batch
 ! programs running many orbits; verb_x=5 to have more error messages
 ! on the consolle; verb_x>20 to produce huge output, for debugging only

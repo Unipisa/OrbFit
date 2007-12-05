@@ -1,0 +1,146 @@
+8
+
+dir
+2
+file:///home/milani/orbfit/orbfit_svn/trunk
+file:///home/milani/orbfit/orbfit_svn
+
+
+
+2007-10-16T12:37:05.866797Z
+2
+milani
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+ff695d02-9b3c-0410-b239-84600c56c42c
+
+README.patches
+file
+
+
+
+
+2007-10-16T12:06:40.000000Z
+8c2f8b3d064693380c06c56ec10437dc
+2007-10-16T12:06:24.872038Z
+1
+milani
+
+notar
+file
+
+
+
+
+2007-10-16T12:06:40.000000Z
+2b39141f5ef128a2407ca4f157447972
+2007-10-16T12:06:24.872038Z
+1
+milani
+
+conf
+dir
+
+src
+dir
+
+patchlist
+file
+
+
+
+
+2007-10-16T12:06:40.000000Z
+ba394ffb78b046a326bdedb0f36a2c31
+2007-10-16T12:06:24.872038Z
+1
+milani
+
+README.workinprog
+file
+
+
+
+
+2007-10-16T12:06:40.000000Z
+1072e6ccd6ff201a8775825e4b01138e
+2007-10-16T12:06:24.872038Z
+1
+milani
+
+tex
+dir
+
+dellist
+file
+
+
+
+
+2007-10-16T12:06:40.000000Z
+d41d8cd98f00b204e9800998ecf8427e
+2007-10-16T12:06:24.872038Z
+1
+milani
+
+tests
+dir
+
+doc
+dir
+
+config
+file
+
+
+
+
+2007-10-16T12:06:40.000000Z
+6c793a9ac335f06cb8df897ea3318eb2
+2007-10-16T12:06:24.872038Z
+1
+milani
+has-props
+
+lib
+dir
+
+GNUPUB.LIC
+file
+
+
+
+
+2007-10-16T12:06:40.000000Z
+5574c6965ae5f583e55880e397fbb018
+2007-10-16T12:06:24.872038Z
+1
+milani
+
+bin
+dir
+
+Makefile
+file
+4
+
+
+
+2007-10-17T07:39:38.000000Z
+3504a148681eaca09a8d09144e353584
+2007-10-17T07:40:10.958794Z
+4
+milani
+

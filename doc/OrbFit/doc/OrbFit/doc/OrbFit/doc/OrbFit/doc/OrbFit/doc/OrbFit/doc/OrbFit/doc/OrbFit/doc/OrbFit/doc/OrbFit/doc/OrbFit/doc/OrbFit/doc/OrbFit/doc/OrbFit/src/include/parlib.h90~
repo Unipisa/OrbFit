@@ -1,0 +1,2 @@
+! Default library directory
+CHARACTER(LEN=100), PARAMETER :: dlibd = '/home/milani/orbfit/orb35/lib'

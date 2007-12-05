@@ -1,0 +1,14 @@
+object1.
+	.name = '1996RO13=1220T-2'
+
+input_files.incond = 1996RO13_ident1.oel
+
+reject.auto = F
+
+operations.ephem = 1
+
+ephem.
+	.epoch.start = CAL 1996/Sep/09 00:00:00 UTC
+	.epoch.end   = CAL 1997/May/09 00:00:00 UTC
+	.step = 10
+	.fields      = 'cal,mjd,coord,mag,skyerr'

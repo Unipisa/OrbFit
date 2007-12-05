@@ -732,21 +732,23 @@ CONTAINS
        ENDIF
 ! ============ WRITE ERROR MESSAGE=====================
        IF(.not.morse.or..not.weier)THEN
-          IF(.not.morse)WRITE(ierrou,*)'Morse control failed!'
-          IF(.not.weier)WRITE(ierrou,*)'Weierstrass control failed!'
-          WRITE(ierrou,*)'nroots,nummin,nummax',nroots,nummin,nummax
+          IF(verb_moid.gt.20)THEN
+             IF(.not.morse)WRITE(ierrou,*)'Morse control failed!'
+             IF(.not.weier)WRITE(ierrou,*)'Weierstrass control failed!'
+             WRITE(ierrou,*)'nroots,nummin,nummax',nroots,nummin,nummax
 !          WRITE(ierrou,*)'ec1 elements:',elc1(1:2),elc1(3:5)*degrad
 !          WRITE(ierrou,*)'ec2 elements:',elc2(1:2),elc2(3:5)*degrad
-          numerr=numerr+1
-          IF(2*(nummin+1).ge.nroots.and.nummin.ge.1)THEN
-             WRITE(ierrou,*)'consistent no of minimum points'
-          ELSE
-             WRITE(ierrou,*)'not consistent no of minimum points'
-          ENDIF
-          IF(nummin.ge.1)THEN
-             WRITE(ierrou,*)'at least one minimum point exists: acceptable solutions'
-          ELSE
-             WRITE(ierrou,*)'ERROR: there is no minimum point!'
+             numerr=numerr+1
+             IF(2*(nummin+1).ge.nroots.and.nummin.ge.1)THEN
+                WRITE(ierrou,*)'consistent no of minimum points'
+             ELSE
+                WRITE(ierrou,*)'not consistent no of minimum points'
+             ENDIF
+             IF(nummin.ge.1)THEN
+                WRITE(ierrou,*)'at least one minimum point exists: acceptable solutions'
+             ELSE
+                WRITE(ierrou,*)'ERROR: there is no minimum point!'
+             ENDIF
           ENDIF
        ENDIF
     ENDIF
@@ -780,11 +782,11 @@ CONTAINS
 !          endif
        alpha = alpha + dpig/60.d0
        beta = beta + dpig/50.d0
-!       if(verb_moid.ge.20) then
+       if(verb_moid.ge.20) then
           WRITE(ierrou,*)'APPLY ANGULAR SHIFT: count=',count
           WRITE(ierrou,*)'               alpha,beta:',alpha,beta
           numerr=numerr+1
-!       endif
+       endif
 ! restoring flags
        morse = .true.
        weier = .true.
@@ -802,20 +804,20 @@ CONTAINS
        hevalflag = .true.
        GOTO 10 
     ELSE
-       if(verb_moid.ge.20) then
+       IF(verb_moid.ge.20) THEN
           WRITE(ierrou,*)'computation OK! count = ',count
           WRITE(ierrou,*)'morse,weier',morse,weier
           WRITE(ierrou,*)'warnflag(1)',warnflag(1)
           WRITE(ierrou,*)'sflag(2:6)',sflag(2:6)
           WRITE(ierrou,*)'hzflag',hzflag
           numerr=numerr+1
-       endif
-       IF(count.gt.0)THEN
-          WRITE(ierrou,*)'Morse and Weierstrass control succeded!'
-          WRITE(ierrou,*)'nroots,nummin,nummax',nroots,nummin,nummax
-          WRITE(ierrou,*)'ec1 elements:',elc1(1:2),elc1(3:5)*degrad
-          WRITE(ierrou,*)'ec2 elements:',elc2(1:2),elc2(3:5)*degrad
-       ENDIF 
+          IF(count.gt.0)THEN
+             WRITE(ierrou,*)'Morse and Weierstrass control succeded!'
+             WRITE(ierrou,*)'nroots,nummin,nummax',nroots,nummin,nummax
+             WRITE(ierrou,*)'ec1 elements:',elc1(1:2),elc1(3:5)*degrad
+             WRITE(ierrou,*)'ec2 elements:',elc2(1:2),elc2(3:5)*degrad
+          ENDIF
+       ENDIF
 ! continue the computation
     ENDIF
 

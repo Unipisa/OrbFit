@@ -1,0 +1,21 @@
+#!	/usr/bin/perl
+
+if($#ARGV!=1) {
+    die "Usage: discard <file> <maxerr>\n";
+}
+$input_file=$ARGV[0];
+$max_err=$ARGV[1];
+$max_err2=$max_err**2;
+
+open(INPUT,"$input_file") || die "discard: cannot open file $input_file: $!\n";
+while(<INPUT>) {
+    if(/^\s*!/) {print; next}
+    @fields=split;
+    $type=$fields[1];
+    if($type ne "A") {print; next}
+    $resa=@fields[9];
+    $resd=@fields[14];
+    $err2=$resa**2+$resd**2;
+    if($err2>$max_err2) { $_=~s/ [12]$/ 0/ }
+    print;
+}

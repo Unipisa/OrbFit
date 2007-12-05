@@ -1,0 +1,73 @@
+HEADERS RESTANTI
+
+ll */*.h90 |wc -l
+     36
+
+grep -i include */*.f90 | grep -v ! |wc -l
+    182
+
+grep -i common */*.f90 | grep -v ! | grep -v "'"|wc -l
+     23 
+
+[orbmaint@hamilton propag]$ grep -i common *.f90 | grep -v !
+least_squares.f90:  COMMON / bizcon /ecclim0, samin0,samax0,phmin0,ahmax0 
+least_squares.f90:  COMMON / bizcon /ecclim0, samin0,samax0,phmin0,ahmax0  
+
+[orbmaint@hamilton suit]$ grep -i common *.f90 | grep -v ! | grep -v "'" |wc
+      0       0       0
+
+HEADER FILES: in ./src/include
+
+parobx.h90  dimensions of observations and blocks
+            for memory size control 2 VERSIONS, for large and small 
+
+doclib.h90 where to find  hlp files AUTOMATICALLY GENERATED
+sysdep.h90  / - \ for directories  AUTOMATICALLY GENERATED
+
+parcmc.h90  ! as comment in input COULD BE REMOVED....
+
+nvarx.h90 dimensions for propagations COULD BE in close_app.mod????
+
+timespan.h90 data available JPL, ET-UT
+
+jplhdr.h90 for jpl_ephem.f90
+
+pariod.h90 comiod.h90 to be removed with prelim.mod 
+
+in ./src/propag
+fcfund.h90 (NON E' un HEADER, ma un pezzo di programma)
+
+in ./src/prelim
+comgau.h90  comvais.h90  parrho.h90  pars3m.h90  sel3m.h90 
+
+in     ./src/suit  
+comlib.h90  parlib.h90 automatici
+parrms.h90  parobc.h90  rmscl.h90   in observ_rms.f90
+
+in ./src/orbfit
+comeph.h90  comidn.h90  comlsf.h90  parnob.h90 
+
+in ./src/bineph
+comast.h90  comjpl.h90  dim.h90 
+
+--------------BEING DONE------------------------------------------------
+verbosity.h proout.h messo in modulo output_control.mod
+ VA USATO DAPPERTUTTO
+
+
+PROBLEM: ./moid contiene molti common
+
+PROBLEM: ./newret/eval_risk.f90 contiene molti common
+
+PROBLEM: ./src/bineph sempre in f77 DONE; TO BE TESTED 
+       (how to compare binary files?)
+
+Directory ./src/jpleph sempre in f77 DONE tested only testeph
+
+risistemare radres dopo eliminazione di iunrad.h90 
+    FATTO, ma poi si usa???
+
+------------------------------------
+
+PROBLEM: stat still uses old headers 
+         orb9 not handled at all.

@@ -1,0 +1,116 @@
+The following directory contains some examples of usage of program
+orbfit, having mainly the purpose of showing the different possible
+modes of operation. Input options for each example are contained in
+the file <runname>.oop. A log of all the operations performed during
+the run is written in <runname>.olg.
+
+4067
+====
+
+The simplest case: no specific option file is supplied, but only a
+file 4067.obs containing astrometric observations. As a default
+procedure, the program computes starting values of the orbital
+elements with Gauss' method, then refines them with iterative
+differential corrections (including automatic rejection of bad
+observations).
+
+1998PB1
+=======
+
+Two input files are supplied: an observation file (1998PB1.obs)
+and an orbital element file (1998PB1.ele, written in MPC format).
+The program reads the orbital elements and refines them with iterative
+differential corrections.
+
+1996RO13_gauss
+==============
+
+Application of Gauss' method to a single asteroid; differential
+correction of the orbit (which would be performed by default) is
+explicitly disabled by the option "operations.diffcor = 0"
+
+Since no filename for astrometric observations is specified
+(no keyword "object1.obs_fname"), they are read by default from
+file 1996RO13.obs, since "object1.name = '1996 RO13'".
+
+1996RO13_diffcor
+================
+
+Differential correction of the previous orbit: since a valid set
+of orbital elements for the object are read from file 1996RO13_gauss.oel
+(specified through keyword input_files.incond), no initial orbit
+determination is performed, and the program computes directly the
+differential correction. The type of output orbital elements is not
+specified explicitly in the option file (no keyword "output.elements"
+is present), so they are written by default as equinoctial elements.
+
+An ephemeris of the object is also requested ("operations.ephem = 1").
+The sky plane error (field "skyerr" in "ephem.fields") is reported in
+the ephemeris file (1996RO13_diffcor.oep) as lengths of the principal
+axes (1-sigma) of the error ellipse (Err1 and Err2) and position angle
+of Err1 axis. The result shows a rapid growth of prediction errors for
+ephemeris epochs outside the timespan of available observations
+(1996, September 8 to October 6). However, since the sky plane
+errors is computed in a linear approximation, it is only a rough
+indication of the order of magnitude of the size of the region where
+the object can be found when it exceeds few arcminutes. In those
+cases, the real confidence region is no longer an ellipse, and its
+computation requires more complex algorithms (see program fitobs).
+
+1996RO13_ephem1
+===============
+
+Run performing only ephemeris generation, reading initial conditions
+from the output of 1996RO13_diffcor (1996RO13_diffcor.oel); since
+an orbit for the object (complete with covariance matrix information)
+is contained in the input file, no differential correction is
+performed.
+
+1996RO13_ephem2
+===============
+
+Same options as for run "1996RO13_ephem1", but in this case the input
+orbital element file is a subset of Ted Bowell's "astorb.dat" file
+(astorb.sub); since no covariance information is supplied in input,
+the program performs also a least squares fit.
+
+1996RO13_ephem3
+===============
+
+Same options and input file for run "1996RO13_ephem2", but in this
+case the program is forced to skip the differential correction by
+setting "operations.diffcor = 0". The output ephemeris is based
+directly on the orbital elements found in file "astorb.sub" and
+does not contain sky plane error information (even though it is
+requested by option "ephem.fields"), since no covariance information
+is available.
+
+1996RO13_ident1
+===============
+
+Example of orbit identification: two objects are specified (1996 RO13
+and 1220 T-2). Initial conditions are read from file astorb.sub:
+since asteroid 1220 T-2 does not appear there, its initial conditions
+are computed with Gauss' method. The program computes separately
+orbital fits for the two objects, and a final orbital fit adjusting
+a single set of orbital elements to the observations of both objects;
+residuals are written to file 1996RO1=1220T-2.rwo, which is renamed
+afterwards 1996RO1=1220T-2.ident1.rwo by the instruction
+"mv 1996RO1=1220T-2.rwo 1996RO1=1220T-2.ident1.rwo" contained in the
+Makefile (this is necessary in order to play the trick described in the
+next example). Automatic outlier rejection is disabled
+(reject.auto = F).
+
+1996RO13_ident2
+===============
+
+Example of orbit identification as above, using (as input orbital
+elements for the two objects) the result of the previous example
+(read from file 1996RO13_ident1.oel), but preparing a residual/weight
+file for the identified orbit (1996RO1=1220T-2.rwo) by editing the
+otuput residual/weight file of the previous example and discarding
+all the observations leading to an orbital residual
+sqrt(dRA**2+dDEC**2) larger than 2.5 arcsec (this operation is
+performed by the Perl script "discard"). In order to avoid that
+the program overrides the selection of outliers made by the user,
+automatic outlier rejection is disabled (reject.auto = F).

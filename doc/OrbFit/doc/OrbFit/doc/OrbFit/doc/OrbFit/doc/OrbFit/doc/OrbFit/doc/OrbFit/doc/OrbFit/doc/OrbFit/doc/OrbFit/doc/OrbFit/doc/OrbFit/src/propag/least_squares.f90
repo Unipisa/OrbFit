@@ -2950,10 +2950,10 @@ SUBROUTINE mag_est(m,obs,obsw,h0,rmsh)
 !         obs(j)%mag_band=col
      avail(j)=smag.ne.'      '.and.                              &
      & (col.eq.'B'.or.col.eq.'V'.or.col.eq.'R'.or.col.eq.'U'.or.col.eq.'J'.or. &
-     &   col.eq.'I'.or.col.eq.'C'.or.col.eq.'z'.or.col.eq.'i'.or.col.eq.'g'.or.col.eq.'H'.or.col.eq.' '.or.col.eq.'r')    
+     &   col.eq.'I'.or.col.eq.'C'.or.col.eq.'z'.or.col.eq.'i'.or.col.eq.'g'.or.col.eq.'H'.or.col.eq.' '.or.col.eq.'r'.or.col.eq.'y')    
      IF(.not.(col.eq.'B'.or.col.eq.'V'.or.col.eq.'R'.or.col.eq.'U'.or.col.eq.'J'    &
      &   .or.col.eq.'I'.or.col.eq.'C'.or.col.eq.'z'.or.col.eq.'i'.or.col.eq.'g' &
-     &   .or.col.eq.'H'.or.col.eq.' '.or.col.eq.'r'))THEN   
+     &   .or.col.eq.'H'.or.col.eq.' '.or.col.eq.'r'.or.col.eq.'y'))THEN   
         IF(ierrou.gt.0)THEN 
            WRITE(ierrou,*) 'Unknown Color:',col,' Obs #',j 
            numerr=numerr+1 
@@ -2986,8 +2986,8 @@ SUBROUTINE mag_est(m,obs,obsw,h0,rmsh)
            obsm(j)=obsm(j)+0.8d0 
         ELSEIF(col.eq.'C')THEN
            obsm(j)=obsm(j)+0.4d0
-        ELSEIF(col.eq.'z')THEN
-           obsm(j)=obsm(j)+0.7d0
+        ELSEIF(col.eq.'z')THEN ! WARNING: modified (T.Spahr, 19/11/2007)
+           obsm(j)=obsm(j)+0.75d0
         ELSEIF(col.eq.'i')THEN
            obsm(j)=obsm(j)+1.22d0
         ELSEIF(col.eq.'g')THEN
@@ -2996,6 +2996,8 @@ SUBROUTINE mag_est(m,obs,obsw,h0,rmsh)
            obsm(j)=obsm(j)+1.1d0
         ELSEIF(col.eq.'r')THEN
            obsm(j)=obsm(j)+0.23d0
+        ELSEIF(col.eq.'y')THEN ! WARNING: added (T.Spahr, 19/11/2007)
+           obsm(j)=obsm(j)+1.55d0 ! but still working on it
         ENDIF
      ENDIF
   ENDDO

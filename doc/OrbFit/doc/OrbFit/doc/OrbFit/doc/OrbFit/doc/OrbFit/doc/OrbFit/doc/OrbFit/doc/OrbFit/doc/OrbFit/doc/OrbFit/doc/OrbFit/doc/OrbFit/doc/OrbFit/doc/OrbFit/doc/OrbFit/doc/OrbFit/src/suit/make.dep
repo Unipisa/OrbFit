@@ -78,6 +78,9 @@ jpl_ephem.o: \
 	../include/jplhdr.h90 \
 	comlib.h90 
 
+math_lib.o: \
+	output_control.o 
+
 obs_simul.o: \
 	astrometric_observations.o \
 	fund_const.o \

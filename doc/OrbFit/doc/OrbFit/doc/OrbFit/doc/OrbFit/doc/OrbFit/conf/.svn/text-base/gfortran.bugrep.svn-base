@@ -1,0 +1,6 @@
+$ /usr/local/gfortran/irun/bin/gfortran -fsyntax-only -I../include astrometric_observations.f90
+astrometric_observations.f90: In function 'jplradar_transform':
+astrometric_observations.f90:1689: internal compiler error: Segmentation fault
+Please submit a full bug report,
+with preprocessed source if appropriate.
+See <URL:http://gcc.gnu.org/bugs.html> for instructions.

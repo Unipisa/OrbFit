@@ -151,6 +151,8 @@ offlov_checktp.o: \
 	virtual_impactor.o 
 
 orbit_elements.o: \
+	../include/parcmc.h90 \
+	../include/sysdep.h90 \
 	../suit/attributable.mod \
 	../suit/ever_pitkin.mod \
 	../suit/fund_const.mod \

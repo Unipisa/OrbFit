@@ -1,0 +1,9 @@
+# Makefile options for HP PA RISC, optimized
+
+# Fortran compiler
+FC=f77
+# Options for Fortran compiler:
+FFLAGS=+O3 -K -I../include
+# "ranlib" command: if it is not needed, use "RANLIB=touch"
+RANLIB=ranlib
+VPATH=../include

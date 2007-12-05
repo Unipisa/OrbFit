@@ -1,0 +1,125 @@
+104,105c104
+< ! sflag(5) = false   1st and 2nd coeffs except of 2nd degree poly
+< !            are small                      
+---
+> ! sflag(5) = false   1st and 2nd coeffs of 2nd degree poly are small
+545c544
+<        DO j=1,2
+---
+>        DO j=1,4
+583,606c582,592
+< ! if only one orbit is cometary
+<     IF ((elc1(2).ge.1.d0.and.elc2(2).lt.1.d0).or. &
+<          &(elc1(2).lt.1.d0.and.elc2(2).ge.1.d0))  THEN
+< ! ============= CHECK WITH MORSE THEORY ===============             
+<        IF (2*(nummax+nummin).ne.nsol) THEN 
+<           morse = .false.
+<        ENDIF
+< ! ============ CHECK WITH WEIERSTRASS THEOREM =========             
+<        IF(nummin.lt.1)THEN !the absolute minimum exists 
+<           weier = .false. 
+<        ENDIF
+<     ENDIF
+< 
+< ! if both orbits are bounded
+<     IF(elc1(2).lt.1.d0.and.elc2(2).lt.1.d0) THEN
+< ! ============= CHECK WITH MORSE THEORY ===============             
+<        IF (2*(nummax+nummin).ne.nsol) THEN 
+<           morse = .false.
+<        ENDIF
+< ! ============ CHECK WITH WEIERSTRASS THEOREM =========             
+<        IF((nummax.lt.1).or.(nummin.lt.1))THEN 
+<           weier = .false. 
+<        ENDIF
+<     ENDIF
+---
+> !! if both orbits are bounded
+> !    IF(elc1(2).lt.1.d0.and.elc2(2).lt.1.d0) THEN
+> !! ============= CHECK WITH MORSE THEORY ===============             
+> !       IF (2*(nummax+nummin).ne.nsol) THEN 
+> !          morse = .false.
+> !       ENDIF
+> !! ============ CHECK WITH WEIERSTRASS THEOREM =========             
+> !       IF((nummax.lt.1).or.(nummin.lt.1))THEN 
+> !          weier = .false. 
+> !       ENDIF
+> !    ENDIF
+612,614c598,600
+< 13  IF((.not.morse).or. &
+<          & (.not.weier).or. &
+<          & (.not.warnflag(1)).or.&
+---
+> !13  IF((.not.morse).or. &
+> !         & (.not.weier).or. &
+> 13  IF((.not.warnflag(1)).or.&
+616c602
+<          & (.not.sflag(3)).or. &
+---
+> !         & (.not.sflag(3)).or. &
+621,622c607,608
+<          & (.not.hwflag).or. &
+<          & (.not.multfl)) THEN
+---
+>          & (.not.hwflag) ) THEN
+> !         & (.not.multfl)
+655,656c641,642
+<        warnflag(2) = .true.
+<        warnflag(3) = .true.
+---
+> !       warnflag(2) = .true.
+> !       warnflag(3) = .true.
+658,659c644,645
+<        sflag(2) = .true.
+<        sflag(3) = .true.
+---
+> !       sflag(2) = .true.
+> !       sflag(3) = .true.
+664c650
+<        multfl = .true.
+---
+> !       multfl = .true.
+670c656,657
+<           WRITE(ierrou,*)'morse,weier,warnflag(1)',morse,weier,warnflag(1)
+---
+>           WRITE(ierrou,*)'morse,weier',morse,weier
+>           WRITE(ierrou,*)'warnflag(1)',warnflag(1)
+677a665,703
+> ! if at least one orbit is bounded
+>     IF ((elc1(2).lt.1.d0.or.elc2(2).lt.1.d0))THEN
+> ! ============= CHECK WITH MORSE THEORY ===============             
+>        IF (2*(nummax+nummin).ne.nsol) THEN 
+>           morse = .false.
+>           WRITE(ierrou,*)'Morse control failed! nsol,nummin,nummax', &
+>                & nsol,nummin,nummax
+>           WRITE(ierrou,*)'ec1 elements:',elc1(1:2),elc1(3:5)*degrad
+>           WRITE(ierrou,*)'ec2 elements:',elc2(1:2),elc2(3:5)*degrad
+>           numerr=numerr+1
+>           IF(2*(nummin+1).ge.nsol.and.nummin.ge.1)THEN
+>              WRITE(ierrou,*)'consistent no of minimum points: accept solutions'
+>              numerr=numerr+1
+>           ELSE
+>              nsol = -1 
+>              nummin = -1 
+>              nummax = -1 
+>              GOTO 1300
+>           ENDIF
+>        ENDIF
+> ! ============ CHECK WITH WEIERSTRASS THEOREM =========             
+>        IF(nummin.lt.1)THEN !the absolute minimum exists 
+>           weier = .false. 
+>           WRITE(ierrou,*)'Weierstrass control failed! nsol,nummin,nummax', &
+>                & nsol,nummin,nummax
+>           WRITE(ierrou,*)'ec1 elements:',elc1(1:2),elc1(3:5)*degrad
+>           WRITE(ierrou,*)'ec2 elements:',elc2(1:2),elc2(3:5)*degrad
+>           numerr=numerr+1
+>           IF(nummin.ge.1)THEN
+>              WRITE(ierrou,*)'one minimum point exists: accept solutions'
+>              numerr=numerr+1
+>           ELSE
+>              nsol = -1 
+>              nummin = -1 
+>              nummax = -1 
+>              GOTO 1300
+>           ENDIF
+>        ENDIF
+>     ENDIF

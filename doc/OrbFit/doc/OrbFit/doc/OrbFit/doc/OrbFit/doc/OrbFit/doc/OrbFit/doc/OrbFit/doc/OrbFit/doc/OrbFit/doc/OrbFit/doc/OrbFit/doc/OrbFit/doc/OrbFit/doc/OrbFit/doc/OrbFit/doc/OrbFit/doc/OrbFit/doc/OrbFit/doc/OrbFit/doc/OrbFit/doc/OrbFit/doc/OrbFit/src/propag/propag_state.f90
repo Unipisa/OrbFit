@@ -1516,9 +1516,11 @@ SUBROUTINE sel_ste(ecc,enne,error,mms,hmax,h)
 !     write(ipirip,*)enne,ecc,z  
 ! ===================================================================== 
 ! now compare with h given in input           
-  h=min(step,hmax) 
-  write(ipirip,110)hmax,h 
-110 format(' max. step required ',f9.6,' selected ',f9.6) 
+  h=min(step,hmax)
+  IF(verb_pro.gt.9)THEN 
+     write(ipirip,110)hmax,h 
+110  format(' max. step required ',f9.6,' selected ',f9.6)
+  ENDIF 
 END SUBROUTINE sel_ste
          
 ! **********************************************************            
@@ -1597,7 +1599,9 @@ SUBROUTINE zed(e,m,f,eps,i,igr)
   adf=0.d0 
   if(e.gt.0.2d0)then 
      f=1.d6 
-     write(ipirip,*)' with e>0.2 select the stepsize by hand' 
+     IF(verb_pro.gt.10)THEN
+        write(ipirip,*)' with e>0.2 select the stepsize by hand'
+     ENDIF 
      return 
   elseif(e.gt.0.3d0)then 
      f=1.d6 

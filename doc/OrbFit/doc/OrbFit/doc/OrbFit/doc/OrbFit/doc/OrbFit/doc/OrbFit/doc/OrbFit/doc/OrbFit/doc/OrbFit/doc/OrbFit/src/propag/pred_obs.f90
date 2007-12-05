@@ -664,9 +664,11 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
         elev=pig/2.d0-acos(coscoelev)
      ELSE
         elev=0.d0
-!        WRITE(ierrou,*) 'oss_dif2: xo,d,dis0, coscoelev',xo,d,dis0,coscoelev
-        WRITE(ierrou,*) 'oss_dif2: coscoelev',coscoelev
+        IF(verb_obs.gt.9)THEN
+!          WRITE(ierrou,*) 'oss_dif2: xo,d,dis0, coscoelev',xo,d,dis0,coscoelev
+           WRITE(ierrou,*) 'oss_dif2: coscoelev',coscoelev
         numerr=numerr+1
+        ENDIF
      ENDIF
   endif
 ! ===================================================================== 
