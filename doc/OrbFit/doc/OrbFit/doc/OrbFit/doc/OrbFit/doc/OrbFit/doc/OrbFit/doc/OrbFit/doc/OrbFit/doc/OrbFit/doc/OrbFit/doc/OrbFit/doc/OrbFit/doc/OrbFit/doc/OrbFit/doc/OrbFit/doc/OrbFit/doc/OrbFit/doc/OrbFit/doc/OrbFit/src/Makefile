@@ -28,8 +28,6 @@ nondistribution:
 #	-(cd starcat; make)
 
 nondistclean:
-	cp -p ../conf/doclib.h90 include/
-	cp -p ../conf/parlib.h90 include/
 	-(cd panst; make clean)
 	-(cd allobs; make clean)
 	-(cd idconf2; make clean)
@@ -59,6 +57,8 @@ clean:
 
 distclean:
 	touch `cat ../conf/list.modfla`
+	cp -p ../conf/doclib.h90 include/
+	cp -p ../conf/parlib.h90 include/
 	(cd suit; make distclean)
 	(cd prelim; make distclean)
 	(cd propag; make distclean)

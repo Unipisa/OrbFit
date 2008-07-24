@@ -692,7 +692,13 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
 ! =====================================================================
 ! illumination angle at the station
   coscoelsun=prscal(d,-xea(1:3))/(dis0*dsun0)
-  elsun=pig/2.d0-acos(coscoelsun)
+  IF(coscoelsun.ge.1.d0)THEN
+     elsun=pig/2.d0
+  ELSEIF(coscoelsun.le.-1.d0)THEN
+     elsun=-pig/2.d0
+  ELSE
+     elsun=pig/2.d0-acos(coscoelsun)
+  ENDIF
 ! ===================================================================== 
 ! rotation to the equatorial reference system   
   deq(1:3)=MATMUL(roteceq,d(1:3)) 
@@ -1437,7 +1443,7 @@ CONTAINS
     double precision brac1,brac2 
 ! ================================                                      
 ! relativistic range-rate correction                                    
-    brac1=-q*(edot+pdot)-qdot*(e+p) 
+    brac1=-q*(edot+pdot)+qdot*(e+p) 
     brac2=((e+p)**2)-(q**2) 
     deldop=4.d0*gms*brac1/brac2/(vlight**2) 
   END SUBROUTINE deldop1

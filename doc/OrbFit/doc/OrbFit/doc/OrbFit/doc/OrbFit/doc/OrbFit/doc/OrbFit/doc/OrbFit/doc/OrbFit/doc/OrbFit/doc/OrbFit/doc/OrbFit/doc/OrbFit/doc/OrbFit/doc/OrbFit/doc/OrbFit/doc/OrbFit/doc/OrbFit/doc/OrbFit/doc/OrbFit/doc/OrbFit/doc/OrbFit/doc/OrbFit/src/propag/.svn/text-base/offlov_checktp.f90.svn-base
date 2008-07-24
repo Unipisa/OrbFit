@@ -415,9 +415,9 @@ INTEGER, INTENT(IN) :: iunrisk ! output unit
      &     ' dist +/-   width    stretch    p_RE    exp. en.    PS  '   
   WRITE(iunrisk,200) '   YYYY/MM                                ',    &
      &     ' (RE)       (RE)      RE/sig               MT           '   
-  WRITE(iunrisk,200) '----------------------------------------',    &
+  WRITE(iunrisk,200) '------------------------------------------',    &
      &     '--------------------------------------------------------'   
-200 FORMAT(a40,a56) 
+200 FORMAT(a42,a56) 
 END SUBROUTINE header_risk
   
   SUBROUTINE big_vitp(tptrail, lre, tpmin, t0,nvai, nbigrisk,iunnew,iunwarn,riskfile)

@@ -11,7 +11,7 @@ test_fitobs : fitobs.x 1220T-2.fel 2003BH84.fel 2004XK3.fel
 2004XK3.fel: fitobs.x
 	time fitobs.x < 2004XK3.inp
 
-test_catpro: 
+test_catpro: catpro.x multprop.ctc
 	time catpro.x
 
 distclean:

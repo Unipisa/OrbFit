@@ -432,6 +432,7 @@ END subroutine inv22
 ! requires a workspace vector, but does not have dimension limits       
 ! ======================================================                
 subroutine tchinv(c,n,cinv,ws,indp) 
+  USE output_control
   implicit none 
 ! input: dimension of input matrix c                                    
   integer, intent(in) :: n 
@@ -449,7 +450,7 @@ subroutine tchinv(c,n,cinv,ws,indp)
   err=epsilon(1.d0)*100 
 ! matrix factorized by Tcholesky method:                                
   call tchol(cinv,n,n,indp,err) 
-  if(indp.ne.0)then 
+  if(indp.ne.0.and.verb_matrix.gt.9)then 
      write(*,*)' indp=',indp,' in tchol' 
   endif
 ! ===========================================================           
@@ -465,7 +466,7 @@ subroutine tchinv(c,n,cinv,ws,indp)
      endif
   ENDDO
   cond=(omax/omin)**2 
-  IF(cond.gt.1.d12)write(*,111)n,n,cond 
+  IF(cond.gt.1.d12.and.verb_matrix.gt.9)write(*,111)n,n,cond 
 111 format(' Conditioning of ',i2,'x',i2,'matrix=',d12.4) 
 ! ===========================================================           
 ! inversion                                                             

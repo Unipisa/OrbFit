@@ -132,15 +132,20 @@ SUBROUTINE rmodel
   ahmax=0.d0 
   qmax=0.d0
   CALL bizset(ecclim,samin,samax,phmin,ahmax,qmax) 
-! availability of covarinace matrix is false at start                   
+! availaility of covarinace matrix is false at start                   
   CALL cov_not_av 
 ! verbosity is set at the minimum level by default                      
   verb_clo=1 
   verb_pro=1 
+  verb_obs=1
   verb_dif=1 
   verb_mul=1 
   verb_rej=1 
   verb_io=1
+  verb_moid=1
+  verb_prelim=1
+  verb_covariance=1
+  verb_matrix=1
 !                                                                       
   if(fail) stop '**** rmodel: abnormal end ****' 
   return 

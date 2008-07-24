@@ -628,9 +628,11 @@ CLOSE(unit)
       INTEGER nu,na,ni,ne1,ne2,mjd1,mjd2,kamin 
       CHARACTER ierfil*80,file*150,rec*80,cm3*3,cval*50 
       LOGICAL found,fail1,fail,first 
-      INTEGER lench,itaiut,chmo2i 
+      INTEGER lench,itaiut 
+!     INTEGER chmo2i 
       DOUBLE PRECISION tjm1 
-      EXTERNAL lench,itaiut,chmo2i,tjm1 
+      EXTERNAL lench,itaiut,tjm1 
+!     EXTERNAL chmo2i
   
       IF(iiclib.NE.36) STOP '**** ierini: internal error (01) ****' 
   
@@ -739,7 +741,8 @@ CALL rdncha('IERS.ccor.','file',flcier,.false.,     &
 !
 ! Skip file header and records until JAN-18-1972, when TAI-UTC.dat has data available
 ! and to avoid warning messages from itaiut if we start reading records from JAN-1-1972
-      IF(rec(18:22).NE.'41334') GOTO 2
+!     IF(rec(18:22).NE.'41334') GOTO 2
+      IF(rec(15:19).NE.'41334') GOTO 2
   
 ! Read and store data records   
     3 CONTINUE 
@@ -749,11 +752,13 @@ CALL rdncha('IERS.ccor.','file',flcier,.false.,     &
       IF(lr.LE.0) GOTO 3 
 !     READ(rec,101,ERR=20) cm3,day,mjd,x,y,dt1,dlod,dpsi,deps 
 ! 101 FORMAT(2X,A3,1X,I3,2X,I5,2F9.5,F10.6,2X,F10.6,2X,2F9.5) 
-      READ(rec,101,ERR=20) year,cm3,day,mjd,x,y,dt1,dlod,dpsi,deps
-  101 FORMAT(2X,I4,2X,A3,1X,I3,2X,I5,2F9.6,F10.7,2X,F10.7,2X,2F9.6)
+!     READ(rec,101,ERR=20) year,cm3,day,mjd,x,y,dt1,dlod,dpsi,deps
+! 101 FORMAT(2X,I4,2X,A3,1X,I3,2X,I5,2F9.6,F10.7,2X,F10.7,2X,2F9.6)
+      READ(rec,101,ERR=20) year,month,day,mjd,x,y,dt1,dlod,dpsi,deps
+  101 FORMAT(3(I4),I7,2F11.6,2F12.7,2F11.6)
       IF(year.LT.1900 .OR. year.GT.2100) GOTO 20
 ! Check on MJD value  
-      month=chmo2i(cm3) 
+!     month=chmo2i(cm3) 
       IF(month.LE.0) GOTO 20 
       mjdc=NINT(tjm1(day,month,year,0.D0)) 
       IF(mjdc.NE.mjd) THEN 

@@ -415,7 +415,7 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,    &
            CALL alph_del(elc,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
          &           adot,ddot,pha,dis,dsun)
            IF(kill_propag)THEN
-              WRITE(*,*)' fourdim_fit: kill_propag'
+              IF(verb_dif.gt.9) WRITE(*,*)' fourdim_fit: kill_propag'
               succ=.false.
               kill_propag=.false.
               RETURN
@@ -561,8 +561,10 @@ SUBROUTINE fourdim_fit(m,obs,obsw,el0,    &
   elc%mag_set=.true.
   RETURN
 ! error case; inversion is not possible....
-9 WRITE(*,*)' inversion failed, at row ', indp
-  WRITE(iun,*)' inversion failed, at row ', indp
+9 IF(verb_dif.gt.9)THEN
+     WRITE(*,*)' inversion failed, at row ', indp
+     WRITE(iun,*)' inversion failed, at row ', indp
+  ENDIF
   succ=.false.
 ! =====================                                                 
 END SUBROUTINE fourdim_fit
@@ -685,7 +687,7 @@ SUBROUTINE step_fit(m,obs,obsw,el0,elc,uncert,csinor,delnor,rmsh,nused,succ)
            CALL alph_del(elc,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
          &           adot,ddot,pha,dis,dsun)
            IF(kill_propag)THEN
-              WRITE(*,*)' step_fit: kill_propag'
+              IF(verb_dif.gt.9) WRITE(*,*)' step_fit: kill_propag'
               succ=.false.
               kill_propag=.false.
               RETURN
@@ -892,8 +894,10 @@ SUBROUTINE step_fit(m,obs,obsw,el0,elc,uncert,csinor,delnor,rmsh,nused,succ)
   elc%mag_set=.true.
   RETURN
 ! error case; inversion is not possible....
-9 WRITE(*,*)' inversion failed, at row ', indp
-  WRITE(iun,*)' inversion failed, at row ', indp
+9 IF(verb_dif.gt.9)THEN
+    WRITE(*,*)' inversion failed, at row ', indp
+    WRITE(iun,*)' inversion failed, at row ', indp
+  ENDIF
   succ=.false.
 ! =====================                                                 
 END SUBROUTINE step_fit
@@ -1017,7 +1021,7 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,suc
            CALL alph_del(elc,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
          &           adot,ddot,pha,dis,dsun)
            IF(kill_propag)THEN
-              WRITE(*,*)' constr_fit: kill_propag'
+              IF(verb_dif.gt.9) WRITE(*,*)' constr_fit: kill_propag'
               succ=.false.
               kill_propag=.false.
               RETURN
@@ -1194,8 +1198,10 @@ SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,suc
   elc%mag_set=.true.
   RETURN
 ! error case; inversion is not possible....
-9 WRITE(*,*)' inversion failed, at row ', indp
-  WRITE(iun,*)' inversion failed, at row ', indp
+9 IF(verb_dif.gt.9)THEN
+    WRITE(*,*)' inversion failed, at row ', indp
+    WRITE(iun,*)' inversion failed, at row ', indp
+  ENDIF
   succ=.false.
 ! =====================                                                 
 END SUBROUTINE constr_fit
@@ -1637,7 +1643,7 @@ SUBROUTINE sin_cor(m,obs_s,obsw_s,elc,icor,  &
         CALL alph_del(elc,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
          &           adot,ddot,pha,dis,dsun,elo,gallat)
            IF(kill_propag)THEN
-              WRITE(*,*)' sin_cor: kill_propag'
+              IF(verb_dif.gt.9) WRITE(*,*)' sin_cor: kill_propag'
               uncert%succ=.false.
               kill_propag=.false.
               RETURN
@@ -1711,8 +1717,10 @@ SUBROUTINE sin_cor(m,obs_s,obsw_s,elc,icor,  &
   uncert%ndim=6
   uncert%succ=.true.
   RETURN
-9 WRITE(*,*)' inversion failed, at row ', indp
-  WRITE(iun,*)' inversion failed, at row ', indp
+9 IF(verb_dif.gt.9)THEN
+    WRITE(*,*)' inversion failed, at row ', indp
+    WRITE(iun,*)' inversion failed, at row ', indp
+  ENDIF
   uncert%succ=.false.
 END SUBROUTINE sin_cor
 ! ==========================================                           
@@ -2357,16 +2365,16 @@ SUBROUTINE invmat(c,nx,ndim,a,cond,indp,iunf)
      DO 2 j=1,i-1 
         da=abs((a(i,j)-a(j,i))/(a(i,j)+a(j,i))) 
         IF(da.gt.1000*eps)THEN 
-           write(iun,*)'invmat: ',i,j,a(i,j),a(j,i),da,100*eps 
-           IF(verb_dif.ge.15)                                          &
+           IF(verb_dif.ge.9) write(iun,*)'invmat: ',i,j,a(i,j),a(j,i),da,100*eps 
+           IF(verb_dif.ge.19)                                          &
      &            write(*,*)'invmat: ',i,j,a(i,j),a(j,i),da,100*eps     
            sym=.false. 
         ENDIF
 2    ENDDO
 1 END DO
   IF(.not.sym)THEN 
-     write(iun,*)'invmat: input matrix not symmetric' 
-     IF(verb_dif.ge.5)write(*,*)'invmat: input matrix not symmetric' 
+     IF(verb_dif.ge.9)write(iun,*)'invmat: input matrix not symmetric' 
+     IF(verb_dif.ge.19)write(*,*)'invmat: input matrix not symmetric' 
   ENDIF
 ! ==========================================================            
 ! Tcholewski                                                            
@@ -2408,10 +2416,11 @@ SUBROUTINE invmat(c,nx,ndim,a,cond,indp,iunf)
            c(i,j)=c(i,j)/(an(i)*an(j))                                 
         ENDDO
      ENDDO
-  ELSE                                                              
-     write(iun,*)' matrix is not positive definite'               
-     write(iun,*)' pivot number ',indp,' is ',c(indp,indp)        
-     IF(verb_dif.gt.19)THEN                                        
+  ELSE
+     IF(verb_dif.gt.9)THEN
+        write(iun,*)' matrix is not positive definite'               
+        write(iun,*)' pivot number ',indp,' is ',c(indp,indp)        
+     ELSEIF(verb_dif.gt.19)THEN
         write(*,*)' matrix is not positive definite'              
         write(*,*)' pivot number ',indp,' is ',c(indp,indp)       
      ENDIF
@@ -2743,9 +2752,9 @@ SUBROUTINE reject_obs(unilog,csinor,obs_s,obsw_s,                 &
   IF(nsel.LE.0) STOP '**** reject: internal error (02) ****' 
 !     For <=18 obs. or for inf. loop -> reject one at a time            
   IF(nsel .le. minobs*6) THEN 
-     IF(unilog.gt.0) WRITE(unilog,*) 'Rejecting no more than one.' 
+     IF(unilog.gt.0.and.verb_rej.gt.9) WRITE(unilog,*) 'Rejecting no more than one.' 
   ELSEIF(nit.ge.4) THEN 
-     IF(unilog.gt.0) WRITE(unilog,*) 'Trying to get unstuck.' 
+     IF(unilog.gt.0.and.verb_rej.gt.9) WRITE(unilog,*) 'Trying to get unstuck.' 
   ELSE 
      x2max=x2max*x2frac 
   ENDIF

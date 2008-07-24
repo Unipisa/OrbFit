@@ -889,7 +889,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
            IF(min_dist) CALL str_clan(stm0,dx0de)
         ENDIF
         IF(kill_propag)THEN
-           WRITE(*,*)' propin: returning because of kill_propag, t=',tcur
+           IF(verb_pro.gt.9) WRITE(*,*)' propin: returning because of kill_propag, t=',tcur
            RETURN
         ENDIF
         t1=tcur 

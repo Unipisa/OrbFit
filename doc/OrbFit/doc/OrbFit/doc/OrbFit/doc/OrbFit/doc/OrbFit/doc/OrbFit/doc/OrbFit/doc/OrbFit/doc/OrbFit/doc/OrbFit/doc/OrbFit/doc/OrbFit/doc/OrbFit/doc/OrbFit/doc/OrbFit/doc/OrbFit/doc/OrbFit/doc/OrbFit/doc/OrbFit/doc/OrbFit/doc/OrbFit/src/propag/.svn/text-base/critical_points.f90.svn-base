@@ -732,21 +732,23 @@ CONTAINS
        ENDIF
 ! ============ WRITE ERROR MESSAGE=====================
        IF(.not.morse.or..not.weier)THEN
-          IF(.not.morse)WRITE(ierrou,*)'Morse control failed!'
-          IF(.not.weier)WRITE(ierrou,*)'Weierstrass control failed!'
-          WRITE(ierrou,*)'nroots,nummin,nummax',nroots,nummin,nummax
+          IF(verb_moid.gt.20)THEN
+             IF(.not.morse)WRITE(ierrou,*)'Morse control failed!'
+             IF(.not.weier)WRITE(ierrou,*)'Weierstrass control failed!'
+             WRITE(ierrou,*)'nroots,nummin,nummax',nroots,nummin,nummax
 !          WRITE(ierrou,*)'ec1 elements:',elc1(1:2),elc1(3:5)*degrad
 !          WRITE(ierrou,*)'ec2 elements:',elc2(1:2),elc2(3:5)*degrad
-          numerr=numerr+1
-          IF(2*(nummin+1).ge.nroots.and.nummin.ge.1)THEN
-             WRITE(ierrou,*)'consistent no of minimum points'
-          ELSE
-             WRITE(ierrou,*)'not consistent no of minimum points'
-          ENDIF
-          IF(nummin.ge.1)THEN
-             WRITE(ierrou,*)'at least one minimum point exists: acceptable solutions'
-          ELSE
-             WRITE(ierrou,*)'ERROR: there is no minimum point!'
+             numerr=numerr+1
+             IF(2*(nummin+1).ge.nroots.and.nummin.ge.1)THEN
+                WRITE(ierrou,*)'consistent no of minimum points'
+             ELSE
+                WRITE(ierrou,*)'not consistent no of minimum points'
+             ENDIF
+             IF(nummin.ge.1)THEN
+                WRITE(ierrou,*)'at least one minimum point exists: acceptable solutions'
+             ELSE
+                WRITE(ierrou,*)'ERROR: there is no minimum point!'
+             ENDIF
           ENDIF
        ENDIF
     ENDIF
@@ -767,10 +769,12 @@ CONTAINS
 !         & (.not.multfl)
        count = count + 1
        IF(count.eq.10) THEN
-          WRITE(ierrou,*)'COMPUTATION FAILED:',count,'ANGULAR SHIFT TRIED!'
-          WRITE(ierrou,*)'ec1 elements:',elc1(1:2),elc1(3:5)*degrad
-          WRITE(ierrou,*)'ec2 elements:',elc2(1:2),elc2(3:5)*degrad
-          numerr=numerr+1
+          if(verb_moid.ge.20) then
+             WRITE(ierrou,*)'COMPUTATION FAILED:',count,'ANGULAR SHIFT TRIED!'
+             WRITE(ierrou,*)'ec1 elements:',elc1(1:2),elc1(3:5)*degrad
+             WRITE(ierrou,*)'ec2 elements:',elc2(1:2),elc2(3:5)*degrad
+             numerr=numerr+1
+          endif
           GOTO 1300
        ENDIF
 !          if(verb_moid.ge.20) then
@@ -780,11 +784,11 @@ CONTAINS
 !          endif
        alpha = alpha + dpig/60.d0
        beta = beta + dpig/50.d0
-!       if(verb_moid.ge.20) then
+       if(verb_moid.ge.20) then
           WRITE(ierrou,*)'APPLY ANGULAR SHIFT: count=',count
           WRITE(ierrou,*)'               alpha,beta:',alpha,beta
           numerr=numerr+1
-!       endif
+       endif
 ! restoring flags
        morse = .true.
        weier = .true.
@@ -802,20 +806,20 @@ CONTAINS
        hevalflag = .true.
        GOTO 10 
     ELSE
-       if(verb_moid.ge.20) then
+       IF(verb_moid.ge.20) THEN
           WRITE(ierrou,*)'computation OK! count = ',count
           WRITE(ierrou,*)'morse,weier',morse,weier
           WRITE(ierrou,*)'warnflag(1)',warnflag(1)
           WRITE(ierrou,*)'sflag(2:6)',sflag(2:6)
           WRITE(ierrou,*)'hzflag',hzflag
           numerr=numerr+1
-       endif
-       IF(count.gt.0)THEN
-          WRITE(ierrou,*)'Morse and Weierstrass control succeded!'
-          WRITE(ierrou,*)'nroots,nummin,nummax',nroots,nummin,nummax
-          WRITE(ierrou,*)'ec1 elements:',elc1(1:2),elc1(3:5)*degrad
-          WRITE(ierrou,*)'ec2 elements:',elc2(1:2),elc2(3:5)*degrad
-       ENDIF 
+          IF(count.gt.0)THEN
+             WRITE(ierrou,*)'Morse and Weierstrass control succeded!'
+             WRITE(ierrou,*)'nroots,nummin,nummax',nroots,nummin,nummax
+             WRITE(ierrou,*)'ec1 elements:',elc1(1:2),elc1(3:5)*degrad
+             WRITE(ierrou,*)'ec2 elements:',elc2(1:2),elc2(3:5)*degrad
+          ENDIF
+       ENDIF
 ! continue the computation
     ENDIF
 
@@ -3756,7 +3760,7 @@ SUBROUTINE comp_rms_com(com1,com2,unc1,unc2,chk_der,f1,f2,sinmutI,&
        & coso1*sini1/)*v01
   alpha1 = vsize(y01)**2-2.d0*mu1/r01
   r1 = q1*(1.d0+e1)/(1.d0+e1*cos(f1))
-  IF(r1.lt.0.d0)THEN
+  IF(r1.lt.0.d0.and.verb_moid.ge.20)THEN
      WRITE(ierrou,*)'negative r1',r1
      numerr=numerr+1
   ENDIF
@@ -3778,7 +3782,7 @@ SUBROUTINE comp_rms_com(com1,com2,unc1,unc2,chk_der,f1,f2,sinmutI,&
        & coso2*sini2/)*v02
   alpha2 = vsize(y02)**2-2.d0*mu2/r02
   r2 = q2*(1.d0+e2)/(1.d0+e2*cos(f2))
-  IF(r2.lt.0.d0)THEN
+  IF(r2.lt.0.d0.and.verb_moid.ge.20)THEN
      WRITE(ierrou,*)'negative r2',r2
      numerr=numerr+1
   ENDIF
@@ -4470,7 +4474,7 @@ SUBROUTINE tau1_tau2(com1,com2,f1,f2,car1min,car2min,tau1,tau2,tau3hat,sint1t2)
        & coso1*sini1/)*v01
   alpha1 = vsize(y01)**2-2.d0*mu1/r01
   r1 = q1*(1.d0+e1)/(1.d0+e1*cos(f1))
-  IF(r1.lt.0.d0)THEN
+  IF(r1.lt.0.d0.and.verb_moid.ge.20)THEN
      WRITE(ierrou,*)'negative r1',r1
      numerr=numerr+1
   ENDIF
@@ -4492,7 +4496,7 @@ SUBROUTINE tau1_tau2(com1,com2,f1,f2,car1min,car2min,tau1,tau2,tau3hat,sint1t2)
        & coso2*sini2/)*v02
   alpha2 = vsize(y02)**2-2.d0*mu2/r02
   r2 = q2*(1.d0+e2)/(1.d0+e2*cos(f2))
-  IF(r2.lt.0.d0)THEN
+  IF(r2.lt.0.d0.and.verb_moid.ge.20)THEN
      WRITE(ierrou,*)'negative r2',r2
      numerr=numerr+1
   ENDIF

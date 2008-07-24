@@ -617,8 +617,10 @@ SUBROUTINE step_fit2(m,obs,obsw,el0,unc0,csino0,delno0,nused,succ)
   CALL unsort_obs(iposs,m,obsw_s,obsw)
   RETURN ! normal ending
 9 CONTINUE ! impossible normal matrix inversion: give up
-  WRITE(*,*)' inversion failed '
-  WRITE(iun_log,*)' inversion failed '
+  IF(verb_mul.ge.9)THEN
+     WRITE(*,*)' inversion failed '
+     WRITE(iun_log,*)' inversion failed '
+  ENDIF
   succ=.false.
   csinor=csino0
 END SUBROUTINE step_fit2

@@ -1156,8 +1156,8 @@ if(ecc.lt.eps) fail_flag= 1 ! but computation is completed
 if(eq(3).lt.eps) fail_flag=fail_flag+2 ! but computation is completed
 ! time of pericenter from mean anomaly
 enne=sqrt(gm/eq(1)**3)
+eq(6)=princ(eq(6))
 com_kep%coord(6)=el%t-eq(6)/enne 
-com_kep%coord(6)=princ(com_kep%coord(6))
 com_kep%coo='COM'
 IF(PRESENT(del).and.fail_flag.eq.0)THEN
    del=0.d0 ! jacobian is not usable in the nearly singular case

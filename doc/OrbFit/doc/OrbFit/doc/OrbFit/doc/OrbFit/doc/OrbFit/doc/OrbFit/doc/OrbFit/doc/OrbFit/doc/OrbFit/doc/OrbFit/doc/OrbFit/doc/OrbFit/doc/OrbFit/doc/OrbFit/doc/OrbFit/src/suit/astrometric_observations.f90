@@ -1307,6 +1307,8 @@ ELSEIF(obs%tech.eq."'")THEN  ! anti-quote safety
    obs%tech=' '
 ELSEIF(obs%tech.eq.'"')THEN
    obs%tech=' '
+ELSEIF(obs%note.eq.'\')THEN ! anti-backslash safety
+   obs%note=' '
 ENDIF
 ! Radar and satellite observations are not handled at once, another record has to be read
 obs%type='O'
@@ -1344,6 +1346,8 @@ obs%note=mpcrec(14:14)
 IF(obs%note.eq."'")THEN ! anti-quote safety
    obs%note=' '
 ELSEIF(obs%note.eq.'"')THEN
+   obs%note=' '
+ELSEIF(obs%note.eq.'\')THEN ! anti-backslash safety
    obs%note=' '
 ENDIF
 ! Observatory code

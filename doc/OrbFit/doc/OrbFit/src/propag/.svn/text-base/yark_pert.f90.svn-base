@@ -404,7 +404,7 @@ SUBROUTINE yarkinit(astnam,elem)
   IF(yarfil)THEN 
      call filopn(unit,file(1:le),'old') 
      read(unit,*,end=111) 
-! ecliptic latitude and longitude of the spin axis                      
+! equatorial RA and DEC of the spin axis; beware of old names
      read(unit,*,end=111)long 
      read(unit,*,end=111)lat 
 ! - via common   yarkp(1-3) ... sx, sy, sz (unit vector of the          

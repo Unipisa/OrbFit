@@ -1,7 +1,7 @@
 ! ============================
 !  parobx.h max number of observations
  integer nobx,nob2x
- parameter (nobx=8000,nob2x=nobx*2)
+ parameter (nobx=10000,nob2x=nobx*2)
 ! INTERFACE WITH blocks etc.
 ! block variables: max no blocks, max no residuals in block   
 ! block allocation:

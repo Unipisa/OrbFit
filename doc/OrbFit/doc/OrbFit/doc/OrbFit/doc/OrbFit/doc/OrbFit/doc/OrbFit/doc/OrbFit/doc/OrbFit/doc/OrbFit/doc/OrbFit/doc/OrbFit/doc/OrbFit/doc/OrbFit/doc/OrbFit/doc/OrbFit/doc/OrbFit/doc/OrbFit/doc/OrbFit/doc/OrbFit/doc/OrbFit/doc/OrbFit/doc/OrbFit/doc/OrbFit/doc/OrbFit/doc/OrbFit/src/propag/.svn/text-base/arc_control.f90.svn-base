@@ -134,7 +134,7 @@ CONTAINS
     INTEGER, INTENT(OUT) :: nig,fail_flag  ! no .nights, failure level
     DOUBLE PRECISION, INTENT(OUT) :: geoc_chi, acce_chi, chi
 ! local variables
-    INTEGER nat, fail_rec, natc, fail_check, nights
+    INTEGER nat, fail_rec, natc, fail_check, nights, j
 ! ================================================================
 !    WRITE(*,*)'arc_type: m ' ,m
     IF(m.le.1)THEN
@@ -156,10 +156,17 @@ CONTAINS
        chi=0.d0
        RETURN
     ENDIF    
+! check sorting of observations
+    DO j=2,m
+      IF(obs(j)%time_tdt.lt.obs(j-1)%time_tdt)THEN
+         WRITE(*,*)' arc_type: observations not in time order ',j-1,obs(j-1)%time_tdt,j,obs(j)%time_tdt
+         STOP
+      ENDIF
+    ENDDO
     ngap=0
     nat=rec_arc_type(obs,obsw,m, geoc_chi,acce_chi,chi, nig,fail_rec)
 !    WRITE(*,*)'arc_type: nat,nig ', nat,nig
-    WRITE(*,*)tgapv(1:ngap)
+!    WRITE(*,*)tgapv(1:ngap)
     IF(ngap.gt.1)THEN
        CALL heapsort(tgapv,ngap,indgsrt)
        tgapv_srt(1:ngap)=tgapv(indgsrt(1:ngap))

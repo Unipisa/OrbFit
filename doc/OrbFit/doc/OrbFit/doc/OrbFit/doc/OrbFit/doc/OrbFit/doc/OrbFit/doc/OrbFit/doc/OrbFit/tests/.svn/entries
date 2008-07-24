@@ -1,15 +1,15 @@
 8
 
 dir
-2
-file:///home/milani/orbfit/orbfit_svn/trunk/tests
-file:///home/milani/orbfit/orbfit_svn
+50
+file:///home/orbfit/orbfit_subv/trunk/tests
+file:///home/orbfit/orbfit_subv
 
 
 
-2007-10-16T12:37:05.866797Z
-2
-milani
+2008-02-14T16:20:33.684458Z
+17
+orbfit_amc
 
 
 svn:special svn:externals svn:needs-lock
@@ -24,7 +24,7 @@ svn:special svn:externals svn:needs-lock
 
 
 
-ff695d02-9b3c-0410-b239-84600c56c42c
+8274e527-0b42-0410-9bf8-b60396510e46
 
 neodys
 dir
@@ -56,9 +56,9 @@ file
 
 
 
-2007-10-16T12:06:34.000000Z
+2008-04-04T16:39:18.000000Z
 ea38b77f5cfc156cb8affe4ac006c82c
-2007-10-16T12:06:24.872038Z
+2007-12-24T17:00:34.975856Z
 1
-milani
+orbfit
 

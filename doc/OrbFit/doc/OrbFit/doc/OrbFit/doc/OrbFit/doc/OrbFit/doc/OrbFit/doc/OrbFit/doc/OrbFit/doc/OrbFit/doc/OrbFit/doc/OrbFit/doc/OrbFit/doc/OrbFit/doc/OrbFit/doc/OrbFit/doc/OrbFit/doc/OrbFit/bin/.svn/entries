@@ -1,15 +1,15 @@
 8
 
 dir
-2
-file:///home/milani/orbfit/orbfit_svn/trunk/bin
-file:///home/milani/orbfit/orbfit_svn
+50
+file:///home/orbfit/orbfit_subv/trunk/bin
+file:///home/orbfit/orbfit_subv
 
 
 
-2007-10-16T12:06:24.872038Z
-1
-milani
+2008-06-09T07:16:05.266742Z
+45
+orbfit_mes
 
 
 svn:special svn:externals svn:needs-lock
@@ -24,7 +24,7 @@ svn:special svn:externals svn:needs-lock
 
 
 
-ff695d02-9b3c-0410-b239-84600c56c42c
+8274e527-0b42-0410-9bf8-b60396510e46
 
 mkmoddep
 file
@@ -32,11 +32,11 @@ file
 
 
 
-2007-10-16T12:06:40.000000Z
-e00c97467a8ccbf6dfb76bddb4450b9c
-2007-10-16T12:06:24.872038Z
-1
-milani
+2008-07-03T14:52:33.000000Z
+b48950b577f73d7142b76cd9cd91c70c
+2008-06-09T07:16:05.266742Z
+45
+orbfit_mes
 has-props
 
 convert.x
@@ -45,11 +45,11 @@ file
 
 
 
-2007-10-16T12:06:40.000000Z
+2008-04-04T16:39:19.000000Z
 683968bbe63df411aac76be20089e321
-2007-10-16T12:06:24.872038Z
+2007-12-24T17:00:34.975856Z
 1
-milani
+orbfit
 has-props
 
 
@@ -61,11 +61,11 @@ file
 
 
 
-2007-10-16T12:06:40.000000Z
+2008-04-04T16:39:19.000000Z
 cded53c449a79b1b0ebaa6da40794897
-2007-10-16T12:06:24.872038Z
+2007-12-24T17:00:34.975856Z
 1
-milani
+orbfit
 has-props
 
 bineph.x
@@ -74,11 +74,11 @@ file
 
 
 
-2007-10-16T12:06:40.000000Z
+2008-04-04T16:39:19.000000Z
 2345f81bc6ad11c987c851082f53934a
-2007-10-16T12:06:24.872038Z
+2007-12-24T17:00:34.975856Z
 1
-milani
+orbfit
 has-props
 
 
@@ -90,11 +90,11 @@ file
 
 
 
-2007-10-16T12:06:40.000000Z
+2008-04-04T16:39:19.000000Z
 79c66205f671dcc9aa1eac8ec017ed4b
-2007-10-16T12:06:24.872038Z
+2007-12-24T17:00:34.975856Z
 1
-milani
+orbfit
 has-props
 
 
@@ -106,11 +106,11 @@ file
 
 
 
-2007-10-16T12:06:40.000000Z
+2008-04-04T16:39:19.000000Z
 382d0061c91fdb1660ce35d4d4746a3d
-2007-10-16T12:06:24.872038Z
+2007-12-24T17:00:34.975856Z
 1
-milani
+orbfit
 has-props
 
 
@@ -122,11 +122,11 @@ file
 
 
 
-2007-10-16T12:06:40.000000Z
+2008-04-04T16:39:19.000000Z
 50a4d4291529fc1f2ae850c81b01cca1
-2007-10-16T12:06:24.872038Z
+2007-12-24T17:00:34.975856Z
 1
-milani
+orbfit
 has-props
 
 
