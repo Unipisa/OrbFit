@@ -94,8 +94,67 @@ TYPE(attrib), PARAMETER :: undefined_attrib = ATTRIB( &
 
 DOUBLE PRECISION, PARAMETER :: sphdistx=2.d0 ! spherical distance betw first and last, deg
 
+
+! new data type: radar attributable, including covariance and curvature information
+TYPE attrad
+
+DOUBLE PRECISION :: tdtobs, tutobs ! average time of observations, MJD, TDT/UT 
+
+DOUBLE PRECISION :: arc, sph ! arc length in time, in angle
+
+CHARACTER*7 :: obscod ! alphanumeric obscode, 500 (geocentric) if nsta >1
+
+INTEGER :: nsta ! number of different observatories, nsta=2 if more than 1
+
+INTEGER :: nobs, ntime, nrad ! number of observations, 
+ ! of different times, of radar obs.
+
+DOUBLE PRECISION, DIMENSION(4) :: observ ! alpha, delta, rho, rhodot
+                         ! unit radians, AU, and AU/day
+
+DOUBLE PRECISION :: apm ! apparent magnitude, average; =0 if not available
+
+DOUBLE PRECISION, DIMENSION(4,4) :: g        ! covariance of radar attributable
+
+LOGICAL lin_fit  ! are we using the linear fit? if false, the quadratic
+                 !  fit is being used
+
+!DOUBLE PRECISION :: eta, geocurv, etadot ! proper motion, geodetic curvature,
+!                            ! along track acceleration (all on the celestial
+!                            ! sphere, units radians and days)
+
+!DOUBLE PRECISION :: rms_eta, rms_geocurv, rms_etadot, c_curvacc 
+                            ! standard deviations as propagated from g3a, g3d, 
+                            ! and correlation of geocurv, etadot
+
+! ****************************************************************
+!HINT: are these available???
+DOUBLE PRECISION rms_a, rms_d, rms_obs ! RMS of residuals, for alpha*cos(delta)
+                                       ! for delta, combined 
+! add rms_rho, rms_rhod ???
+! ****************************************************************
+
+!DOUBLE PRECISION acc_corr, curv_corr ! topocentric corrections to etadot, geocurv
+
+END TYPE attrad
+
+TYPE(attrad), PARAMETER :: undefined_attrad = ATTRAD( &
+&  1.d99,1.d99,     & ! no time defined
+&   0.d0,0.d0,      & ! no arc defined
+&  '       ',       & ! no obscode 
+& 1, 0, 0, 0,       & ! integers
+& zero_4d_vect,     & ! null observ
+&   -9.99d0,        & ! null magnitude
+& zero_4x4_matrix,  & ! null covariance
+&  .false.,         & ! lin_fit
+!&  0.d0,0.d0,0.d0,  & ! pr.m curvatures
+!&  0.d0,0.d0,0.d0,0.d0,  & ! rms
+&  0.d0,0.d0,0.d0  & ! rms fit
+&     )  !
+
+
 ! public entities
-PUBLIC attrib, undefined_attrib
+PUBLIC attrib, attrad, undefined_attrib, undefined_attrad
 
 PUBLIC attri_comp, wri_attri, spher_dist , rea_attri, att_diff
 
@@ -197,6 +256,7 @@ SUBROUTINE wri_attri(iunatt,iunrat,name0,att,trou,nvir)
                                        ! for curvature info
   INTEGER, INTENT(IN), OPTIONAL :: nvir
   DOUBLE PRECISION atrou,dtrou, princ,sa,sd,sadot,sddot,caad,cddd
+  DOUBLE PRECISION sd2,sa2,sdd2,sad2
   INTEGER iday,month,yearm 
   DOUBLE PRECISION hour,arc2,ds2,curv,accel,curv_unc,acc_unc,eta_unc
 ! write .att file
@@ -207,10 +267,14 @@ SUBROUTINE wri_attri(iunatt,iunrat,name0,att,trou,nvir)
      atrou=att%angles(1)+(trou-att%tdtobs)*att%angles(3)
      atrou=princ(atrou)
      dtrou=att%angles(2)+(trou-att%tdtobs)*att%angles(4)
-     sa=sqrt(att%g(1,1))
-     sd=sqrt(att%g(2,2))
-     sadot=sqrt(att%g(3,3))
-     sddot=sqrt(att%g(4,4))
+     sa2=att%g(1,1)
+     sa=sqrt(sa2)
+     sd2=att%g(2,2)
+     sd=sqrt(sd2)
+     sad2=att%g(3,3)
+     sadot=sqrt(sad2)
+     sdd2=att%g(4,4)
+     sddot=sqrt(sdd2)
      caad=att%g(1,3)/(sa*sadot)
      cddd=att%g(2,4)/(sd*sddot)
      IF(PRESENT(nvir))THEN
@@ -355,11 +419,25 @@ SUBROUTINE attri_comp(m,obs,obsw,att,error,qobs,qpobs,qppobs)
 &           rms_2d,rms_3d,ising)
 ! decision on which fit to use  
   IF(ntime.eq.2)THEN
-     cosdtc=cos(s2d(2))
-     sindtc=sin(s2d(2))
+     IF(ABS(s2d(2)).lt.1.d6) THEN
+        cosdtc=cos(s2d(2))
+        sindtc=sin(s2d(2))
+     ELSE
+        WRITE(ierrou,*)' attri_comp: ridcolous value  from linear fit' 
+        WRITE(ierrou,*) s2d
+        error=.true.
+        RETURN
+     ENDIF
   ELSE
-     cosdtc=cos(s3d(3))
-     sindtc=sin(s3d(3))
+     IF(ABS(s3d(3)).lt.1.d6) THEN
+        cosdtc=cos(s3d(3))
+        sindtc=sin(s3d(3))
+     ELSE
+        WRITE(ierrou,*)' attri_comp: ridcolous value from deg 2 fit ' 
+        WRITE(ierrou,*) s3d
+        error=.true.
+        RETURN
+     ENDIF
   ENDIF
 !  alcosd(1:m)=alr(1:m)*cosdtc NO!!! no approx on tangent space
 !  rmsad(1:m)=rmsa(1:m)*cosdtc NO!!!
@@ -471,7 +549,8 @@ SUBROUTINE attri_comp(m,obs,obsw,att,error,qobs,qpobs,qppobs)
         DO j=1,3
            CALL quadratic_fit(t,dx(j,1:m),rmsa,m,ntime,g2a,g3a,s2a,s3a,rms_2a,rms_3a,ising)
 ! WARNING: what to do with residuals, uncertainty of these fits?
-           qppobs(j)=s3a(1)
+!           qppobs(j)=s3a(1)
+           qppobs(j)=2.d0*s3a(1) ! modified on July 7, 2008
            qpobs(j)=s3a(2)
            qobs(j)=s3a(3)
         ENDDO

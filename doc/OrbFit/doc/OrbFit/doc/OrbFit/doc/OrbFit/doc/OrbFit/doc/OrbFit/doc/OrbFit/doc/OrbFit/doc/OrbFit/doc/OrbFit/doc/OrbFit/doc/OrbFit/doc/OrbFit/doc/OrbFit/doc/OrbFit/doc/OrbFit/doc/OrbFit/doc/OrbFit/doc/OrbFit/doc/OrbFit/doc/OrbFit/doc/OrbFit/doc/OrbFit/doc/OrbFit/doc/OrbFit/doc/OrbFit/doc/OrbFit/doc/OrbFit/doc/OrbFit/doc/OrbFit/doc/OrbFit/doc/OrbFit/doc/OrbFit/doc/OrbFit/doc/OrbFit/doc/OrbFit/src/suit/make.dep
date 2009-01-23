@@ -51,6 +51,7 @@ file_oper.o: \
 header_input.o: \
 	../include/parcmc.h90 \
 	char_str.o \
+	comlib.h90 \
 	option_input.o \
 	reference_systems.o 
 

@@ -249,7 +249,7 @@ CONTAINS
     DOUBLE PRECISION :: a0, u0, cosu0, u, cosu, enne, du, ell, ell0, princ! elliptic case
     DOUBLE PRECISION :: f0, f, coshf0, coshf, df, ff, psi0 ! hyperbolic case
     INTEGER j
-    INTEGER, PARAMETER :: jmax=100, itx=10
+    INTEGER, PARAMETER :: jmax=100, itx=20
 ! control
     IF(PRESENT(conv_contr))THEN
        contr=conv_contr
@@ -295,7 +295,7 @@ CONTAINS
        a0=-mu/alpha
        enne=sqrt(alpha**3)/mu
 ! hyperbolic eccentic anomaly when r=r0
-       coshf0=(1.d0+r0/a0)/e0
+       coshf0=(1.d0-r0/a0)/e0
 ! avoiding rounding off near pericenter
        IF(coshf0.gt.1.d0)THEN
           f0=log(coshf0+sqrt(coshf0**2-1))
@@ -309,7 +309,7 @@ CONTAINS
        ell=ell0+enne*dt
 ! hyp. eccentric anomaly from hyperbolic Kepler's equation
        DO j=1,itx
-          IF(abs(f).lt.4.d1)THEN 
+          IF(abs(f).lt.1.5d1)THEN 
              df=-(e0*sinh(f)-f-ell)/(e0*cosh(f)-1.d0)
              ff=f+df
              IF(f*ff.lt.0.d0)THEN
@@ -323,10 +323,12 @@ CONTAINS
              f=f+df             
           ENDIF
           
-          IF(abs(df).lt.contr*1.d3)EXIT
+          IF(abs(df).lt.contr*1.d3) GOTO 3
        ENDDO
+       WRITE(ierrou,*)' solve_kepuniv2: non convergent hyperb. kepler eq. '
+       WRITE(ierrou,*)f,df,e0,j
 ! if ecc. anomaly found, use relationship whith psi
-       psi0=(f-f0)/sqrt(alpha)
+3      psi0=(f-f0)/sqrt(alpha)
     ENDIF
     psi=psi0
 ! Newton's method in universal Kepler's equation

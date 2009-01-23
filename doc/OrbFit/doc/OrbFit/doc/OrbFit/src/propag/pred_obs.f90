@@ -4,6 +4,7 @@
 ! headers npoint and phase are eliminated 
 ! OUT OF MODULE
 !                  aber1      aberration 
+!                  aber2      aberration second order
 !                  outobc     observation output
 ! ROUTINES   
 !                  predic_obs  replaces preobX
@@ -34,25 +35,25 @@ IMPLICIT NONE
 PRIVATE
 
 ! PUBLIC ROUTINES
-PUBLIC predic_obs, alph_del2, r_rdot, alph_del, pre_obs_att, predic_obs2
+PUBLIC predic_obs, alph_del2, r_rdot, alph_del, pre_obs_att, predic_obs2, outobc
 
 ! PUBLIC DATA
 
 ! ===============================================================
 ! former phase header 
 ! galactic pole alpha=12h 51.3m, delta=27d 7.0min
-double precision algal,degal,gax,gay,gaz
-parameter (algal=3.36543113015807d0)
-parameter (degal=0.47327511549913d0)
+double precision algal,degal,pangGalCen,gax,gay,gaz
+parameter (algal=3.36603348393342d0)
+parameter (degal=4.73478785724624d-1)
+parameter (pangGalCen= 2.14556815606167d0)
 parameter (gax=-0.86787505968543d0)
 parameter (gay=-0.19757464383054d0)
 parameter (gaz=0.45580384036475d0)
-! from http://www.seds.org/~spider/spider/ScholarX/coords.html#galactic
-! The galactic north pole is at RA = 12:51.4, Dec = +27:07 (2000.0)
-! the galactic center at RA = 17:45.6, Dec = -28:56 (2000.0). 
-! The inclination of the galactic equator to Earth''s equator is thus 62.9 deg. 
-! The intersection, or node line of the two equators is at 
-! RA = 18:51.4, Dec = 0:00 (2000.0), and at l = 33 deg, b=0.
+! from "The Proper Motion of Sagittarius A*", Reid, M. J., and Brunthaler, 
+! A., The Astrophysical Journal, v616, pg. 883
+! The galactic north pole is at RA = 12:51:26.282, Dec = +27:07:42.01 (J2000.0)
+! the galactic center at RA = 17:45:37.224, Dec = -28:56:10.23 (J2000.0). 
+! The Position angle of the Galactic Centre is 122.932 deg. 
 
 ! ===============================================================
 ! former npoint header
@@ -132,7 +133,7 @@ CONTAINS
 SUBROUTINE predic_obs(el,idsta,tobs,type,       &
      &    alpha,delta,hmagn,inl,                                    &
      &    uncert,sigma,npo,ibv,gamad,sig,axes,npo1,               &  
-     &    adot0,ddot0,pha0,dis0,dsun0,elo0,gallat0,ecllat0,twobo,elev0,elsun0)
+     &    adot0,ddot0,pha0,dis0,dsun0,elo0,gallat0,ecllat0,twobo,elev0,elsun0,elmoon0,gallon0)
   USE station_coordinates 
   USE orbit_elements                 
 ! ============= input ==================================================
@@ -151,9 +152,9 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
   INTEGER, INTENT(INOUT),OPTIONAL ::  ibv ! conf.bd/LOV; used in output when 0 in input
   DOUBLE PRECISION, INTENT(IN),OPTIONAL :: sigma ! sigma value for the boundary
 ! ======optional output =================================================
-  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: adot0,ddot0 ! proper motion
-  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: gamad(2,2),axes(2,2),sig(2) ! covariance on sky plane
-  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: pha0,dis0,dsun0,elo0,gallat0,ecllat0 ! phase, distance to Earth, distance to Sun 
+  DOUBLE PRECISION,INTENT(OUT),OPTIONAL :: adot0,ddot0 ! proper motion
+  DOUBLE PRECISION,INTENT(OUT),OPTIONAL :: gamad(2,2),axes(2,2),sig(2) ! covariance on sky plane
+  DOUBLE PRECISION,INTENT(OUT),OPTIONAL :: pha0,dis0,dsun0,elo0,gallat0,gallon0,ecllat0,elmoon0 ! phase, distance to Earth, distance to Sun 
                                              ! elongation, galactic latitude
   DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: elev0,elsun0 ! elevation of obj, of Sun
 ! points on the confidence boundary (difference w.r. to alpha,delta)    
@@ -177,7 +178,7 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
   DOUBLE PRECISION appmag
 ! for astronomical unit in km from fund_const
 ! elongation,distance to Earth, distance to Sun (to compute magnitude)  
-  DOUBLE PRECISION adot,ddot,pha,dis,rdot,dsun,elo,gallat, ecllat, elev, elsun
+  DOUBLE PRECISION adot,ddot,pha,dis,rdot,dsun,elo,gallat,gallon, ecllat, elev, elsun, elmoon
   double precision obs4(4) ! observations: alpha, delta in RAD  alphadot, deltadot in RAD/day
   double precision dobde(4,6) ! partial derivatives of obs, w.r. to asteroid elements
 ! for r_rdot
@@ -220,7 +221,7 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
 ! compute observation; derivatives (of order 1) if required                
   if(type.eq.'O')then 
      CALL alph_del2 (el,tobs,idsta,obs4,ider,dobde,      &
-            &   pha,dis,rdot,dsun,elo,gallat,ecllat,twobo1,elev,elsun) 
+            &   pha,dis,rdot,dsun,elo,gallat,ecllat,twobo1,elev,elsun,elmoon,gallon) 
      alpha=obs4(1)
      delta=obs4(2)
      IF(ider.gt.0)THEN
@@ -235,9 +236,11 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
      IF(PRESENT(dsun0))dsun0=dsun 
      IF(PRESENT(elo0))elo0=elo 
      IF(PRESENT(gallat0))gallat0=gallat 
+     IF(PRESENT(gallon0))gallon0=gallon 
      IF(PRESENT(ecllat0))ecllat0=ecllat
      IF(PRESENT(elev0))elev0=elev
      IF(PRESENT(elsun0))elsun0=elsun
+     IF(PRESENT(elmoon0))elmoon0=elmoon
 ! compute apparent magnitude at time of observation                     
      hmagn=appmag(el%h_mag,el%g_mag,dsun,dis,pha) 
   elseif(type.eq.'R'.or.type.eq.'V')then 
@@ -298,7 +301,7 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
   ibv=ibvu ! to output choice done when in auto mode
   if(inlu.eq.2)then                                                  
 ! 2-body aproximation for the central point, no derivatives   
-     CALL alph_del2 (el,tobs,idsta,obs4,ider,dobde,TWOBO=.true.) 
+     CALL alph_del2 (el,tobs,idsta,obs4,ider,dobde,TWOBO=.true.,ELOMOON0=elmoon) 
      allin=obs4(1)
      delin=obs4(2)                                   
   endif
@@ -316,7 +319,9 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
 ! linear map from ellipse
         dal=DOT_PRODUCT(el_m(1:6,n),daddet(1:6,1))
         ddl=DOT_PRODUCT(el_m(1:6,n),daddet(1:6,2))
-        al_m(n)=dal                                                    
+!        al_m(n)=dal          
+!       Correction for cos(delta) on sky                                          
+        al_m(n)=dal*cos(delta)                                                    
         de_m(n)=ddl                                                    
 ! apparent magnitude is the one of the nominal orbit                    
         hmag_m(n)=hmagn  
@@ -329,11 +334,13 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
         elv%coord=el_m(1:6,n)
 ! 2-body propagation from ellipse, no derivatives      
         CALL alph_del2 (elv,tobs,idsta,obs4,ider,dobde,&
-     &   pha,dis,rdot,dsun,elo,gallat,TWOBO=.true.) 
+     &   pha,dis,rdot,dsun,elo,gallat,TWOBO=.true.,ELOMOON0=elmoon) 
 ! compute apparent magnitude at time of observation                     
         hmag_m(n)=appmag(elv%h_mag,elv%g_mag,dsun,dis,pha)
 ! difference is with respect to 2-body approx., used w.r. to true orbit 
-        al_m(n)=obs4(1)-allin                                            
+!        al_m(n)=obs4(1)-allin                                            
+!        Correction for cos(delta) on sky             
+        al_m(n)=(obs4(1)-allin)*cos(delin)                                            
         de_m(n)=obs4(2)-delin  
 ! should we store elongation etc????                                          
      ELSEIF(inlu.eq.3)THEN   
@@ -344,7 +351,7 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
 ! full n-body propagation from ellipse, no derivatives   
         if(type.eq.'O')then  
            CALL alph_del2 (elv,tobs,idsta,obs4,ider,dobde, &
-     &   pha,dis,rdot,dsun,elo,gallat) 
+     &   pha,dis,rdot,dsun,elo,gallat,ELOMOON0=elmoon) 
            al_m(n)=obs4(1)
            de_m(n)=obs4(2)                     
 ! other prediction data stored in common                                
@@ -366,7 +373,10 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
            WRITE(*,*) 'predic_obs: type ',type,' not handled'  
            RETURN                         
         ENDIF
-        al_m(n)=al_m(n)-alpha                                            
+!        al_m(n)=al_m(n)-alpha                                            
+!        de_m(n)=de_m(n)-delta                                            
+!       Correction for cos(delta)  -  Projection on sky
+        al_m(n)=(al_m(n)-alpha)*cos(delta)                                            
         de_m(n)=de_m(n)-delta                                            
      ELSE                                                            
         WRITE(*,*)' predic_obs: this we have not invented yet ', inl     
@@ -382,7 +392,7 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
      ENDIF
 ! temporary output
      if(type.eq.'O'.or.type.eq.'S')then         
-        write(*,*)n,', RA/DEC (deg)',al_m(n)*degrad,de_m(n)*degrad,ng    
+        write(*,*)n,', RA*cos(delta)/DEC (deg)',al_m(n)*degrad,de_m(n)*degrad,ng    
      elseif(type.eq.'R'.or.type.eq.'V')then        
         write(*,*)n,', R/RDOT (km,km/day)',al_m(n)*aukm,de_m(n)*aukm,ng
      endif
@@ -405,7 +415,7 @@ END SUBROUTINE predic_obs
 ! generates attributable with its covariance
 ! ONLY to be used for ./src/triang directory
 ! =====================================================================
-SUBROUTINE predic_obs2(el,idsta,tobs,att,uncert,rr,pha,dsun,twobo,dobde)
+SUBROUTINE predic_obs2(el,idsta,tobs,att,uncert,rr,pha,dsun,twobo,dobde,elmoon)
   USE station_coordinates 
   USE orbit_elements                 
   USE attributable
@@ -422,16 +432,16 @@ SUBROUTINE predic_obs2(el,idsta,tobs,att,uncert,rr,pha,dsun,twobo,dobde)
   LOGICAL,INTENT(IN),OPTIONAL :: twobo
 ! ======optional output =================================================
   DOUBLE PRECISION, INTENT(OUT),OPTIONAL :: rr(2) ! predicted r,rdot
-  DOUBLE PRECISION, INTENT(OUT),OPTIONAL :: pha,dsun !phase, dist. to sun
+  DOUBLE PRECISION, INTENT(OUT),OPTIONAL :: pha,dsun,elmoon !phase, dist. to sun
 ! partial derivatives of obs, w.r. to asteroid elements (= dadde)
-  DOUBLE PRECISION, INTENT(OUT), OPTIONAL:: dobde(4,6) 
+  DOUBLE PRECISION, INTENT(OUT), OPTIONAL:: dobde(4,6)
 ! ============END INTERFACE=============================================
   DOUBLE PRECISION :: gameq(6,6) ! covariance of elements
   DOUBLE PRECISION :: att4(4), gamad(4,4) ! angles,covariance on att. 4-space
 ! partial derivatives of alpha, delta, w.r. to elements (by columns, by rows)    
   DOUBLE PRECISION daddet(6,4),dadde(4,6)
   DOUBLE PRECISION axes(4,4),sig(4) ! axes, eigenvalues (NOT to be used:polar bug)
-  DOUBLE PRECISION :: pha0,dis0,dsun0,rdot0
+  DOUBLE PRECISION :: pha0,dis0,dsun0,rdot0,elmoon0
 ! ===================================================================   
 ! functions                                                             
   DOUBLE PRECISION appmag
@@ -466,10 +476,11 @@ SUBROUTINE predic_obs2(el,idsta,tobs,att,uncert,rr,pha,dsun,twobo,dobde)
 ! ===================================================================== 
 ! compute observation; derivatives (of order 1) if required                
   CALL alph_del2 (el,tobs,idsta,att4,ider,dadde,      &
-            &   pha0,dis0,rdot0,dsun0,elo,gallat,ecllat,twobo1)
+            &   pha0,dis0,rdot0,dsun0,elo,gallat,ecllat,twobo1,ELOMOON0=elmoon0)
 ! optional arguments for magnitude
   IF(PRESENT(pha))pha=pha0
   IF(PRESENT(dsun))dsun=dsun0 
+  IF(PRESENT(elmoon))elmoon=elmoon0 
 ! also computation of r, rdot
   IF(PRESENT(rr))THEN
      rr(1)=dis0
@@ -533,7 +544,7 @@ END SUBROUTINE predic_obs2
 !
 ! ==============INTERFACE============================================   
 SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
-     &   dobde,pha0,dis0,rdot0,dsun0,elo0,gallat0,eclat0,twobo,elev0,elsun0) 
+     &   dobde,pha0,dis0,rdot0,dsun0,elo0,gallat0,eclat0,twobo,elev0,elsun0,elomoon0,gallon0) 
   USE propag_state
   USE orbit_elements                 
 ! ==============INPUT==========================
@@ -549,8 +560,8 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
   double precision, intent(OUT), OPTIONAL :: dobde(4,6) ! partial derivatives 
 ! of obs, w.r. to asteroid elements
 ! ======optional output =================================================
-! phase, distance to Earth, distance to Sun, elongation, galactic and ecliptic latitude
-  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: pha0,dis0,dsun0,rdot0,elo0,gallat0,eclat0, elev0, elsun0
+! phase, distance to Earth, distance to Sun, solar elongation, galactic and ecliptic latitude
+  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: pha0,dis0,dsun0,rdot0,elo0,gallat0,gallon0,eclat0, elev0, elsun0,elomoon0
 ! =============END INTERFACE=========================================   
   LOGICAL twobo1 ! control of 2-body approximation
   double precision xast(6) ! asteroid cartesian coordinates 
@@ -560,7 +571,7 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
 ! derivatives of cart. coord. w. r. elements 
   double precision dxde(6,6),ddxde(3,6,6) 
 ! elongation,distance to Earth, distance to Sun (to compute magnitude)  
-  DOUBLE PRECISION pha,dis,rdot,dsun,elo,gallat,eclat,elev,elsun
+  DOUBLE PRECISION pha,dis,rdot,dsun,elo,gallat,eclat,elev,elsun, elomoon,gallon
 ! **********************************************************************
 !****************                                                       
 !   static memory not required                                          
@@ -575,7 +586,7 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
   CALL propag(el,tobs,xast,xea,ider,dxde,twobo1) 
 ! Computation of observations                                           
   call oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
-     &   pha,dis,rdot,dsun,elo,gallat,eclat,elev,elsun) 
+     &   pha,dis,rdot,dsun,elo,gallat,eclat,elev,elsun,elomoon,gallon) 
  ! store true phase, etc.  
   IF(PRESENT(pha0))pha0=pha 
   IF(PRESENT(dis0))dis0=dis 
@@ -583,9 +594,11 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
   IF(PRESENT(rdot0))rdot0=rdot 
   IF(PRESENT(elo0))elo0=elo 
   IF(PRESENT(gallat0))gallat0=gallat 
+  IF(PRESENT(gallon0))gallon0=gallon 
   IF(PRESENT(eclat0))eclat0=eclat
   IF(PRESENT(elev0))elev0=elev
   IF(PRESENT(elsun0))elsun0=elsun
+  IF(PRESENT(elomoon0))elomoon0=elomoon
   if(ider.lt.1) return 
 ! derivatives with respect to equinoctal elements                       
   IF(PRESENT(dobde))THEN
@@ -617,9 +630,10 @@ END SUBROUTINE alph_del2
 ! (if required)                                                         
 ! ===================================================================== 
 SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
-     &   pha0,dis0,rdot0,dsun0,elo0,gallat0,eclat0,elev,elsun) 
-  USE reference_systems, ONLY: pvobs  
+     &   pha0,dis0,rdot0,dsun0,elo0,gallat0,eclat0,elev,elsun,elomoon,gallon0) 
+  USE reference_systems, ONLY: pvobs,obs2ecl,rotpn  
   USE force_model
+  USE station_coordinates
 ! INPUT
   DOUBLE PRECISION, INTENT(IN) :: tobs ! observation time (MJD, TDT)
   DOUBLE PRECISION, INTENT(IN) :: xast(6),xea(6) ! ast and Earth cartesian coord
@@ -628,67 +642,101 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
   DOUBLE PRECISION, INTENT(OUT) :: obs4(4) ! observations alpha, delta, aodt,ddot
   DOUBLE PRECISION, INTENT(OUT) :: dobdx(4,6) ! partials of obs  w.r.t. cartesian ecliptic
 ! phase, distance to Earth, distance to Sun elongation, galactic latitude, elevation, elev. Sun
-  DOUBLE PRECISION,INTENT(OUT) :: pha0,dis0,rdot0,dsun0,elo0,gallat0,eclat0, elev, elsun
+  DOUBLE PRECISION,INTENT(OUT) :: pha0,dis0,rdot0,dsun0,elo0,gallat0,gallon0,eclat0, elev,elsun,elomoon
 ! ===================================================================== 
   double precision d(6) ! vector difference of cartesian coordinates, ecliptic 
 ! WARNING: even if the velocities are not always propagated, they are available
 ! at the time of the observations                                       
-!     note that alpha, delta are equatorial
-  double precision xo(3),vo(3) ! topocentric position of the observatory 
-  double precision xo2(3),vo2(3)
-  double precision cospha,coselo ! phase and elongation cosine
-  double precision sinelo,vvv(3)
-  double precision dz ! auxiliary var
-  double precision vsize,prscal ! real functions 
-  double precision deq(6),tmp(3),ddd(3) ! rotation matr, rotated vectors
-  double precision alpha,delta,adot,ddot ! scalar variables to preserve old code 
+!     note that alpha, delta are equatorialWRITE(*,*) 'Test-1',elmoon
+
+  DOUBLE PRECISION dcor(6) ! after aberration correction
+  DOUBLE PRECISION xo(3),vo(3),xobsea(6) ! topocentric position of the observatory, helyocentric 
+  DOUBLE PRECISION xo2(3),vo2(3)
+  DOUBLE PRECISION cospha,coselo ! phase and elongation cosine
+  DOUBLE PRECISION xmoon(6),xobmoon(3),coselomoon,sinelomoon(3) ! heliocentric, obs-centric of Moon,cos and sin of Moon elongation
+  DOUBLE PRECISION sinelo,vvv(3)
+  DOUBLE PRECISION dz ! auxiliary var
+  DOUBLE PRECISION vsize,prscal ! real functions 
+  DOUBLE PRECISION deq(6),tmp(3),ddd(3) ! rotation matr, rotated vectors
+  DOUBLE PRECISION alpha,delta,adot,ddot ! scalar variables to preserve old code 
 ! partials of equatorial alpha, delta w.r. to cartesian ecliptic coord. 
-  double precision dadx(3),dddx(3),ddadx(3,3),ddddx(3,3) 
+  DOUBLE PRECISION dadx(3),dddx(3),ddadx(3,3),ddddx(3,3) 
 ! aux. var for computation of second derivatives                        
-  double precision x,y,z 
-  double precision den,x2,y2,z2,x4,y4 
-  double precision x2y2,x2z2,y2z2 
-  DOUBLE PRECISION coscoelev, coscoelsun
+  DOUBLE PRECISION x,y,z 
+  DOUBLE PRECISION den,x2,y2,z2,x4,y4 
+  DOUBLE PRECISION x2y2,x2z2,y2z2 
+  DOUBLE PRECISION coscoelev, coscoelsun,singallon0,cosgallon0
+  DOUBLE PRECISION xolon,xolat,xoalt,xovert(3),xovert2(3),xoequ(3)
+  CHARACTER(LEN=16)  :: stname 
 ! ===================================================================== 
 ! Difference vector
   d=xast-xea  ! difference in ecliptic coordinates gives a geocentric vector
 ! ===================================================================== 
 ! Displacement of the station with respect to the center of the Earth   
-  if(istat.gt.0.and.iobscod.ne.500)then 
+  IF(istat.gt.0.and.iobscod.ne.500)THEN 
      call pvobs(tobs,iobscod,xo,vo) 
      d(1:3)=d(1:3)-xo  !   topocentric correction in ecliptic coordinates
      d(4:6)=d(4:6)-vo  
-! elevation on horizon 
-     coscoelev=prscal(xo,d)/(vsize(d)*vsize(xo))
-     IF(coscoelev.ge.0.d0.and.coscoelev.lt.1.d0)THEN
+! Elevation over horizon 
+     call obscoo(iobscod,xoequ,stname)
+     xoequ=xoequ*149597870691.d0
+     call cartesian_to_geodetic(xoequ,xolon,xolat,xoalt,xovert)
+     call obs2ecl(tobs,iobscod,xovert,xovert2)
+     coscoelev=prscal(xovert2,d)/(vsize(d)*vsize(xovert2))
+     IF(coscoelev.ge.-1.d0.and.coscoelev.le.1.d0)THEN
         elev=pig/2.d0-acos(coscoelev)
-     ELSE
+     ELSEIF(coscoelev.gt.1.d0)THEN
         elev=0.d0
         IF(verb_obs.gt.9)THEN
 !          WRITE(ierrou,*) 'oss_dif2: xo,d,dis0, coscoelev',xo,d,dis0,coscoelev
            WRITE(ierrou,*) 'oss_dif2: coscoelev',coscoelev
-        numerr=numerr+1
+           numerr=numerr+1
+        ENDIF
+     ELSE
+        elev=-pig/2.d0
+        IF(verb_obs.gt.9)THEN
+!          WRITE(ierrou,*) 'oss_dif2: xo,d,dis0, coscoelev',xo,d,dis0,coscoelev
+           WRITE(ierrou,*) 'oss_dif2: coscoelev',coscoelev
+           numerr=numerr+1
         ENDIF
      ENDIF
-  endif
+  ELSE
+     xo=0.d0
+     vo=0.d0
+     elev=0.d0
+  ENDIF
+  xobsea(1:3)=xo+xea(1:3)
+  xobsea(4:6)=vo+xea(4:6)
 ! ===================================================================== 
 ! Aberration (only time delay)                                          
-  if(iaber.gt.0)then 
-     call aber1(d,xast(4),d) 
-  endif
+  IF(iaber.eq.1)THEN 
+     CALL aber1(d,xast(4:6),dcor)
+     dcor(4:6)=d(4:6)
+  ELSEIF(iaber.eq.2)THEN
+     CALL aber2(d,xast,xobsea,dcor) 
+  ENDIF
+  d=dcor
 ! ===================================================================== 
-! Computation of solar distance, earth distance, phase, elongation      
+! Computation of solar distance, earth distance, phase, solar elongation, moon elongation
   dsun0=vsize(xast) 
+  xobsea(1:3)=xea(1:3)+xo
   dis0=vsize(d) 
   rdot0=prscal(d(1:3),d(4:6))/dis0
   cospha=prscal(d,xast)/(dis0*dsun0) 
   pha0=acos(cospha) 
-  coselo=-prscal(d,xea)/(dis0*vsize(xea)) 
-  CALL prvec(d,xea,vvv)
+  coselo=-prscal(d,xobsea(1:3))/(dis0*vsize(xobsea)) 
+  CALL prvec(d,xobsea(1:3),vvv)
   sinelo=-vvv(3)
   elo0=acos(coselo)
   IF(sinelo.lt.0.d0)elo0=-elo0
   eclat0=asin(d(3)/dis0)
+  CALL mooncar(tobs,xmoon,1)
+  xobmoon=xmoon(1:3)-xobsea(1:3)
+  coselomoon=prscal(d,xobmoon)/(dis0*vsize(xobmoon))
+  CALL prvec(d,xobmoon,vvv)
+  sinelomoon=MATMUL(roteceq,vvv)
+  elomoon=acos(coselomoon)
+  IF(sinelomoon(3).lt.0.d0)elomoon=-elomoon
 ! =====================================================================
 ! illumination angle at the station
   coscoelsun=prscal(d,-xea(1:3))/(dis0*dsun0)
@@ -705,9 +753,6 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
   deq(4:6)=MATMUL(roteceq,d(4:6)) 
   d=deq                          
 ! ===================================================================== 
-! galactic latitude                                                     
-  gallat0=pig/2d0-acos((d(1)*gax+d(2)*gay+d(3)*gaz)/dis0) 
-! ===================================================================== 
 ! Computation of observation: right ascension (radians)                 
   dz=d(1)**2+d(2)**2 
   if (dz.le.100.d0*epsilon(1.d0)) then
@@ -721,6 +766,23 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
   endif
 ! Computation of observation: declination (radians)                     
   delta=asin(d(3)/dis0) 
+! ===================================================================== 
+! galactic latitude. Corrected 13/10/2008 by F.Bernardi  
+  gallat0=asin(sin(degal)*sin(delta)+cos(degal)*cos(delta)*cos(alpha-algal))
+  singallon0=cos(delta)*sin(alpha-algal)/cos(gallat0)
+  IF(singallon0.gt.1.d0) singallon0=1.d0
+  IF(singallon0.lt.-1.d0) singallon0=-1.d0
+  cosgallon0=(cos(degal)*sin(delta)-sin(degal)*cos(delta)*cos(alpha-algal))/cos(gallat0)
+  IF(cosgallon0.gt.1.d0) cosgallon0=1.d0
+  IF(cosgallon0.lt.-1.d0) cosgallon0=-1.d0
+  if(singallon0.ge.0.and.cosgallon0.ge.0) gallon0=pangGalCen-asin(singallon0)
+  if(singallon0.ge.0.and.cosgallon0.lt.0) gallon0=pangGalCen-acos(cosgallon0)
+  if(singallon0.lt.0.and.cosgallon0.lt.0) gallon0=pangGalCen+acos(cosgallon0)-2*pig
+  if(singallon0.lt.0.and.cosgallon0.ge.0) gallon0=pangGalCen+acos(cosgallon0)-2*pig
+  if(gallon0.lt.0) gallon0=gallon0+2*pig
+! Old Version
+!  gallat0=pig/2d0-acos((d(1)*gax+d(2)*gay+d(3)*gaz)/dis0) 
+
 ! ===================================================================== 
 ! Computation of first derivatives of $\alpha$ and $\delta$ w.r. to posi
 ! (if required): we derived eq. (2.20)                                  
@@ -913,7 +975,7 @@ END SUBROUTINE pre_obs_att
 !
 ! ==============INTERFACE============================================   
 SUBROUTINE alph_del (el,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
-     &       adot0,ddot0,pha0,dis0,dsun0,elo0,gallat0)
+     &       adot0,ddot0,pha0,dis0,dsun0,elo0,gallat0,elomoon0,gallon0)
   USE propag_state
   USE orbit_elements
   USE close_app, ONLY : kill_propag  
@@ -937,14 +999,14 @@ SUBROUTINE alph_del (el,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
 ! partial derivatives of alpha, delta, w.r. to asteroid coordinates     
   DOUBLE PRECISION, INTENT(OUT) :: dade(6),ddde(6) 
 ! ======optional output =================================================
-  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: adot0,ddot0 ! proper motion
-  DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: pha0,dis0,dsun0,elo0,gallat0 ! phase, 
+  DOUBLE PRECISION,INTENT(OUT),OPTIONAL :: adot0,ddot0 ! proper motion
+  DOUBLE PRECISION,INTENT(OUT),OPTIONAL :: pha0,dis0,dsun0,elo0,gallat0,gallon0,elomoon0 ! phase, 
              ! distance to Earth, distance to Sun, elongation, galactic latitude
 ! =============END INTERFACE=========================================   
   double precision xea(6),xobs(6) ! cartesian coordinates of the Earth, of the observer   
   double precision xast(6) ! asteroid cartesian coordinates
   double precision dadx(3),dddx(3) ! first derivatives of alpha, delta, w.r. to coord
-  DOUBLE PRECISION :: adot,ddot,pha,dis,dsun,elo,gallat ! proper motion, data to compute magnitude
+  DOUBLE PRECISION :: adot,ddot,pha,dis,dsun,elo,gallat,gallon,elomoon ! proper motion, data to compute magnitude
   double precision dxde(6,6) ! first derivatives of cartesian coordinates with respect to ele
   integer j ! loop variables j=1,6;
   double precision prscal ! double precision functions
@@ -963,7 +1025,7 @@ SUBROUTINE alph_del (el,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
   IF(kill_propag) RETURN
 ! Computation of observations                                           
   call oss_dif(xast,xea,tauj,iocj,pos,vel,alj,dej,ider,dadx,dddx,&
-     &       adot,ddot,pha,dis,dsun,elo,gallat)
+     &       adot,ddot,pha,dis,dsun,elo,gallat,elomoon,gallon)
 ! store true phase, etc.
   IF(PRESENT(adot0))adot0=adot
   IF(PRESENT(ddot0))ddot0=ddot
@@ -972,6 +1034,8 @@ SUBROUTINE alph_del (el,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
   IF(PRESENT(dsun0))dsun0=dsun 
   IF(PRESENT(elo0))elo0=elo 
   IF(PRESENT(gallat0))gallat0=gallat 
+  IF(PRESENT(gallon0))gallon0=gallon 
+  IF(PRESENT(elomoon0))elomoon0=elomoon 
   if(ider.lt.1)return                                               
 ! derivatives with respect to equinoctal elements                       
   DO  j=1,6
@@ -1003,7 +1067,7 @@ END SUBROUTINE alph_del
 ! ddadx,ddddx matrices of second deriv., 2-b approximation              
 ! ===================================================================== 
  SUBROUTINE oss_dif(xast,xea,tauj,idst,pos,vel,alj,dej,ider,dadx,dddx, &
-     &       adot,ddot,pha,dis,dsun,elo,gallat)
+     &       adot,ddot,pha,dis,dsun,elo,gallat,elomoon,gallon)
    USE fund_const
    USE force_model 
 ! ===================================================================== 
@@ -1025,14 +1089,17 @@ END SUBROUTINE alph_del
 ! partials of equatorial alpha, delta w.r. to cartesian ecliptic coord. 
    DOUBLE PRECISION, INTENT(OUT) :: dadx(3),dddx(3)
 ! proper motion, data to compute magnitude
-   DOUBLE PRECISION, INTENT(OUT) :: adot,ddot,pha,dis,dsun,elo,gallat
+   DOUBLE PRECISION, INTENT(OUT) :: adot,ddot,pha,dis,dsun,elo,gallat,gallon,elomoon
 ! END INTERFACE
 ! difference vector
    DOUBLE PRECISION d(6)
+   double precision dcor(6) ! after aberration correction
 ! topocentric position of the observatory ***** temporary for check
-   double precision xo(3),vo(3) 
-! phase and elongation cosine                                           
-   double precision cospha,coselo,sinelo,vvv(3) 
+   double precision xo(3),vo(3),xobsea(6)
+! phase and solar elongation cosine                                           
+   double precision cospha,coselo,sinelo,vvv(3)
+! heliocentric, obs-centric of Moon,cos and sin of Moon elongation,sin and cos galact.longitude
+   DOUBLE PRECISION xmoon(6),xobmoon(3),coselomoon,sinelomoon(3),singallon,cosgallon 
 ! auxiliary var.                                          
    double precision dz 
 ! real functions                                                        
@@ -1061,29 +1128,39 @@ END SUBROUTINE alph_del
    endif
 ! ===================================================================== 
 ! Aberration (only time delay)                                          
-   if(iaber.gt.0)then 
-      call aber1(d,xast(4),d) 
-   endif
+   xobsea(1:3)=xea(1:3)+pos
+   xobsea(4:6)=xea(4:6)+vel
+   IF(iaber.eq.1)THEN 
+      CALL aber1(d,xast(4:6),dcor) 
+      dcor(4:6)=d(4:6)
+   ELSEIF(iaber.eq.2)THEN
+      CALL aber2(d,xast,xobsea,dcor) 
+   ENDIF
+   d=dcor
 ! ===================================================================== 
 ! Computation of solar distance, earth distance, phase, elongation      
    dsun=vsize(xast) 
    dis=vsize(d) 
    cospha=prscal(d,xast)/(dis*dsun) 
    pha=acos(cospha) 
-   coselo=-prscal(d,xea)/(dis*vsize(xea)) 
+   coselo=-prscal(d,xobsea)/(dis*vsize(xobsea)) 
    elo=acos(coselo) 
-   CALL prvec(d,xea,vvv)
+   CALL prvec(d,xobsea,vvv)
    sinelo=-vvv(3)
    If(sinelo.lt.0.d0)elo=-elo
+   CALL mooncar(tauj,xmoon,1)
+   xobmoon=xmoon(1:3)-xobsea(1:3)
+   coselomoon=prscal(d,xobmoon)/(dis*vsize(xobmoon))
+   CALL prvec(d,xobmoon,vvv)
+   sinelomoon=MATMUL(roteceq,vvv)
+   elomoon=acos(coselomoon)
+   IF(sinelomoon(3).lt.0.d0)elomoon=-elomoon
 ! ===================================================================== 
 ! rotation to the equatorial reference system                           
    call prodmv(deq,roteceq,d) 
    call prodmv(deq(4),roteceq,d(4)) 
 ! trick to change as little as possible from vers. 1.2 to 1.3           
    d(1:6)=deq(1:6) 
-! ===================================================================== 
-! galactic latitude                                                     
-   gallat=pig/2d0-acos((d(1)*gax+d(2)*gay+d(3)*gaz)/dis) 
 ! ===================================================================== 
 ! Computation of observation: right ascension (radians)                 
    dz=d(1)**2+d(2)**2 
@@ -1097,6 +1174,18 @@ END SUBROUTINE alph_del
    endif
 ! Computation of observation: declination (radians)                     
    dej=asin(d(3)/dis) 
+! ===================================================================== 
+! galactic latitude. Corrected 13/10/2008 by F.Bernardi  
+  gallat=asin(sin(degal)*sin(dej)+cos(degal)*cos(dej)*cos(alj-algal))
+  singallon=cos(dej)*sin(alj-algal)/cos(gallat)
+  cosgallon=(cos(degal)*sin(dej)-sin(degal)*cos(dej)*cos(alj-algal))/cos(gallat)
+  if(singallon.ge.0.and.cosgallon.ge.0) gallon=pangGalCen-asin(singallon)
+  if(singallon.ge.0.and.cosgallon.lt.0) gallon=pangGalCen-acos(cosgallon)
+  if(singallon.lt.0.and.cosgallon.lt.0) gallon=pangGalCen+acos(cosgallon)-2*pig
+  if(singallon.lt.0.and.cosgallon.ge.0) gallon=pangGalCen+acos(cosgallon)-2*pig
+  if(gallon.lt.0) gallon=gallon+2*pig
+! Old Version
+!  gallat0=pig/2d0-acos((d(1)*gax+d(2)*gay+d(3)*gaz)/dis0) 
 ! ===================================================================== 
 ! Computation of first derivatives of $\alpha$ and $\delta$ w.r. to posi
 ! (if required): we derived eq. (2.20)                                  
@@ -1482,6 +1571,264 @@ CONTAINS
 
 END SUBROUTINE r_rdot
 
+
+! ===================================================================== 
+! OUTOBC                                                                
+! ===================================================================== 
+!  output of predicted observation, possibly with confidence ellipse    
+!   input: iun   = output unit                                          
+!          type  = observation type                                     
+!          ids = station code                                           
+!          t1 = time of observation (UTC)                               
+!          alpha, delta, hmagn = observation                            
+!          adot,ddot = proper motion                                    
+!          elo,dis = elongation, distance from Earth                    
+!          elmoon = lunar elongation 
+!          icov  = 1 for observations only, 2 to add confidence ellipse 
+!          gamad,sig,axes = covariance matrix, sigmas along axes        
+!                      (only for icov=2, otherwise dummy)               
+! ===================================================================== 
+SUBROUTINE outobc(iun,type,ids,t1,alpha,delta,hmagn,adot,ddot,    &
+     &     elo,dis,icov,gamad,sig,axes,elmoon,gallat,gallon,elev)  
+  USE fund_const                               
+  implicit none 
+! needs AU value in km: from fund_cons
+! output unit, station code, obs. type                                  
+      integer iun,ids
+      CHARACTER*(1) type
+! observations                                                          
+      DOUBLE PRECISION t1,alpha,delta,hmagn,adot,ddot,elo,dis,cosangzen, airmass 
+      DOUBLE PRECISION, INTENT(IN), OPTIONAL :: elmoon, gallat,gallon,elev 
+! covariance                                                            
+      integer icov 
+      DOUBLE PRECISION gamad(2,2),axes(2,2),sig(2) 
+! ================end interface===============================          
+      DOUBLE PRECISION princ 
+      integer i,j 
+! time variables                                                        
+      integer ideg,iday,imonth,iyear,ihour,imin,isec,ln,truncat 
+      double precision hour,minu,sec 
+      CHARACTER*22 timstr 
+      CHARACTER*19 tmpstr 
+      CHARACTER*12 rastri,rdstri 
+      CHARACTER*1 signo 
+! convert time                                                          
+      CALL mjddat(t1,iday,imonth,iyear,hour) 
+! convert hour to 12:12:12                                              
+      ihour=truncat(hour,1d-7) 
+      minu=(hour-ihour)*60.d0 
+      imin=truncat(minu,1d-5) 
+      sec=(minu-imin)*60.d0 
+      isec=truncat(sec,1d-3) 
+      WRITE(timstr,192) iyear,imonth,iday,ihour,imin,isec,sec-isec 
+  192 FORMAT(I4,'/',I2.2,'/',I2.2,1x,I2.2,':',I2.2,':',I2.2,f3.2) 
+! =================== select by observation type ===================    
+      IF(type.eq.'O'.or.type.eq.'S')THEN 
+! %%%%%%%%%%%% ASTROMETRY %%%%%%%%%%%%%%%%                              
+! convert RA                                                            
+         alpha=princ(alpha) 
+         CALL sessag(alpha*degrad/15.d0,signo,ihour,imin,sec) 
+         IF(signo.eq.'-')STOP 'wrirms error: negative right ascension.' 
+! prepare RA string                                                     
+         WRITE(tmpstr,FMT='(F6.3)') sec 
+         CALL rmsp(tmpstr,ln) 
+         IF(ln.lt.6)tmpstr='0'//tmpstr 
+         WRITE(rastri,130)ihour,imin,tmpstr 
+  130    FORMAT(I2.2,':',I2.2,':',a6) 
+! convert DEC                                                           
+         CALL sessag(delta*degrad,signo,ideg,imin,sec) 
+! prepare DEC string                                                    
+         WRITE(tmpstr,FMT='(F5.2)') sec 
+         CALL rmsp(tmpstr,ln) 
+         IF(ln.lt.5)tmpstr='0'//tmpstr 
+         WRITE(rdstri,170)signo,ideg,imin,tmpstr 
+  170    FORMAT(A1,I2.2,1x,I2.2,1x,a5)
+! Airmass calculation according Young (1994)
+         IF(PRESENT(elev))THEN 
+            cosangzen=cos(pig/2-elev)
+            airmass=1.002432d0*cosangzen**2+0.148386d0*cosangzen+0.0096467d0
+            airmass=airmass/(cosangzen**3+0.149864d0*cosangzen**2+0.0102963d0*cosangzen+0.000303978)
+         ENDIF
+         IF(PRESENT(elmoon).and.PRESENT(gallat).and.PRESENT(gallon).and.PRESENT(elev))THEN 
+            IF(elev.le.0) THEN
+            write(iun,101)timstr,t1,ids,                                &
+     &        rastri,alpha*degrad,                                      &
+     &        rdstri,delta*degrad,                                      &
+     &        secrad*adot*cos(delta)/1440.d0,secrad*ddot/1440.d0,       &
+     &        dis,elo*degrad,elmoon*degrad,gallat*degrad,gallon*degrad, &
+     &        hmagn,elev*degrad
+            write(*,101)timstr,t1,ids,                                  &
+     &        rastri,alpha*degrad,                                      &
+     &        rdstri,delta*degrad,                                      &
+     &        secrad*adot*cos(delta)/1440.d0,secrad*ddot/1440.d0,       &
+     &        dis,elo*degrad,elmoon*degrad,gallat*degrad,gallon*degrad, &
+     &        hmagn,elev*degrad
+            ELSE IF(ids.eq.500.or.ids.eq.245.or.ids.eq.247.or.ids.eq.248.or.ids.eq.249.or.ids.eq.250) THEN
+            write(iun,104)timstr,t1,ids,                                &
+     &        rastri,alpha*degrad,                                      &
+     &        rdstri,delta*degrad,                                      &
+     &        secrad*adot*cos(delta)/1440.d0,secrad*ddot/1440.d0,       &
+     &        dis,elo*degrad,elmoon*degrad,gallat*degrad,gallon*degrad, &
+     &        hmagn
+            write(*,104)timstr,t1,ids,                                  &
+     &        rastri,alpha*degrad,                                      &
+     &        rdstri,delta*degrad,                                      &
+     &        secrad*adot*cos(delta)/1440.d0,secrad*ddot/1440.d0,       &
+     &        dis,elo*degrad,elmoon*degrad,gallat*degrad,gallon*degrad, &
+     &        hmagn
+            ELSE
+            write(iun,105)timstr,t1,ids,                                &
+     &        rastri,alpha*degrad,                                      &
+     &        rdstri,delta*degrad,                                      &
+     &        secrad*adot*cos(delta)/1440.d0,secrad*ddot/1440.d0,       &
+     &        dis,elo*degrad,elmoon*degrad,gallat*degrad,gallon*degrad, &
+     &        hmagn,elev*degrad,airmass
+            write(*,105)timstr,t1,ids,                                  &
+     &        rastri,alpha*degrad,                                      &
+     &        rdstri,delta*degrad,                                      &
+     &        secrad*adot*cos(delta)/1440.d0,secrad*ddot/1440.d0,       &
+     &        dis,elo*degrad,elmoon*degrad,gallat*degrad,gallon*degrad, &
+     &        hmagn,elev*degrad,airmass
+  101    format('Astrometric Observation Prediction'/                   &
+     &        'For ',a19,' (UTC); ',f12.5,'(MJD)'/                      &
+     &        'Observatory code = ',i4.4/                               &
+     &        'RA = ',a12,' (HH:MM:SS); ',f11.5,' (deg)'/               &
+     &        'DEC = ',a12,' (deg min sec); ',f11.5,' (deg)'/           &
+     &        'RA*cos(DEC)/DEC Apparent motion =',2(2x,f9.3),' (arcsec/min)'/    &
+     &        'Earth distance = ',f8.4,' (AU)'/                         &
+     &        'Solar elongation = ',f7.2,' (deg)','    Lunar elongation = ',f7.2,' (deg)'/                       &
+     &        'Galactic latitude = ',f7.2,' (deg)','   Galactic longitude = ',f7.2,' (deg)'/                     &
+     &        'Apparent magnitude = ',f5.2/                             &
+     &        'Altitude = ',f7.2,' (deg)','    Airmass =   INF ')
+  104    format('Astrometric Observation Prediction'/                   &
+     &        'For ',a19,' (UTC); ',f12.5,'(MJD)'/                      &
+     &        'Observatory code = ',i4.4/                               &
+     &        'RA = ',a12,' (HH:MM:SS); ',f11.5,' (deg)'/               &
+     &        'DEC = ',a12,' (deg min sec); ',f11.5,' (deg)'/           &
+     &        'RA*cos(DEC)/DEC Apparent motion =',2(2x,f9.3),' (arcsec/min)'/    &
+     &        'Earth distance = ',f8.4,' (AU)'/                         &
+     &        'Solar elongation = ',f7.2,' (deg)','    Lunar elongation = ',f7.2,' (deg)'/                       &
+     &        'Galactic latitude = ',f7.2,' (deg)','   Galactic longitude = ',f7.2,' (deg)'/                     &
+     &        'Apparent magnitude = ',f5.2/                             &
+     &        'Altitude = N.A.             Airmass =   N.A.')
+  105    format('Astrometric Observation Prediction'/                   &
+     &        'For ',a19,' (UTC); ',f12.5,'(MJD)'/                      &
+     &        'Observatory code = ',i4.4/                               &
+     &        'RA = ',a12,' (HH:MM:SS); ',f11.5,' (deg)'/               &
+     &        'DEC = ',a12,' (deg min sec); ',f11.5,' (deg)'/           &
+     &        'RA*cos(DEC)/DEC Apparent motion =',2(2x,f9.3),' (arcsec/min)'/    &
+     &        'Earth distance = ',f8.4,' (AU)'/                         &
+     &        'Solar elongation = ',f7.2,' (deg)','    Lunar elongation = ',f7.2,' (deg)'/                       &
+     &        'Galactic latitude = ',f7.2,' (deg)','   Galactic longitude = ',f7.2,' (deg)'/                     &
+     &        'Apparent magnitude = ',f5.2/                             &
+     &        'Altitude = ',f7.2,' (deg)','    Airmass =',f8.3)
+         ENDIF
+      ELSE IF(PRESENT(elmoon))THEN 
+            write(iun,103)timstr,t1,ids,                                &
+     &        rastri,alpha*degrad,                                      &
+     &        rdstri,delta*degrad,                                      &
+     &        secrad*adot*cos(delta)/1440.d0,secrad*ddot/1440.d0,       &
+     &        dis,elo*degrad,elmoon*degrad,hmagn
+            write(*,103)timstr,t1,ids,                                  &
+     &        rastri,alpha*degrad,                                      &
+     &        rdstri,delta*degrad,                                      &
+     &        secrad*adot*cos(delta)/1440.d0,secrad*ddot/1440.d0,       &
+     &        dis,elo*degrad,elmoon*degrad,hmagn
+  103    format('Astrometric Observation Prediction'/                   &
+     &        'For ',a19,' (UTC); ',f12.5,'(MJD)'/                      &
+     &        'Observatory code = ',i4.4/                               &
+     &        'RA = ',a12,' (HH:MM:SS); ',f11.5,' (deg)'/               &
+     &        'DEC = ',a12,' (deg min sec); ',f11.5,' (deg)'/           &
+     &        'RA*cos(DEC)/DEC Apparent motion =',2(2x,f9.3),' (arcsec/min)'/    &
+     &        'Earth distance = ',f8.4,' (AU)'/                         &
+     &        'Solar elongation = ',f7.2,' (deg)'/                      &
+     &        'Lunar elongation = ',f7.2,' (deg)'/                      &
+     &        'Apparent magnitude = ',f5.2)
+         ELSE
+            write(iun,221)timstr,t1,ids,                                   &
+     &        rastri,alpha*degrad,                                      &
+     &        rdstri,delta*degrad,                                      &
+     &        secrad*adot/24.d0,secrad*ddot/24.d0,                      &
+     &        dis,elo*degrad,hmagn
+            write(*,221)timstr,t1,ids,                                     &
+     &        rastri,alpha*degrad,                                      &
+     &        rdstri,delta*degrad,                                      &
+     &        secrad*adot/24.d0,secrad*ddot/24.d0,                      &
+     &        dis,elo*degrad,hmagn
+  221    format('Astrometric Observation Prediction'/                   &
+     &        'For ',a19,' (UTC); ',f12.5,'(MJD)'/                      &
+     &        'Observatory code = ',i4.4/                               &
+     &        'RA = ',a12,' (HH:MM:SS); ',f11.5,' (deg)'/               &
+     &        'DEC = ',a12,' (deg min sec); ',f11.5,' (deg)'/           &
+     &        'RA/DEC Apparent motion =',2(2x,f9.2),' (arcsec/hour)'/   &
+     &        'Earth distance = ',f8.4,' (AU)'/                         &
+     &        'Solar elongation = ',f7.2,' (deg)'/                      &
+     &        'Apparent magnitude = ',f5.2)
+         ENDIF                              
+         IF(icov.eq.1)RETURN 
+! rescaling in arcsec                                                   
+         do  i=1,2 
+            sig(i)=sig(i)*secrad 
+            do  j=1,2 
+               gamad(i,j)=gamad(i,j)*secrad**2 
+            enddo 
+         enddo 
+         write(iun,201)(sig(j),(axes(i,j),i=1,2),j=1,2) 
+         write(*,201)(sig(j),(axes(i,j),i=1,2),j=1,2) 
+  201    format(                                                        &
+     &'Size and orientation of 1-sigma uncertainty ellipse'/            &
+     &'Short axis : Size = ',1p,g12.6 ,' (arcsec); Direction = ',       &
+     & 0p,2(1x,f8.5)/                                                   &
+     &'Long axis : Size = ',1p,g12.6 ,' (arcsec); Direction = ',        &
+     & 0p,2(1x,f8.5))                                                   
+      ELSEIF(type.eq.'R'.or.type.eq.'V')THEN 
+! %%%%%%%%%%%% RADAR %%%%%%%%%%%%%%%%                                   
+         write(iun,102)t1,ids,alpha*aukm,delta*aukm 
+         write(*,102)t1,ids,alpha*aukm,delta*aukm 
+  102    format('time, MJD=',f13.6,'  station=',i4/                     &
+     &       ' range (KM)         = ',f16.5/                            &
+     &       ' range rate (KM/DAY)=  ',f15.5)                           
+         IF(icov.eq.1)RETURN 
+! rescaling in km, km/day                                               
+         do  i=1,2 
+            sig(i)=sig(i)*aukm 
+            do  j=1,2 
+               gamad(i,j)=gamad(i,j)*aukm**2 
+            enddo 
+         enddo 
+         write(iun,202)(sig(j),(axes(i,j),i=1,2),j=1,2) 
+         write(*,202)(sig(j),(axes(i,j),i=1,2),j=1,2) 
+  202    format(' in the range (KM), range-rate (KM/DAY) plane'/        &
+     &          ' sigma1 = ',1p,g14.7 ,' axis1 = ',2(1x,g12.5)/          &
+     &          ' sigma2 = ',1p,g14.7 ,' axis2 = ',2(1x,g12.5))          
+      ELSEIF(type.eq.'P')THEN 
+! %%%%%%%%%%%% PROPER MOTION %%%%%%%%%%%%%%%%                           
+         write(iun,109)t1,ids,alpha*secrad/24.d0,delta*secrad/24.d0 
+         write(*,109)t1,ids,alpha*secrad/24.d0,delta*secrad/24.d0 
+  109    format('time, MJD=',f13.6,'  station=',i4/                     &
+     &       ' RA motion (arcsec/hour)     = ',f9.2/                    &
+     &       ' DEC motion (arcsec/hour)    = ',f9.2)                    
+         IF(icov.eq.1)RETURN 
+! rescaling in arcsec/hour                                              
+         do  i=1,2 
+            sig(i)=sig(i)*secrad/24.d0 
+            do  j=1,2 
+               gamad(i,j)=gamad(i,j)*(secrad/24.d0)**2 
+            enddo 
+         enddo 
+         write(iun,209)(sig(j),(axes(i,j),i=1,2),j=1,2) 
+         write(*,209)(sig(j),(axes(i,j),i=1,2),j=1,2) 
+  209    format('sigma1 (arcsec/hr) = ',1p,g14.7 ,' axis1 = ',2(1x,g12.5)/&
+     &          'sigma2 (arcsec/hr) = ',1p,g14.7 ,' axis2 = ',2(1x,g12.5))
+      ELSE 
+         WRITE(*,*)'outobc: type=',type,' not understood' 
+      ENDIF 
+      return 
+      END SUBROUTINE outobc
+
+
+
+
 END MODULE pred_obs  
 
 ! Copyright (C) 1997 by Mario Carpino (carpino@brera.mi.astro.it)       
@@ -1523,156 +1870,57 @@ SUBROUTINE aber1(xrel,vrel,xcor)
 !  effetto di ritardo                                                   
   dt=ro/vlight
   xcor=xrel-dt*vrel 
+
 END SUBROUTINE aber1
-! ===================================================================== 
-! OUTOBC                                                                
-! ===================================================================== 
-!  output of predicted observation, possibly with confidence ellipse    
-!   input: iun   = output unit                                          
-!          type  = observation type                                     
-!          ids = station code                                           
-!          t1 = time of observation (UTC)                               
-!          alpha, delta, hmagn = observation                            
-!          adot,ddot = proper motion                                    
-!          elo,dis = elongation, distance from Earth                    
+
+! Copyright (C) 20087 by Fabrizio Bernardi (bernardi@adams.dm.unipi.it)  
+! Version: September 9, 2008                                            
 !                                                                       
-!          icov  = 1 for observations only, 2 to add confidence ellipse 
-!          gamad,sig,axes = covariance matrix, sigmas along axes        
-!                      (only for icov=2, otherwise dummy)               
-! ===================================================================== 
-      SUBROUTINE outobc(iun,type,ids,t1,alpha,delta,hmagn,adot,ddot,    &
-     &     elo,dis,icov,gamad,sig,axes)  
-      USE fund_const                               
-      implicit none 
-! needs AU value in km: from fund_cons                                                  
-! output unit, station code, obs. type                                  
-      integer iun,ids
-      CHARACTER*(1) type
-! observations                                                          
-      double precision t1,alpha,delta,hmagn,adot,ddot,elo,dis 
-! covariance                                                            
-      integer icov 
-      double precision gamad(2,2),axes(2,2),sig(2) 
-! ================end interface===============================          
-      double precision princ 
-      integer i,j 
-! time variables                                                        
-      integer ideg,iday,imonth,iyear,ihour,imin,isec,ln,truncat 
-      double precision hour,minu,sec 
-      CHARACTER*22 timstr 
-      CHARACTER*19 tmpstr 
-      CHARACTER*12 rastri,rdstri 
-      CHARACTER*1 signo 
-! convert time                                                          
-      CALL mjddat(t1,iday,imonth,iyear,hour) 
-! convert hour to 12:12:12                                              
-      ihour=truncat(hour,1d-7) 
-      minu=(hour-ihour)*60.d0 
-      imin=truncat(minu,1d-5) 
-      sec=(minu-imin)*60.d0 
-      isec=truncat(sec,1d-3) 
-      WRITE(timstr,192) iyear,imonth,iday,ihour,imin,isec,sec-isec 
-  192 FORMAT(I4,'/',I2.2,'/',I2.2,1x,I2.2,':',I2.2,':',I2.2,f3.2) 
-! =================== select by observation type ===================    
-      IF(type.eq.'O'.or.type.eq.'S')THEN 
-! %%%%%%%%%%%% ASTROMETRY %%%%%%%%%%%%%%%%                              
-! convert RA                                                            
-         alpha=princ(alpha) 
-         CALL sessag(alpha*degrad/15.d0,signo,ihour,imin,sec) 
-         IF(signo.eq.'-')STOP 'wrirms error: negative right ascension.' 
-! prepare RA string                                                     
-         WRITE(tmpstr,FMT='(F6.3)') sec 
-         CALL rmsp(tmpstr,ln) 
-         IF(ln.lt.6)tmpstr='0'//tmpstr 
-         WRITE(rastri,130)ihour,imin,tmpstr 
-  130    FORMAT(I2.2,':',I2.2,':',a6) 
-! convert DEC                                                           
-         CALL sessag(delta*degrad,signo,ideg,imin,sec) 
-! prepare DEC string                                                    
-         WRITE(tmpstr,FMT='(F5.2)') sec 
-         CALL rmsp(tmpstr,ln) 
-         IF(ln.lt.5)tmpstr='0'//tmpstr 
-         WRITE(rdstri,170)signo,ideg,imin,tmpstr 
-  170    FORMAT(A1,I2.2,1x,I2.2,1x,a5) 
-                                                                        
-         write(iun,101)timstr,t1,ids,                                   &
-     &        rastri,alpha*degrad,                                      &
-     &        rdstri,delta*degrad,                                      &
-     &        secrad*adot/24.d0,secrad*ddot/24.d0,                      &
-     &        dis,elo*degrad,hmagn                                      
-         write(*,101)timstr,t1,ids,                                     &
-     &        rastri,alpha*degrad,                                      &
-     &        rdstri,delta*degrad,                                      &
-     &        secrad*adot/24.d0,secrad*ddot/24.d0,                      &
-     &        dis,elo*degrad,hmagn                                      
-  101    format('Astrometric Observation Prediction'/                   &
-     &        'For ',a19,' (UTC); ',f12.5,'(MJD)'/                      &
-     &        'Observatory code= ',i4.4/                                &
-     &        'RA= ',a12,' (HH:MM:SS); ',f11.5,' (deg)'/                &
-     &        'DEC= ',a12,' (deg min sec); ',f11.5,' (deg)'/            &
-     &        'RA/DEC Apparent motion=',2(2x,f9.2),' (arcsec/hour)'/    &
-     &        'Earth distance= ',f8.4,' (AU)'/                          &
-     &        'Solar elongation= ',f7.2,' (deg)'/                       &
-     &        'Apparent magnitude= ',f5.2)                              
-         IF(icov.eq.1)RETURN 
-! rescaling in arcsec                                                   
-         do  i=1,2 
-            sig(i)=sig(i)*secrad 
-            do  j=1,2 
-               gamad(i,j)=gamad(i,j)*secrad**2 
-            enddo 
-         enddo 
-         write(iun,201)(sig(j),(axes(i,j),i=1,2),j=1,2) 
-         write(*,201)(sig(j),(axes(i,j),i=1,2),j=1,2) 
-  201    format(                                                        &
-     &'Size and orientation of 1-sigma uncertainty ellipse'/            &
-     &'Short axis : Size= ',1p,g12.6 ,' (arcsec); Direction= ',         &
-     & 0p,2(1x,f8.5)/                                                   &
-     &'Long axis : Size= ',1p,g12.6 ,' (arcsec); Direction= ',          &
-     & 0p,2(1x,f8.5))                                                   
-      ELSEIF(type.eq.'R'.or.type.eq.'V')THEN 
-! %%%%%%%%%%%% RADAR %%%%%%%%%%%%%%%%                                   
-         write(iun,102)t1,ids,alpha*aukm,delta*aukm 
-         write(*,102)t1,ids,alpha*aukm,delta*aukm 
-  102    format('time, MJD=',f13.6,'  station=',i4/                     &
-     &       ' range (KM)         = ',f16.5/                            &
-     &       ' range rate (KM/DAY)=  ',f15.5)                           
-         IF(icov.eq.1)RETURN 
-! rescaling in km, km/day                                               
-         do  i=1,2 
-            sig(i)=sig(i)*aukm 
-            do  j=1,2 
-               gamad(i,j)=gamad(i,j)*aukm**2 
-            enddo 
-         enddo 
-         write(iun,202)(sig(j),(axes(i,j),i=1,2),j=1,2) 
-         write(*,202)(sig(j),(axes(i,j),i=1,2),j=1,2) 
-  202    format(' in the range (KM), range-rate (KM/DAY) plane'/        &
-     &          ' sigma1 = ',1p,g14.7 ,' axis1= ',2(1x,g12.5)/          &
-     &          ' sigma2 = ',1p,g14.7 ,' axis2= ',2(1x,g12.5))          
-      ELSEIF(type.eq.'P')THEN 
-! %%%%%%%%%%%% PROPER MOTION %%%%%%%%%%%%%%%%                           
-         write(iun,109)t1,ids,alpha*secrad/24.d0,delta*secrad/24.d0 
-         write(*,109)t1,ids,alpha*secrad/24.d0,delta*secrad/24.d0 
-  109    format('time, MJD=',f13.6,'  station=',i4/                     &
-     &       ' RA motion (arcsec/hour)     = ',f9.2/                    &
-     &       ' DEC motion (arcsec/hour)    = ',f9.2)                    
-         IF(icov.eq.1)RETURN 
-! rescaling in arcsec/hour                                              
-         do  i=1,2 
-            sig(i)=sig(i)*secrad/24.d0 
-            do  j=1,2 
-               gamad(i,j)=gamad(i,j)*(secrad/24.d0)**2 
-            enddo 
-         enddo 
-         write(iun,209)(sig(j),(axes(i,j),i=1,2),j=1,2) 
-         write(*,209)(sig(j),(axes(i,j),i=1,2),j=1,2) 
-  209    format('sigma1 (arcsec/hr)= ',1p,g14.7 ,' axis1= ',2(1x,g12.5)/&
-     &          'sigma2 (arcsec/hr)= ',1p,g14.7 ,' axis2= ',2(1x,g12.5))
-      ELSE 
-         WRITE(*,*)'outobc: type=',type,' not understood' 
-      ENDIF 
-      return 
-      END SUBROUTINE outobc
+!  ***************************************************************      
+!  *                                                             *      
+!  *                          A B E R 2                          *      
+!  *                                                             *      
+!  *          Correzione approssimata per aberrazione            *      
+!  *       stellare e/o planetaria al secondo ordine in t        *
+!  *                                                             *      
+!  ***************************************************************      
+!                                                                       
+!                                                                       
+! INPUT:    XREL(3)   -  Posizione relativa vera del corpo osservato (UA
+!           VREL(3)   -  Velocita` relativa (UA/d)                      
+!                                                                       
+! OUTPUT:   XCOR(3)   -  Posizione relativa apparente (tenendo conto del
+!                        aberrazione)                                   
+!                                                                       
+! NOTA: in generale per ottenere la correzione completa (comprendente le
+!       cosiddette aberrazioni "stellare" + "planetaria") bisogna che VR
+!       sia la velocita` relativa del corpo osservato rispetto all'osser
+!       tore:                                                           
+!                 VREL  =   V(pianeta) - V(osservatore)                 
+!                                                                       
+!       Se si vuole ottenere solo la correzione per l'aberrazione "stell
+!       bisogna porre VREL =  - V(osservatore).                         
+! 
 
-
+SUBROUTINE aber2(xrel,xast,xoss,xcor) 
+  USE fund_const
+  USE ever_pitkin
+  IMPLICIT NONE
+  DOUBLE PRECISION :: xrel(3),xast(6),xoss(6)
+  DOUBLE PRECISION :: xcor(6),xastcor(6)    ! removed INTENT to allow xrel in the same location as xcor
+  DOUBLE PRECISION r,ro,rdotdot(3),vsize,dt,t0
+  t0=0
+!  distance
+  ro=vsize(xrel) 
+!  delay effect    
+                                               
+  dt=ro/vlight
+! first call of fser_propag. Determine new ro and dt
+  CALL fser_propag(xast(1:3),xast(4:6),t0,-dt,gms,xastcor(1:3),xastcor(4:6))
+  ro=vsize(xastcor(1:3)-xoss(1:3)) 
+  dt=ro/vlight
+! second call. Determine acceleration rdotdot and final corrected coordinates.
+  CALL fser_propag(xast(1:3),xast(4:6),t0,-dt,gms,xastcor(1:3),xastcor(4:6))
+  xcor(1:3)=xastcor(1:3)-xoss(1:3)
+  xcor(4:6)=xastcor(4:6)-xoss(4:6)
+END SUBROUTINE aber2

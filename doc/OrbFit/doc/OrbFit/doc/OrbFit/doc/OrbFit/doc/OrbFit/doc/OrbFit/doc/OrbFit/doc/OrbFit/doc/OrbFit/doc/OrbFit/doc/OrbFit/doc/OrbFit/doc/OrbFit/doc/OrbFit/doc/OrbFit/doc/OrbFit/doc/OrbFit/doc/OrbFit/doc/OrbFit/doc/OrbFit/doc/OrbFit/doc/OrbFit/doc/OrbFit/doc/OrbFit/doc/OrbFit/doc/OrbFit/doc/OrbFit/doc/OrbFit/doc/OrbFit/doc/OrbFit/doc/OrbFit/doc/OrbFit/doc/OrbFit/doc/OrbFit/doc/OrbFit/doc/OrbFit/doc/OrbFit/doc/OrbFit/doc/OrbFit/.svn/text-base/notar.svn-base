@@ -3,7 +3,6 @@
 ./src/propag/not_actual
 ./src/allobs
 ./src/idconf2
-./src/orb9
 ./src/util90
 ./src/newret
 ./src/triang
@@ -15,12 +14,14 @@
 ./src/neodys
 ./src/triang
 ./src/suit/newobsform
+./src/debris
+./src/kepint
 ./tests/fitobs/othertests
 ./tests/fitobs/mn4
-./tests/orbit9
 ./tests/panst
 ./tests/neodys
 ./tests/lostPHAs
+./tests/debris
 ./lib/mfitob.key
 ./lib/ident.key
 ./lib/neofit.key

@@ -149,7 +149,7 @@ SUBROUTINE cinopt(progna,run,iunout,tref,catnam0,catnam1,covpro)
 ! =============================
   CALL initopt(progna,run,'mop')                                         
 ! read option for physical model and integration method                 
-  CALL rmodel 
+  CALL rmodel(1) 
 ! ==============================                                        
 ! initialisations for Gauss method                                      
 ! CALL iodini                

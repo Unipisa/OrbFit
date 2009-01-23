@@ -11,8 +11,16 @@ propag.
 .filbe='CPV'! name of the asteroid ephemerides file
 .iclap=1! 0=no close approach control 1=yes 
 .iyark=0 ! 0=no nograv forces 1=Yarkovski 
+.dadt=0.d0 ! no secular perturbation due to nongrav
+.inongrav=0 ! 0=no nongrav. terms (comet formalism) 1= Symm. model, 2= Asymm. model
+.a1ng=0 ! A1 term contribution (radial component)
+.a2ng=0 ! A2 term contribution (trasvesal component)
+.a3ng=0 ! A3 term contribution (orthogonal component)
+.dtdelay=0 ! no Delta T delay for the asymmetric model
 .iyarpt=0 ! 0=no partials of Yarkovski force
 .yardir='.' ! directory containing the physical data of all asteroids
+.sep_viol=.false. ! violation of SEP
+.eta_sep=0.d0 ! amount of violation of SEP, eta (assuming Omega0=-3.52d-6)
 .iaber=1! aberration 0=no 1=yes (recommended 1 always)
 .istat=1! 0=no topocentric corr 1= yes (recommended 1 always)
 ! choice of numerical integration method
@@ -49,4 +57,9 @@ propag.
 .dmoon=0.d0  ! min. distance for control of close-app. to the moon
 .dmjup=0.7d0 ! min. distance for control of close-app. to giant planets
 .dmast=0.05d0! min. distance for control of close-app. to massive asteroids
-.dter=0.1d0! min. distance for control of close-app. to Mercury,Venus and Mars 
+.dter=0.1d0  ! min. distance for control close-app. to Mercury,Venus and Mars 
+! options applicable only to satellite case
+.ites=2      ! max harmonic degree
+.irad=0      ! radiation pressure 1=spher.sat
+.itide=0     ! tidal perturbation 1=k2 no lag
+.ipla=2      ! 0=2-body 2=Sun+Moon

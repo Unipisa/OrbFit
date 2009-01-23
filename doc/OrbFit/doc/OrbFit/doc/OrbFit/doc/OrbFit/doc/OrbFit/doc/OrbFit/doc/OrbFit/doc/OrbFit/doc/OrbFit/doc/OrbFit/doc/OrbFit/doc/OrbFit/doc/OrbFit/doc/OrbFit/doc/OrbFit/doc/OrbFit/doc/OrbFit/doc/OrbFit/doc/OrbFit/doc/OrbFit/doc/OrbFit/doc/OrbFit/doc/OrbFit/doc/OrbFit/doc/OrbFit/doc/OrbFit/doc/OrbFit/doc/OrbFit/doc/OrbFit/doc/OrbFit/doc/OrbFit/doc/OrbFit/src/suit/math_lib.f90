@@ -28,6 +28,8 @@
 ! convertnor    conversion of normal matrix  
 ! norprs        normal matrix propagation for a NxN matrix (uses convertnor)  
 ! linfi3        linear regression
+! quadratic_fit quadratic least squares fit (also linear)
+! cubic_fit     cubic least squares fit
 !   SORTING  OK                                                           
 ! heapsort      sort by real, leaving in place and storing indexes      
 ! heapsorti     sort by integer, leaving in place and storing indexes   
@@ -978,6 +980,10 @@ subroutine linfi3(tv,angv,rate,rms,cost,res,npo)
            sr=sr+tmp
         ENDDO
         rms_3=sqrt(sr/m)
+    ELSE
+       g3=0.d0
+       s3=0.d0
+       rms_3=0.d0
     ENDIF
   END SUBROUTINE quadratic_fit            
 ! =========================================================== 

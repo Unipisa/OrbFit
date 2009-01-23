@@ -1,7 +1,7 @@
 #!/usr/bin/wish
 
 # Learn the path to the doc/ directory
-set u [open doclib.h r]
+set u [open doclib.h90 r]
 while {[gets $u line] >= 1} {
   set i1 [string first "'" $line]
   set i2 [string last "'" $line]
@@ -50,7 +50,7 @@ menu .mbar.general.menu.readme
 .mbar.general.menu.readme add checkbutton -label "Test"  -underline 0 -command {eval loadFile [join {$dir README.tests} /]}
 #.mbar.general.menu.readme add checkbutton -label "Unix"  -underline 0 -command {eval loadFile [join {$dir README.unix} /]}
 #.mbar.general.menu.readme add checkbutton -label "Windows" -underline 0 -command {eval loadFile [join {$dir ../README.windows} /]}
-.mbar.general.menu.readme add checkbutton -label "Dos"  -underline 0 -command {eval loadFile [join {$dir README.dos} /]}
+#.mbar.general.menu.readme add checkbutton -label "Dos"  -underline 0 -command {eval loadFile [join {$dir README.dos} /]}
 .mbar.general.menu.readme add checkbutton -label "Work-in-progress" -underline 2 -command {eval loadFile [join {$dir README.workinprog} /]}
 .mbar.general.menu.readme add checkbutton -label "Graphical interface" -underline 2 -command {eval loadFile [join {$dir README.tcl} /]}
 .mbar.general.menu.readme add cascade -label "Add-on's" -underline 5  -menu .mbar.general.menu.readme.addon

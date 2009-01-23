@@ -99,10 +99,11 @@ PROGRAM fitobs
 ! file names depending upon run identifier                              
   CHARACTER*80 run 
   CHARACTER*80 titnam 
-  CHARACTER*100 filnam,dummyfile 
+  CHARACTER*100 filnam,dummyfile, file
   INTEGER le,lnam 
   CHARACTER*6 progna 
 ! logical units                                                         
+  INTEGER iunrms,nrej ! for statisctical report
 !  INTEGER iunout,iuncov
 ! ======== controls and flags =============== 
   LOGICAL batch ! batch control
@@ -211,6 +212,7 @@ PROGRAM fitobs
      ELSE 
         CALL filclo(ierrou,'DELETE') 
      ENDIF
+     CALL filclo(iunrms,' ')
      STOP 
   ELSEIF(ifun.eq.1)THEN 
 ! ================MENU 1: INPUT OBS============================         
@@ -241,6 +243,9 @@ PROGRAM fitobs
               CALL filopn(iunel0,elefi0(1:le),'unknown') 
 ! output header                                                         
               CALL wromlh (iunel0,'ECLM','J2000')
+              file=astna0//'.rms'
+              CALL rmsp(file,le)
+              CALL filopn(iunrms,file(1:le),'UNKNOWN') ! statistical report
            ENDIF 
         ELSE
            m=0
@@ -526,6 +531,13 @@ PROGRAM fitobs
         CALL tee(iun_log,' FULL DIFFERENTIAL CORRECTIONS=') 
         CALL fdiff_cor(batch,1,obsflag,inic,ok,covc,elc,mc,obsc,obswc,iobc,    &
       &         rwofic,elc,uncc,csinoc,delnoc,rmshc,succ)
+! output for global parameter determination
+        nrej=0
+        DO j=1,mc
+           IF(obswc(j)%sel_coord.eq.0) nrej=nrej+1
+        ENDDO
+        WRITE(iunrms,222)astnac,mc,nrej,mc-nrej,csinoc,csinoc**2*(mc-nrej)
+222     FORMAT(A9,1X,I5,1X,I4,1X,I5,1X,F10.7,1X,F14.9)
      ENDIF
 ! availability of observations, initial condition, JPL and ET-UT data   
      IF(.not.ok.or..not.succ) GOTO 50 

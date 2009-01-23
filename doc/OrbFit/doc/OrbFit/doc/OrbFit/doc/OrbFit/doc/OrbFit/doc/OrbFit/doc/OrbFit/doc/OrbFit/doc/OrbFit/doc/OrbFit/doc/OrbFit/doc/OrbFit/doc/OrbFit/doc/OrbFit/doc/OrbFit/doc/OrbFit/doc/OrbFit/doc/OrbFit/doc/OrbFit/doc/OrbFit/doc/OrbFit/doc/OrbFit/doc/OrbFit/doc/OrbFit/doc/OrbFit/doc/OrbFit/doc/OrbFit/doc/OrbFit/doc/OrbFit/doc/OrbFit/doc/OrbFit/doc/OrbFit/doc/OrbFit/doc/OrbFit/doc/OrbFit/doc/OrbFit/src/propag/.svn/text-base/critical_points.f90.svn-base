@@ -2248,9 +2248,7 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
 
 !  chk_der = .false. ! no control of derivatives
 
-! conversion into cometary elements
-  CALL coo_cha(el1,'COT',com1,fail_flag,jaccomel1)
-  CALL coo_cha(el2,'COT',com2,fail_flag,jaccomel2)
+
 !  IF(verb_moid.ge.20) THEN
 !     WRITE(*,*)'Cometary elements:'
 !     WRITE(*,*)'COM1:',com1%coord(1:2),com1%coord(3:5)*degrad
@@ -2258,6 +2256,9 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
 !  ENDIF
      
   IF(PRESENT(unc1).and.PRESENT(unc2))THEN
+! conversion into cometary elements
+     CALL coo_cha(el1,'COT',com1,fail_flag,jaccomel1)
+     CALL coo_cha(el2,'COT',com2,fail_flag,jaccomel2)
 ! convert into uncertainty relative to cometary elems
      CALL convertunc(unc1,jaccomel1,unccom1)
      CALL convertunc(unc2,jaccomel2,unccom2)
@@ -2267,6 +2268,19 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
      covcom(1:10,1:10)=0.d0
      covcom(1:5,1:5)=gcom1(1:5,1:5)
      covcom(6:10,6:10)=gcom2(1:5,1:5)
+  ELSE
+! conversion into cometary elements
+!     WRITE(*,*) el2%coo, el1%coo
+     IF(el2%coo.eq.'COM')THEN
+        com2=el2
+     ELSE
+        CALL coo_cha(el2,'COT',com2,fail_flag)
+     ENDIF
+     IF(el1%coo.eq.'COM')THEN
+        com1=el1
+     ELSE
+        CALL coo_cha(el1,'COT',com1,fail_flag)
+     ENDIF
   ENDIF
 
 ! check for circular coplanar orbits

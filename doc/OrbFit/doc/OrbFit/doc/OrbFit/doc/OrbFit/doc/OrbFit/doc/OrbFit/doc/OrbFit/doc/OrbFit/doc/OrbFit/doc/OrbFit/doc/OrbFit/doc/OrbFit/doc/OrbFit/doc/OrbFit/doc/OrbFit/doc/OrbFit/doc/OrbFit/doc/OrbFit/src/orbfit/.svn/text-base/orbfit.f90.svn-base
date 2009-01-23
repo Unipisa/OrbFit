@@ -131,11 +131,14 @@
 ! Additional options (not always required)
       needrm=.false.
 ! Options for initial orbit determination
-      IF(op(2).GT.0) CALL iodini
+      IF(op(2).GT.0)THEN
+         CALL iodini
+         needrm=.true.  
+      ENDIF
 ! Options for differential correction
       IF(op(3).GT.0) THEN
-          CALL rdoptf
-          needrm=.true.
+         CALL rdoptf
+         needrm=.true.
       END IF
 ! Options for identifications
       IF(op(4).GT.0) THEN
@@ -149,13 +152,11 @@
       END IF
       IF(oepset) needrm=.true.
       IF(needrm) THEN
-          CALL rmodel
+          CALL rmodel(1)
           CALL ofinip(run)
       END IF
-
 ! ====================== INPUT OF OBSERVATIONS =======================
       CALL ofiobs(unirep,name,namof,dir,nobj,op(1),n,nt,ip1,ip2,obs,obsw,error_model)
-
 ! ==================== INPUT OF ORBITAL ELEMENTS =====================
       CALL ofiorb(unirep,elft,nelft,elf1,nelf1,name,nameo,nobj,elem,elem_unc,deforb,defcn,mass,comele,nifx)
 

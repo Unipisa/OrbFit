@@ -59,6 +59,9 @@ INTEGER, PARAMETER :: niersx=30000
 ! Max number of separate interpolations (pcwlgi)
 INTEGER, PARAMETER :: niplix=5000
 
+! Time of J2000 in MJD (ET) (integer number of days + sec)    
+INTEGER, PARAMETER, PUBLIC :: mj2000=51544 
+DOUBLE PRECISION, PARAMETER, PUBLIC :: s2000=43200.D0 
 
 ! IERS time series
 !
@@ -2146,12 +2149,6 @@ CALL rdbula(blafil,mjd2,tiers,xiers,niers,niersx,isamp,npt,   &
       DOUBLE PRECISION sec1,sec2,p1(3),v1(3),p2(3),v2(3) 
       CHARACTER*4 rsys1,rsys2 
       LOGICAL drag1,drag2 
-  
-! Time of J2000 in MJD (ET) (integer number of days + sec)    
-      INTEGER mj2000 
-      PARAMETER (mj2000=51544) 
-      DOUBLE PRECISION s2000 
-      PARAMETER (s2000=43200.D0) 
   
       DOUBLE PRECISION rot(3,3),rot1(3,3),rot2(3,3),piner(3),viner(3) 
       DOUBLE PRECISION vtr(3) 

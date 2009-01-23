@@ -125,7 +125,7 @@ CONTAINS
 !           the fail flag should indicate unambigously what
 !           happened, but....  
 ! =============================================
-  INTEGER FUNCTION arc_type(obs,obsw,m, geoc_chi,acce_chi,chi, nig,fail_flag)
+  INTEGER FUNCTION arc_type(obs,obsw,m,geoc_chi,acce_chi,chi,nig,fail_flag,eta)
 ! =========OBSERVATIONS ==========================================
     INTEGER, INTENT(IN) ::  m              ! observations number
     TYPE(ast_obs), INTENT(IN) :: obs(m)    ! supposed sorted by time
@@ -133,6 +133,9 @@ CONTAINS
 ! =========OUTPUT=================================================
     INTEGER, INTENT(OUT) :: nig,fail_flag  ! no .nights, failure level
     DOUBLE PRECISION, INTENT(OUT) :: geoc_chi, acce_chi, chi
+    DOUBLE PRECISION, INTENT(OUT), OPTIONAL :: eta ! proper motion
+! end interface
+    DOUBLE PRECISION eta0
 ! local variables
     INTEGER nat, fail_rec, natc, fail_check, nights, j
 ! ================================================================
@@ -164,7 +167,10 @@ CONTAINS
       ENDIF
     ENDDO
     ngap=0
-    nat=rec_arc_type(obs,obsw,m, geoc_chi,acce_chi,chi, nig,fail_rec)
+    nat=rec_arc_type(obs,obsw,m, geoc_chi,acce_chi,chi, nig,fail_rec,eta0)
+    IF(PRESENT(eta))THEN
+       eta=eta0
+    ENDIF
 !    WRITE(*,*)'arc_type: nat,nig ', nat,nig
 !    WRITE(*,*)tgapv(1:ngap)
     IF(ngap.gt.1)THEN
@@ -235,8 +241,9 @@ CONTAINS
       ENDIF
       CALL attri_comp(mm, obs(m1:m2), obsw(m1:m2), att, error)
       IF(error)THEN
-         WRITE(*,*) '***check_cons_arc: error from attri_comp, mm=', mm
-         STOP 
+         WRITE(ierrou,*) '***check_cons_arc: error from attri_comp, mm=', mm
+         numerr=numerr+1
+         CYCLE
       ENDIF
       CALL test_curv(att, geoc_chi, acce_chi, chi, sign_curv, bad_fit)
       IF(sign_curv.and..not.bad_fit)THEN
@@ -262,7 +269,7 @@ CONTAINS
 
 ! recursive split until no curvature/Z sign
   RECURSIVE INTEGER FUNCTION rec_arc_type(obs,obsw,m,geoc_chi,acce_chi, &
-&                        chi,nig,fail_flag) RESULT(nat) 
+&                        chi,nig,fail_flag,eta) RESULT(nat) 
 ! =========OBSERVATIONS ==========================================
     INTEGER, INTENT(IN) ::  m              ! observations number
     TYPE(ast_obs), INTENT(IN) :: obs(m)    ! supposed sorted by time
@@ -270,16 +277,20 @@ CONTAINS
 ! =========OUTPUT=================================================
     INTEGER, INTENT(OUT) :: nig,fail_flag  ! no nights,failure in recursion
     DOUBLE PRECISION, INTENT(OUT) :: geoc_chi, acce_chi, chi
+    DOUBLE PRECISION, INTENT(OUT), OPTIONAL :: eta ! proper motion
 ! ================================================================
     TYPE(attrib) att
     LOGICAl error, sign_curv, bad_fit
-    DOUBLE PRECISION gap, tgap 
+    DOUBLE PRECISION gap, tgap, eta0
     DOUBLE PRECISION :: geoc_chi1, acce_chi1, chi1,geoc_chi2, acce_chi2,chi2
     DOUBLE PRECISION, PARAMETER :: arc_min=2.1d-2 ! 30 min minimum
     DOUBLE PRECISION, PARAMETER :: sph_min=2.9d-4 ! 1 arcmin minimum
     INTEGER mgap,n1,n2,fail_flag1,fail_flag2,nig1,nig2,nights
 ! ================================================================
     CALL attri_comp(m, obs, obsw, att, error) !WARNING: rejected obs???
+    IF(PRESENT(eta))THEN
+       eta=att%eta
+    ENDIF
     IF(error)THEN
        WRITE(ierrou,*) '***rec_arc_type: error from attri_comp, m=', m
        numerr=numerr+1
@@ -300,8 +311,8 @@ CONTAINS
           CALL split_by_gap(obs(1:m)%time_tdt, m, gap, mgap, tgap)
 !          WRITE(*,*)' rec_arc_type: m,mgap,gap,ngap ',m,mgap,gap,ngap
           IF(ngap.ge.ngapx)THEN
-             WRITE(ierrou,*)' rec_arc_type: too many split ngap=',ngap
-             numerr=numerr+1
+!             WRITE(ierrou,*)' rec_arc_type: too many split ngap=',ngap
+!             numerr=numerr+1
              nat=1
              fail_flag=3000
           ELSE
@@ -309,7 +320,7 @@ CONTAINS
              tgapv(ngap)=tgap
           ENDIF
           IF(mgap.gt.2)THEN
-             n1=rec_arc_type(obs(1:mgap),obsw(1:mgap),mgap,geoc_chi1,acce_chi1,chi1,nig1,fail_flag1)
+             n1=rec_arc_type(obs(1:mgap),obsw(1:mgap),mgap,geoc_chi1,acce_chi1,chi1,nig1,fail_flag1,eta0)
           ELSEIF(mgap.gt.0)THEN
              n1=1
              nig1=nights(mgap,obs(1:mgap),obsw(1:mgap))
@@ -320,7 +331,7 @@ CONTAINS
              fail_flag=7
           ENDIF
           IF(m-mgap.gt.2)THEN
-             n2=rec_arc_type(obs(mgap+1:m),obsw(mgap+1:m),m-mgap,geoc_chi2,acce_chi2,chi2,nig2,fail_flag2)
+             n2=rec_arc_type(obs(mgap+1:m),obsw(mgap+1:m),m-mgap,geoc_chi2,acce_chi2,chi2,nig2,fail_flag2,eta0)
           ELSE
              n2=1
              nig2=nights(m-mgap,obs(mgap+1:m),obsw(mgap+1:m))

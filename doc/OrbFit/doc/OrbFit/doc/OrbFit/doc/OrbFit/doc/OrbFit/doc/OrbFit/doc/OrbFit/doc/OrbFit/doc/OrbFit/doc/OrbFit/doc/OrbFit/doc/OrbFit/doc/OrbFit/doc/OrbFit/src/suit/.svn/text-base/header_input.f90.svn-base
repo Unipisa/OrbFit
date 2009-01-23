@@ -887,12 +887,14 @@
 ! ====================================================
 SUBROUTINE initopt(progna0,run0,suffix)  
   IMPLICIT NONE
+  INCLUDE 'comlib.h90' 
+
   CHARACTER*6,INTENT(IN) :: progna0 
   CHARACTER*80,INTENT(IN) :: run0  
   CHARACTER*3, INTENT(IN) :: suffix
   CHARACTER*6 progna
   character*80 run
-  character*120 file 
+  character*120 file, nam1 
   integer iunit,lerun,le
   LOGICAL found
 ! read option for propagator                                            
@@ -906,10 +908,14 @@ SUBROUTINE initopt(progna0,run0,suffix)
   progna=progna0                                       
   call rmsp(progna,le) 
 ! default options for progna   
-  file=progna(1:le)//'.'//'.def' 
+  file=progna(1:le)//'.def' 
   INQUIRE(FILE=file,EXIST=found)
-  IF(found)THEN                        
-     CALL filopl(iunit,file) 
+  IF(.not.found)THEN
+     nam1=libdir(1:lenld)//file 
+     INQUIRE(FILE=nam1,EXIST=found)
+  ENDIF
+  IF(found)THEN
+     CALL filopl(iunit,file(1:le+4)) 
      CALL rdnam(iunit) 
      CALL filclo(iunit,' ')
   ENDIF
@@ -1136,8 +1142,4 @@ END SUBROUTINE input_log_opt
       CALL rmsp(run,le) 
       file=run(1:le)//'.mou' 
       call filopn(iun20,file,'UNKNOWN') 
-! =============================                                         
-! read option for physical model and integration method                 
-!     CALL rmodel                                                  
-! ====================================================                  
       END SUBROUTINE trivopt                                          

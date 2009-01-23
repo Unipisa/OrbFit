@@ -1,14 +1,14 @@
-8
+9
 
 dir
-50
+105
 file:///home/orbfit/orbfit_subv/trunk/tests
 file:///home/orbfit/orbfit_subv
 
 
 
-2008-02-14T16:20:33.684458Z
-17
+2009-01-09T12:08:59.413030Z
+105
 orbfit_amc
 
 
@@ -47,6 +47,9 @@ dir
 orbit9
 dir
 
+debris
+dir
+
 lostPHAs
 dir
 
@@ -56,9 +59,43 @@ file
 
 
 
-2008-04-04T16:39:18.000000Z
-ea38b77f5cfc156cb8affe4ac006c82c
-2007-12-24T17:00:34.975856Z
-1
-orbfit
+2008-12-23T11:15:24.000000Z
+a2975152bfb239fc57a6a45ccda4c70a
+2008-12-25T20:08:01.920971Z
+99
+orbfit_amc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+429
+
+README.tests
+file
+
+
+
+
+2008-12-18T14:04:31.000000Z
+080f5dd70d58eec95d1b0842c5660481
+2008-12-18T18:02:36.575954Z
+98
+orbfit_amc
 

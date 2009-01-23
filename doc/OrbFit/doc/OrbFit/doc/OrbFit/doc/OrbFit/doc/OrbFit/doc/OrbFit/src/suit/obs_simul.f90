@@ -46,7 +46,7 @@ SUBROUTINE obs_simul(type1,t1,tut,astnam,ids,rmssec,rmsmag,alpha,delta,hmagn,obs
 ! observation time 
   obs%time_utc=tut
   obs%time_tdt=t1
-  obs%acc_time=0.01d0
+  obs%acc_time=0.000001d0
 ! photometry
   IF(type1.eq.'O')THEN
      obs%mag=hmagn

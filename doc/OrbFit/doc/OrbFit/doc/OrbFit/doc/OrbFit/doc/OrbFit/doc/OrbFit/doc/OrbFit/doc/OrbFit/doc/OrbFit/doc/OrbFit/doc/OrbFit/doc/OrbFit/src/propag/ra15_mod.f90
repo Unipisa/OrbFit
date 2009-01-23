@@ -17,6 +17,7 @@
 !
 MODULE ra15_mod
 USE output_control
+USE fund_const
 IMPLICIT NONE
 PRIVATE
 !PUBLIC ROUTINES
@@ -60,6 +61,8 @@ CONTAINS
       SUBROUTINE ra15(x,v,tini,tfin,tcur,nv,nclass,idcend) 
       USE close_app
       USE force_model
+      USE force_sat
+      USE force9d
 ! =================INPUT============================                    
 ! initial and final time, current time at output                        
 ! (in case propagation is interrupted)                                  
@@ -81,9 +84,8 @@ CONTAINS
 ! =====================END INTERFACE===========================         
 ! total number of function calls                                        
       INTEGER nf 
-! state variables (WARNING: there is a fixed limit here!)               
-      INTEGER ndx,nvx 
-      PARAMETER (ndx=60,nvx=2*ndx) 
+! state variables (WARNING: there is a fixed limit here!)                
+      INTEGER, PARAMETER :: ndx=nvar2x,nvx=nvarx
 ! right hand side at begin/end of step                                  
       DOUBLE PRECISION f1(nvx) 
 ! memory control flag                                                   
@@ -217,7 +219,13 @@ CONTAINS
       tm=0.d0 
       ips=0 
       imem=1 
-      CALL force(x, v, tm+tini, f1,nv,idc,xpla,ips,imem) 
+      IF(rhs.eq.1)THEN
+         CALL force(x, v, tm+tini, f1,nv,idc,xpla,ips,imem)
+      ELSEIF(rhs.eq.2)THEN
+         CALL forcesat(x, v, tm+tini, f1,nv,idc,xpla,ips,imem)
+      ELSEIF(rhs.eq.3)THEN
+         CALL force9(x,v,tm+tini,f1,nv,idc,xpla,ips,imem) 
+      ENDIF 
       nf=nf+1 
 !                                                                       
  3000 CONTINUE 
@@ -364,16 +372,28 @@ CONTAINS
       idcend=idc 
       ips=0 
       imem=1 
-      CALL force(x,v,tm+tini,f1,nv,idc,xpla,ips,imem) 
+      IF(rhs.eq.1)THEN
+         CALL force(x,v,tm+tini,f1,nv,idc,xpla,ips,imem)
+      ELSEIF(rhs.eq.2)THEN
+         CALL forcesat(x,v,tm+tini,f1,nv,idc,xpla,ips,imem)
+      ELSEIF(rhs.eq.3)THEN
+         CALL force9(x,v,tm+tini,f1,nv,idc,xpla,ips,imem)
+      ENDIF
       nf=nf+1 
 ! ================================================================      
 ! close approach control                                                
       IF(iclap.eq.1)THEN 
 ! problem: if the integration begins inside a clsoe approach, then the f
 ! is done with variable stepsize; will the stepsize adjust automatically
-! to a value clsoe to the true-anomaly controlled one???                
-         CALL cloapp(tm+tini,t,x,v,nv,idc,xpla,xldir,dir,nes,cloend) 
-!         IF(cloend.and.variaz)THEN ! changed 18/2/2003 ********* 
+! to a value clsoe to the true-anomaly controlled one???   
+         IF(rhs.eq.1)THEN             
+            CALL cloapp(tm+tini,t,x,v,nv,idc,xpla,xldir,dir,nes,cloend) 
+         ELSEIF(rhs.eq.2)THEN
+! ???????????????????????????
+            STOP
+         ELSEIF(rhs.eq.3)THEN
+            CALL cloapp9(idc,tm+tini)
+         ENDIF
          IF(cloend)THEN
             tcur=tm+tini 
             return 
@@ -413,6 +433,8 @@ CONTAINS
 ! ================================================                      
       SUBROUTINE rasust(m,t,t2,tm,tini,x,v,b,f1,nv,ncl,npq,g,epsi,nf)
       USE force_model                                               
+      USE force_sat
+      USE force9d
       INTEGER,INTENT(IN) :: m ! iteration number 
       DOUBLE PRECISION epsi ! control to be used for convergence 
       INTEGER,INTENT(IN) :: nv ! dimension of state vector 
@@ -488,7 +510,13 @@ CONTAINS
              ips=-1 
           ENDIF 
           imem=j 
-          CALL force(y,z,tm+s*t+tini,fj,nv,idc,xpla,ips,imem) 
+          IF(rhs.eq.1)THEN
+             CALL force(y,z,tm+s*t+tini,fj,nv,idc,xpla,ips,imem)
+          ELSEIF(rhs.eq.2)THEN
+             CALL forcesat(y,z,tm+s*t+tini,fj,nv,idc,xpla,ips,imem)
+          ELSEIF(rhs.eq.3)THEN
+             CALL force9(y,z,tm+s*t+tini,fj,nv,idc,xpla,ips,imem)
+          ENDIF
           IF(deriv_safe)THEN
              nvv=nv
           ELSE
@@ -732,4 +760,22 @@ CONTAINS
    73 continue 
       return 
       END SUBROUTINE radcon            
+!=============================== 
+! CLOAPP9
+! close approach control for orbit9
+ SUBROUTINE cloapp9(idc,tt)
+   USE massmod
+   INTEGER, INTENT(IN) :: idc
+   DOUBLE PRECISION, INTENT(IN) :: tt
+   INCLUDE 'comnbo.h90'
+   INTEGER np,n
+   np=MOD(idc,nbod-1)
+   IF(np.eq.0) np=nbod-1
+   n=(idc-np)/(nbod-1)
+   if(idc.ne.0)then
+      write(*,*)'t =',tt,' close approach of ',ida(n),' to planet ',nompla(np)
+      write(iuncla,*)'t =',tt,' close approach of ',ida(n),' to planet ',nompla(np)
+   endif
+ END SUBROUTINE cloapp9
+
 END MODULE ra15_mod

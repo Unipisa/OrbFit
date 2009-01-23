@@ -35,12 +35,14 @@ INTEGER ilun,imerc,iplut,irel,icrel,iast,icast,iaber,istat, iclun
 PUBLIC iast ! for selast
 PUBLIC ilun,imerc,iplut,irel,iaber,istat,iclun ! for rmodel
 
+LOGICAL, PUBLIC :: sep_viol ! equivalence principle test
+DOUBLE PRECISION, PUBLIC ::  eta_sep ! value of violation paremeter
+
 LOGICAL velo_req ! velocity required from jpl_ephem, in force
 PUBLIC icrel,velo_req  !for vel_required (used from outside), control of istate
 
 ! control of close approach software
-INTEGER iclap,iorbfit ! close approach control (0=off), orbfit vers 9,11
-PUBLIC iclap,iorbfit
+INTEGER, PUBLIC :: iclap ! close approach control (0=off)
 
 ! radar quality of the orbit propagation
 LOGICAL radar
@@ -230,33 +232,37 @@ CONTAINS
 ! ===========================================================           
   SUBROUTINE force(x,v,t0,f,nd,idc,xxpla,ips,imem) 
     USE yark_pert
+    USE non_grav
 ! ======INPUT===================                                        
 ! dimension of position vector                                          
-    integer nd 
+    integer, intent(in) :: nd 
 ! Position, velocity,  time                                             
-    double precision x(nd), v(nd) ,t0 
+    double precision, intent(in) :: x(nd), v(nd) ,t0 
 ! flag for recomputation, memory location                               
-    INTEGER ips,imem 
+    INTEGER, INTENT(IN) :: ips,imem 
 ! ======OUTPUT===================                                       
 ! acceleration                                                          
-    double precision f(nd) 
+    double precision, intent(out) :: f(nd) 
 ! Positions and vel of the planet involved in  close-app                
 ! stored only if idc.ne.0                                               
-    integer idc 
-    double precision xxpla(6) 
+    integer, intent(out) :: idc 
+    double precision, intent(out) :: xxpla(6) 
 ! ======END INTERFACE==============   
 ! control of derivatives                                                
 !    integer ide 
 !    common/deriv/ide 
 ! ================================================
-    double precision r(nmassx), d(nmassx),rast ! Distances 
-    double precision derf(3,3),dfb(3,3),dfc(3,3) 
+    DOUBLE PRECISION r(nmassx), d(nmassx),rast ! Distances 
+    DOUBLE PRECISION derf(3,3),dfb(3,3),dfc(3,3) 
 ! Positions of the planets also vel.; space also for asteroids          
-    double precision xpla(6,nmassx)                 
-    double precision drgr(3,7),frel(3) ! Relativistic perturbations
-    double precision yarkv(21),yarkvs(21) ! Yarkovsky force, diurnal and seasonal
-    integer i,j,k,ir,ic ! loop indexes i=1,npla j=1,3
-    double precision sum,var1 ! scalar temporaries
+    DOUBLE PRECISION xpla(6,nmassx)                 
+    DOUBLE PRECISION drgr(3,7),frel(3) ! Relativistic perturbations
+    DOUBLE PRECISION yarkv(21),yarkvs(21) ! Yarkovsky force, diurnal and seasonal
+    DOUBLE PRECISION secacc(3) ! secular perturbation along the velocity
+    DOUBLE PRECISION nongrav(3) ! non gravitational forces from comet jets (Marsden model)
+    DOUBLE PRECISION, PARAMETER :: omega0=-3.52d-6 ! gravitational self energy of the Sun
+    INTEGER i,j,k,ir,ic ! loop indexes i=1,npla j=1,3
+    DOUBLE PRECISION sum,var1 ! scalar temporaries
 ! ===========================================================
 ! JPL ephemerides, and asteroid ephemerides if required                 
     CALL planast(t0,ips,imem,velo_req,xpla) 
@@ -309,7 +315,7 @@ CONTAINS
 !         enddo                                                         
 ! ===========================================================           
 ! yarkovsky effect, if required and data are available                   
-   if(iyark.ge.1.and.yarfil)then 
+   IF(iyark.ge.1.and.iyark.le.2.and.yarfil)THEN
       IF(.not.yarini)THEN 
          WRITE(*,*)' contradiction in non gravitational parameters' 
          WRITE(*,*)'iyark=',iyark,' yarfil=',yarfil,' yarini=',yarini 
@@ -319,18 +325,38 @@ CONTAINS
       call yarkdi(x,yarkv,iyarpt) 
       f(1:3)=f(1:3)+yarkv(1:3) 
 ! seasonal                                                              
-      if(iyark.gt.1)then 
+      if(iyark.eq.2)then 
          call yarkse(x,v,yarkvs,iyarpt) 
          f(1:3)=f(1:3)+yarkvs(1:3) 
       endif
       WRITE(22,122)t0,rast,yarkv(1:3),yarkvs(1:3)
 122   FORMAT(F15.7,1X,F12.8,1P,6(1X,D12.5))
-   endif
+   ELSEIF(iyark.eq.3)THEN
+      CALL secular_nongrav(x,v,secacc)
+      f(1:3)=f(1:3)+secacc*dadt
+   ENDIF
+! ===========================================================
+! Non gravitational contribution for comet like effects
+! Symmetric outgassing model from Marsden formalism (1973)
+! Asymmetric outgassing model from Yeomans and Chodas 1989
+! ===========================================================
+   IF(inongrav.eq.1) THEN
+      CALL comet_non_grav_symm(x,v,nongrav) ! Call to symmetric model
+      f(1:3)=f(1:3)+nongrav(1:3)
+   ENDIF
+   IF(inongrav.eq.2) THEN
+      CALL comet_non_grav_asymm(x,v,nongrav) ! Call to asymmetric model
+      f(1:3)=f(1:3)+nongrav(1:3)
+   ENDIF
 ! ===========================================================           
-! Computation of indirect force FI                                      
+! Computation of indirect force FI 
    DO i=1,nmass 
-      f(1:3)=f(1:3)-gm(i)/r(i)**3*xpla(1:3,i) 
-   ENDDO
+      IF(sep_viol)THEN
+         f(1:3)=f(1:3)-gm(i)/r(i)**3*xpla(1:3,i)*(1.d0+eta_sep*omega0)
+      ELSE
+         f(1:3)=f(1:3)-gm(i)/r(i)**3*xpla(1:3,i) 
+      ENDIF
+   ENDDO      
 ! ===========================================================           
 ! Adding planets-asteroid attractions                                   
    DO i=1,nmass 

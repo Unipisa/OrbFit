@@ -43,6 +43,7 @@ SUBROUTINE nomoid(t0,el0,moid,dnp,dnm)
   elea%coo='CAR'
   CALL earcar(t0,elea%coord,1)
 ! compute moid  
+!  WRITE(*,*) elea,el0
   CALL dmintil_rms(elea,el0,nummin,dmintil)
   moid=abs(dmintil(1)) 
 ! compute nodal distances

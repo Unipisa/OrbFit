@@ -548,7 +548,7 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
   INTEGER npo, ibv, npo1, npop 
   DOUBLE PRECISION sigma
   DOUBLE PRECISION :: aobs,dobs,adot,ddot ! alpha, delta, proper motion
-  DOUBLE PRECISION :: pha,dis,dsun,elo,gallat ! phase, dist. Earth, dist. Sun
+  DOUBLE PRECISION :: pha,dis,dsun,elo,gallat,gallon,elmoon,elev ! phase, dist. Earth, dist. Sun
   INTEGER  inl ! menu: handling of nonlinearity
   CHARACTER*20 menunam ! menu                                     
   CHARACTER*100 file,fields ! ephemerides output 
@@ -590,10 +590,10 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
      CALL predic_obs(el00,ids,t1,type1,             &
      &        alpha,delta,hmagn,inl,                                      &
      &        ADOT0=adot,DDOT0=ddot,PHA0=pha,DIS0=dis,                  &
-     &        DSUN0=dsun,ELO0=elo,GALLAT0=gallat)
+     &        DSUN0=dsun,ELO0=elo,GALLAT0=gallat,ELMOON0=elmoon,GALLON0=gallon,ELEV0=elev)
      IF(icov.eq.1)THEN
         CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
-     &     elo,dis,icov,gamad,sig,axes)
+     &     elo,dis,icov,gamad,sig,axes,elmoon,gallat,gallon,elev)
      ELSE
 ! add second arc, if not there
         IF(.not.obsp)THEN
@@ -644,9 +644,9 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
      &        alpha,delta,hmagn,inl,                                    &
      &        UNCERT=unc00,GAMAD=gamad,SIG=sig,AXES=axes,          &
      &        ADOT0=adot,DDOT0=ddot,PHA0=pha,DIS0=dis,                  &
-     &        DSUN0=dsun,ELO0=elo,GALLAT0=gallat)
+     &        DSUN0=dsun,ELO0=elo,GALLAT0=gallat,GALLON0=gallon,ELMOON0=elmoon,ELEV0=elev)
      CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
-     &     elo,dis,icov,gamad,sig,axes)                                 
+     &     elo,dis,icov,gamad,sig,axes,elmoon,gallat,gallon,elev)                                 
 ! ===================================================================   
 ! generation of sky epehemrides                                         
   ELSEIF(icov.eq.6)THEN 
@@ -663,7 +663,7 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
         file=astnam//'.eph' 
         CALL rmsp(file,ln) 
         CALL filopn(iuneph,file(1:ln),'unknown') 
-        fields='cal,mjd,coord,mag,elong,glat,r,delta,appmot,skyerr' 
+        fields='cal,mjd,coord,mag,elev,airm,elong,mooel,glat,glon,r,delta,appmot,skyerr' 
         scale='UTC' 
         CALL ephemc(iuneph,el00,unc00,.true.,t1,t2,dt,ids,scale,fields)
         CALL filclo(iuneph,' ') 
@@ -680,9 +680,9 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
      CALL predic_obs(el00,ids,t1,type1,             &
      &        alpha,delta,hmagn,inl,                                    &
      &        unc00,sigma,npo,ibv,gamad,sig,axes,npo1,                   &
-     &        adot,ddot,pha,dis,dsun,elo,gallat)
+     &        adot,ddot,pha,dis,dsun,elo,gallat,ELMOON0=elmoon,GALLON0=gallon,ELEV0=elev)
      CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
-     &        elo,dis,icov,gamad,sig,axes)                                 
+     &        elo,dis,icov,gamad,sig,axes,elmoon,gallat,gallon,elev)                             
      IF(npo1.le.0)THEN 
         WRITE(*,*)'fobpre: no elliptic orbits ',npo1 
         RETURN 

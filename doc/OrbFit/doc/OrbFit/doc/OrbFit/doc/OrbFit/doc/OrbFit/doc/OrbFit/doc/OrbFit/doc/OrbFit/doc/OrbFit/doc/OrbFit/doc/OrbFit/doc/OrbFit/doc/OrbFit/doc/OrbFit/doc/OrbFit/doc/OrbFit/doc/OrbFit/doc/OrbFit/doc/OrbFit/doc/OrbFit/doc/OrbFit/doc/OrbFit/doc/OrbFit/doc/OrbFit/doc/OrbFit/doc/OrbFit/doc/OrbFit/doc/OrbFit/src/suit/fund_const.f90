@@ -8,7 +8,9 @@ MODULE fund_const
 IMPLICIT NONE
 PUBLIC !all the fundamental constants are public and available anywhere in the code,
 ! by including the USE fund_const statement
-
+! Variable precision facility (double or quadruple precision)
+INTEGER, PARAMETER :: dkind=KIND(1.0d0)
+INTEGER, PARAMETER :: qkind=KIND(1.0q0)
 ! Copyright (C) 1997 by A.Milani and M.Carpino
 ! Version: October 8, 1997
 ! gravitational  constant: units, mass of the Sun, day, AU
@@ -25,7 +27,7 @@ DOUBLE PRECISION, PARAMETER :: degrad=360.0d0/dpig           ! Degrees from radi
 DOUBLE PRECISION, PARAMETER :: secrad=3600.0d0/radeg         ! Arcseconds from radians
 DOUBLE PRECISION, PARAMETER :: radh=dpig/24.0d0              ! Radians from hours
 DOUBLE PRECISION, PARAMETER :: hrad=24.0d0/dpig              ! Hours from radians
-
+DOUBLE PRECISION, PARAMETER :: r_sun=6.96d5                  ! Radius of Sun in Km
 !the ones below need to be initialised from JPL ephemerides
 !  parameters initialized in read_ephem/trange
       double precision vlight,ckm !speed of light in current units, in AU/s and in km/s 
@@ -35,5 +37,8 @@ DOUBLE PRECISION, PARAMETER :: hrad=24.0d0/dpig              ! Hours from radian
 
 ! DATA: matrices of standard rotations
 DOUBLE PRECISION, DIMENSION(3,3), PUBLIC :: roteqec,roteceq
+
+! selection of right hand side
+INTEGER, PUBLIC :: rhs ! 1=force_model 2=force_sat 3=orbit9
 
 END MODULE fund_const

@@ -3,9 +3,13 @@ include modules.flags
 
 all: ../lib/libprop.a libmoid.a test_moid_rms.x
 
-PROP= propag_state.o force_model.o rmodel.o yark_pert.o \
+PROP= propag_state.o force_model.o rmodel.o yark_pert.o  non_grav.o \
         runge_kutta_gauss.o ra15_mod.o
-      
+
+SAT= force_sat.o spher_harm.o perturbations.o
+
+ORB9= force9d.o massmod.o
+
 CLOAP=  close_app.o tp_trace.o semi_linear.o shower_analysistp.o \
         ret_analysistp.o offlov_checktp.o eval_risk.o obssto.o virtual_impactor.o
 
@@ -33,8 +37,8 @@ MOIDRMS= dnod_amoid_rms_com.o
 libquamia:
 	cd quadp; make
 
-../lib/libprop.a: $(PROP) $(DIFCOR) $(PUB) $(CLOAP) $(ORBEL) libquamia
-	ar r ../lib/libprop.a $(PROP) $(DIFCOR) $(PUB) $(CLOAP) $(QUADP) $(ORBEL)
+../lib/libprop.a: $(PROP) $(DIFCOR) $(PUB) $(CLOAP) $(ORBEL) $(SAT) $(ORB9) libquamia
+	ar r ../lib/libprop.a $(PROP) $(DIFCOR) $(PUB) $(CLOAP) $(QUADP) $(ORBEL) $(SAT) $(ORB9)
 	$(RANLIB) ../lib/libprop.a
 
 libmoid.a: $(CDET) $(STATCOMP) $(MOIDRMS)

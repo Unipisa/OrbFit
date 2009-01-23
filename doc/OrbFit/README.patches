@@ -1,9 +1,9 @@
-DISTRIBUTION 3.5.1 (December 2007)
+DISTRIBUTION 4.0 (November 2008)
 
 It incorporates many new features, including:
 
 
-PATCHES TO DISTRIBUTION 3.5.1
+PATCHES TO DISTRIBUTION 4.0
 
 [these files should be included in every patch, to make sure the patch
 itself is well defined:]
@@ -15,3 +15,8 @@ itself is well defined:]
 ./README.workinprog
 ./src/vers.h
 ./notar
+./lib/OBSCODE.dat
+./lib/eopc04/eopc04.62-now
+./lib/astorb.rad
+
+

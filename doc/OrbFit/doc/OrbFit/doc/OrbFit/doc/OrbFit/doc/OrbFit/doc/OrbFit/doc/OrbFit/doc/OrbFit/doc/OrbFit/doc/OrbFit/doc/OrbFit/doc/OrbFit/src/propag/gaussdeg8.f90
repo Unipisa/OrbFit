@@ -31,6 +31,8 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
   USE fund_const
   USE orbit_elements
   USE output_control
+  USE planet_masses, ONLY: gmearth
+  USE force_sat, ONLY: eamoon_mass
   IMPLICIT NONE  
   INTEGER, INTENT(IN) ::  obscod(3) 
   DOUBLE PRECISION, INTENT(IN):: tobs(3),alpha(3),delta(3) 
@@ -50,15 +52,28 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
   DOUBLE PRECISION roots(8),r2m3 
   DOUBLE PRECISION gcap(3),crhom(3),rho(3),xp(3,3),vp(3),xv(6) ,tis2
   DOUBLE PRECISION l0,h0,coseps,sineps,vvv(3),vsize,r0
+  DOUBLE PRECISION rootgm
   INTEGER fail_flag ! for coordinate change
   TYPE(orbit_elem) elk 
   DOUBLE PRECISION ecc,q,energy
   LOGICAL accept8, ecc_cont
+  DOUBLE PRECISION vt(3,3) ! auxiliary for pvobs
 ! ===============================================================
   fail=.true. 
   msg=' ' 
   nroots=0 
   nsol=0 
+
+! assignement of rootgm
+  IF(rhs.eq.1)THEN
+     rootgm=gk
+  ELSEIF(rhs.EQ.2)THEN
+     CALL eamoon_mass
+     rootgm=gmearth**0.5d0
+  ELSE
+     WRITE(*,*) ' gaussdeg8: wrong rhs=', rhs
+     STOP
+  END IF
                                                                         
 ! COMPUTATION OF PRELIMINARY ORBIT                                      
 !                                                                       
@@ -70,7 +85,18 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
      esse0(3,k)=SIN(delta(k)) 
 ! Position of the observer xt(1:3,i) for time tobs(i)
      DO i=1,3 
-        CALL posobs(tobs(i),obscod(i),1,xt(1,i)) 
+        IF(rhs.EQ.1)THEN
+! heliocentric ecliptic observer position 
+           CALL posobs(tobs(i),obscod(i),1,xt(1:3,i))
+        ELSEIF(rhs.EQ.2)THEN
+! geocentric ecliptic observer position
+           CALL observer_position(tobs(i),xt(1:3,i),vt(1:3,i),obscod(i),PRECISION=2) 
+! conversion to equatorial
+           xt(1:3,i)=MATMUL(roteceq,xt(1:3,i))
+           vt(1:3,i)=MATMUL(roteceq,vt(1:3,i))
+        ELSE
+           STOP
+        END IF
      END DO
   END DO
 ! Inverse of ESSE matrix                                                
@@ -82,8 +108,8 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
   END IF
   tis2=tobs(2) 
 ! A and B vectors                                                       
-  tau1=gk*(tobs(1)-tis2) ! mu*t_12
-  tau3=gk*(tobs(3)-tis2) ! mu*t_32
+  tau1=rootgm*(tobs(1)-tis2) ! mu*t_12
+  tau3=rootgm*(tobs(3)-tis2) ! mu*t_32
   tau13=tau3-tau1        ! mu*t_31
   a(1)= tau3/tau13       
   a(2)=-1.d0 
@@ -172,10 +198,18 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
      ENDIF
 ! Gibbs' transformation, giving the velocity of the planet at the       
 ! time of second observation
-     CALL gibbs(xp,tau1,tau3,vp,gk) 
+     CALL gibbs(xp,tau1,tau3,vp,rootgm) 
+     IF(rhs.EQ.1)THEN
 ! conversion to ecliptic coordinates
-     xv(1:3)=MATMUL(roteqec,xp(1:3,2))
-     xv(4:6)=MATMUL(roteqec,vp)
+        xv(1:3)=MATMUL(roteqec,xp(1:3,2))
+        xv(4:6)=MATMUL(roteqec,vp)
+     ELSEIF(rhs.eq.2)THEN
+! no need of conversion
+        xv(1:3)=xp(1:3,2)
+        xv(4:6)=vp
+     ELSE
+        STOP
+     END IF
 ! hyperbolic control
      accept8=ecc_cont(xp(1:3,2),vp,gms,ecc_max,q_max,ecc,q,energy)
      IF(accept8)THEN
@@ -188,6 +222,13 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
      ENDIF  
 ! Orbital elements of preliminary orbit                                 
      el(nsol)=undefined_orbit_elem
+     IF(rhs.eq.1)THEN
+        el(nsol)%center=0
+     ELSEIF(rhs.EQ.2)THEN
+        el(nsol)%center=3
+     ELSE
+        STOP
+     END IF
      el(nsol)%coord=xv
      el(nsol)%coo='CAR'
 ! planetary aberration 

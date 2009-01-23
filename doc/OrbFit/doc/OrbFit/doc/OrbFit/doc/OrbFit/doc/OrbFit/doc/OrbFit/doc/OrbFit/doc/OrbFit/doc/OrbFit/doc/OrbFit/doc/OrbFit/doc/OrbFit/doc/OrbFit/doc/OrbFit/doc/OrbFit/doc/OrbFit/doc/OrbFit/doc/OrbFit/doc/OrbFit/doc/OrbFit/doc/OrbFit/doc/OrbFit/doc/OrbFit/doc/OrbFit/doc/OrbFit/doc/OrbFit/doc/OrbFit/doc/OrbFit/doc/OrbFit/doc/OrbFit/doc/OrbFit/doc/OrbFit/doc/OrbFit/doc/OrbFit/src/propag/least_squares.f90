@@ -47,7 +47,7 @@
 !	pred_obs.o 
  
 MODULE least_squares
-USE fund_const
+USE fund_const, ONLY: degrad
 USE astrometric_observations
 USE orbit_elements
 USE output_control
@@ -1981,7 +1981,7 @@ END SUBROUTINE blockdef
 ! indexes                                         
       integer ii,kk,ibk,j,jj,jj2
 ! input times 
-      double precision toss(noss)
+      double precision toss(nobx)
 !      sorting indexes for increasing time, for inverse map
       integer iposs(nobx),iposs3(nobx)
 !****************                                                       
@@ -3498,7 +3498,7 @@ end subroutine outcov
 !                sdir  = sigma                                          
 ! ============ INTERFACE====================                            
 SUBROUTINE weak_dir(gamma,wdir,sdir,iun8,coo,coord,units) 
-  USE fund_const
+  USE fund_const, ONLY: dpig, pig, gk, rhs
   USE least_squares
   IMPLICIT NONE 
   DOUBLE PRECISION, DIMENSION(6,6), INTENT(IN) :: gamma
@@ -3578,8 +3578,16 @@ CONTAINS
 !  DOUBLE PRECISION, DIMENSION(6), INTENT(IN) :: coord  
 !  DOUBLE PRECISION, DIMENSION(6), INTENT(OUT) ::  scales
 !==================END INTERFACE====================================
-    DOUBLE PRECISION :: r,v, units(6)
+    DOUBLE PRECISION :: r,v, units(6), newgk
     INTEGER :: fail_flag
+    IF(rhs.eq.1)THEN
+       newgk=gk
+    ELSEIF(rhs.eq.2)THEN
+       newgk=dpig*1.00273790934d0
+    ELSE
+       WRITE(*,*)'scale_coeff: not supported rhs=', rhs
+       STOP
+    ENDIF
     IF(coo.eq.'EQU')THEN
        units(1)=coord(1)   ! a:semimajor axis
        units(2:5)=1
@@ -3604,17 +3612,17 @@ CONTAINS
        IF(coo.eq.'COM')THEN
 ! T: period T=2pi*sqrt(a^3/gm)....a=q/(1-e) SINGULAR for e=1
 !     units(6)=dpig*sqrt(((coord(1)**3)/(1-coord(2))**3)/gms)    
-          units(6)=dpig/gk*sqrt(coord(1)**3)/sqrt(1+coord(2)) !WARNING changed sign
+          units(6)=dpig/newgk*sqrt(coord(1)**3)/sqrt(1+coord(2)) !WARNING changed sign
        ELSEIF(coo.eq.'COT')THEN
           units(6)=dpig
        ENDIF
     ELSEIF(coo.eq.'ATT')THEN
        units(1)=dpig
        units(2)=pig
-       units(3)=gk
-       units(4)=gk
+       units(3)=newgk
+       units(4)=newgk
        units(5)=1.d0
-       units(6)=gk
+       units(6)=newgk
     ELSE
        WRITE(*,*)' scale_coef: coordinates ', coo, ' not known '
        STOP

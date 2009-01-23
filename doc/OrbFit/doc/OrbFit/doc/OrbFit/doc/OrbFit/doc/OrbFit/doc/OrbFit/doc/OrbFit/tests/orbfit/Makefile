@@ -8,7 +8,7 @@ OK:  1996RO13_gauss.oel 1996RO13_diffcor.oel 1996RO13_ephem1.oep \
 distclean: clean
 
 clean:
-	rm -f *.pro *.clo *.odc *.oel *.olg *.oep *.rwo *~ reject.rep
+	rm -f *.pro *.clo *.odc *.oel *.olg *.oep *.rwo *~ reject.rep *.err
 
 4067.oel: 4067.obs ../../src/orbfit/orbfit.x
 	echo 4067 | ../../src/orbfit/orbfit.x

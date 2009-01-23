@@ -51,6 +51,7 @@ dnod_amoid_rms_com.o: \
 
 ephem_prop.o: \
 	../suit/fund_const.mod \
+	close_app.o \
 	orbit_elements.o \
 	pred_obs.o \
 	propag_state.o 
@@ -64,18 +65,34 @@ fitsubs.o: \
 	../suit/util_suit.mod \
 	orbit_elements.o 
 
+force9d.o: \
+	../include/comnbo.h90 \
+	../suit/planet_masses.mod \
+	massmod.o 
+
 force_model.o: \
 	../include/jplhdr.h90 \
 	../suit/fund_const.mod \
 	../suit/name_rules.mod \
 	../suit/planet_masses.mod \
 	force_model.o \
+	non_grav.o \
 	yark_pert.o 
+
+force_sat.o: \
+	../include/jplhdr.h90 \
+	../suit/fund_const.mod \
+	../suit/iers_ser.mod \
+	../suit/planet_masses.mod \
+	perturbations.o \
+	spher_harm.o 
 
 gaussdeg8.o: \
 	../suit/fund_const.mod \
 	../suit/output_control.mod \
+	../suit/planet_masses.mod \
 	../suit/reference_systems.mod \
+	force_sat.o \
 	orbit_elements.o 
 
 laplace_poincare.o: \
@@ -125,6 +142,10 @@ multiple_sol.o: \
 	propag_state.o \
 	tp_trace.o 
 
+non_grav.o: \
+	../suit/ever_pitkin.mod \
+	../suit/fund_const.mod 
+
 obs_correl.o: \
 	../suit/astrometric_observations.mod \
 	../suit/fund_const.mod \
@@ -163,6 +184,12 @@ orbit_elements.o: \
 	../suit/reference_systems.mod \
 	../suit/station_coordinates.mod 
 
+perturbations.o: \
+	../include/jplhdr.h90 \
+	../suit/fund_const.mod \
+	../suit/output_control.mod \
+	../suit/planet_masses.mod 
+
 plocbd.o: \
 	../suit/fund_const.mod \
 	../suit/util_suit.mod 
@@ -181,13 +208,17 @@ pred_obs.o: \
 	propag_state.o 
 
 propag_state.o: \
+	../include/comnbo.h90 \
 	../include/nvarx.h90 \
 	../suit/ever_pitkin.mod \
 	../suit/fund_const.mod \
 	../suit/output_control.mod \
 	../suit/planet_masses.mod \
 	close_app.o \
+	force9d.o \
 	force_model.o \
+	force_sat.o \
+	massmod.o \
 	orbit_elements.o \
 	propag_state.o \
 	ra15_mod.o \
@@ -195,10 +226,15 @@ propag_state.o: \
 	tp_trace.o 
 
 ra15_mod.o: \
+	../include/comnbo.h90 \
 	../include/nvarx.h90 \
+	../suit/fund_const.mod \
 	../suit/output_control.mod \
 	close_app.o \
-	force_model.o 
+	force9d.o \
+	force_model.o \
+	force_sat.o \
+	massmod.o 
 
 ret_analysistp.o: \
 	../suit/fund_const.mod \
@@ -220,8 +256,12 @@ rmodel.o: \
 	../suit/reference_systems.mod \
 	close_app.o \
 	force_model.o \
+	force_sat.o \
 	least_squares.o \
+	non_grav.o \
+	perturbations.o \
 	propag_state.o \
+	spher_harm.o \
 	tp_trace.o \
 	yark_pert.o 
 
@@ -233,9 +273,12 @@ rms_twobody.o: \
 
 runge_kutta_gauss.o: \
 	../include/nvarx.h90 \
+	../suit/fund_const.mod \
 	../suit/output_control.mod \
 	../suit/planet_masses.mod \
-	force_model.o 
+	force9d.o \
+	force_model.o \
+	force_sat.o 
 
 semi_linear.o: \
 	../suit/fund_const.mod \
@@ -249,6 +292,11 @@ shower_analysistp.o: \
 solvpoly.o: \
 	../suit/output_control.mod \
 	critical_points.o 
+
+spher_harm.o: \
+	../suit/fund_const.mod \
+	../suit/output_control.mod \
+	../suit/planet_masses.mod 
 
 test_moid_rms.o: \
 	../suit/fund_const.mod \

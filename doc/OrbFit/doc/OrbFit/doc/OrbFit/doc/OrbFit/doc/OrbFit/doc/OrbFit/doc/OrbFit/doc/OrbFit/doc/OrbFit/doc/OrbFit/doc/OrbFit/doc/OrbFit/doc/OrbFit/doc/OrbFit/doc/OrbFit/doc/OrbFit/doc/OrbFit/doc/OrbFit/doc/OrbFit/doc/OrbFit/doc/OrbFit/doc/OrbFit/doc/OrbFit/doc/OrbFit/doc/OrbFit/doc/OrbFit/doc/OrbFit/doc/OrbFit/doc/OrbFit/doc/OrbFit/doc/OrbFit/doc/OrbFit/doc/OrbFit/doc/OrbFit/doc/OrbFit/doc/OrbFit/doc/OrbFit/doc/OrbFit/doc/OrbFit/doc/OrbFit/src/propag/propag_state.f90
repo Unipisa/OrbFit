@@ -50,15 +50,15 @@ IMPLICIT NONE
 PRIVATE
 
 ! public routines
-PUBLIC pro_ele, propag, inipro, clo_test
+PUBLIC pro_ele, propag, inipro, clo_test, intein, propin
+
 ! PUBLIC DATA
 ! to force restart anyway
-LOGICAL restar 
-PUBLIC restar
+LOGICAL, PUBLIC :: restar 
+
 ! fix to be able to force step submultiple of output interval
-LOGICAL fix_mul_step 
-DOUBLE PRECISION integration_step
-PUBLIC fix_mul_step, integration_step
+LOGICAL, PUBLIC :: fix_mul_step 
+DOUBLE PRECISION, PUBLIC :: integration_step
     
 ! common to the module, but private
 
@@ -69,6 +69,7 @@ INTEGER, PARAMETER :: itmaxx = 50 ! must be larger than all itmax's
 ! former comint  header
 ! controls for numerical integration: multistep only
 DOUBLE PRECISION hms,deltos,error,epms,hmax_me
+PUBLIC hms
 INTEGER mms,imet,iusci,icmet
 !   multistep coefficients: values computed from the beginning
 DOUBLE PRECISION c_ms0(mmax+1),f_ms0(mmax+1),b_ms0(mmax+1),a_ms0(mmax+1)
@@ -196,10 +197,12 @@ END SUBROUTINE pro_ele
 ! ================INTERFACE===========================================  
 SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
   USE force_model
+  USE force_sat
   USE orbit_elements
   USE fund_const
   USE ever_pitkin, ONLY: fser_propag,fser_propag_der
   USE close_app, ONLY: kill_propag
+  USE planet_masses, ONLY: gmearth
 ! ===============INPUT==============================
 ! elements, including epoch, target epoch (MJD)      
   TYPE(orbit_elem),INTENT(IN) :: el
@@ -242,6 +245,7 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
 ! stepsize: as given by selste, maximum alowed, current, previous  
   double precision hgiv,hmax,h,hs 
   double precision ecc,q,qg,enne ! eccentricity, perielion, aphelion, m.mot 
+  DOUBLE PRECISION gmcur ! current central body mass (depends upon rhs)
 ! =============       
 ! integers for dimensions       
   integer nv,nv1,nvar,nvar2 
@@ -269,12 +273,24 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
      t1=el%t
      ider0=-1
 ! masses, distance control and so on needed the first time    
-     call masjpl 
+     IF(rhs.eq.1)THEN
+        CALL masjpl
+     ELSEIF(rhs.eq.2)THEN
+        CALL eamoon_mass
+     ELSEIF(rhs.eq.3)THEN
+! should have been done by input9
+     END IF
   endif
 ! ===================================================================== 
 ! JPL Earth vector at observation time   
   IF(t2.ne.t2old)THEN 
-     CALL earcar(t2,xea1,1)
+     IF(rhs.eq.1)THEN
+        CALL earcar(t2,xea1,1)
+     ELSEIF(rhs.eq.2)THEN
+        xea1=0.d0
+     ELSEIF(rhs.eq.3)THEN
+        xea1=0.d0 ! not used 
+     ENDIF
      t2old=t2
   ENDIF
   xea=xea1  
@@ -285,10 +301,17 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
      twobo1=.false.
   ENDIF
   IF(twobo1)THEN
+     IF(rhs.eq.1)THEN
+        gmcur=gms
+     ELSEIF(rhs.eq.2)THEN
+        gmcur=gmearth
+     ELSEIF(rhs.eq.3)THEN
+        gmcur=gms ! not used
+     ENDIF
 ! two body propagation  
      IF(el%coo.eq.'EQU')THEN
 ! use old style 2-body propagator with Kepler's equation
-        call prop2b(el%t,el%coord,t2,xast,gms,ider,dxde,ddxde) 
+        call prop2b(el%t,el%coord,t2,xast,gmcur,ider,dxde,ddxde) 
         RETURN
      ELSEIF(el%coo.eq.'CAR')THEN
 ! ready for f-g series propagation
@@ -312,9 +335,9 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
      ENDIF
 ! f-g series propagation
      IF(ider.eq.0)THEN
-        CALL fser_propag(el%coord(1:3),el%coord(4:6),el%t,t2,gms,xast(1:3),xast(4:6))
+        CALL fser_propag(el%coord(1:3),el%coord(4:6),el%t,t2,gmcur,xast(1:3),xast(4:6))
      ELSE
-        CALL fser_propag_der(el%coord(1:3),el%coord(4:6),el%t,t2,gms,xast(1:3),xast(4:6),dxdx)
+        CALL fser_propag_der(el%coord(1:3),el%coord(4:6),el%t,t2,gmcur,xast(1:3),xast(4:6),dxdx)
         dxde=MATMUL(dxdx,dxda)
      ENDIF
      RETURN
@@ -331,27 +354,51 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
 ! ===================================================================== 
 ! Compute asteroid cartesian elements at epoch time
      CALL coo_cha(el,'CAR',elcar,fail_flag,dx0de)
-!     CALL prop2b(el%t,el%coord,el%t,xast,gms,1,dx0de,ddxde)
+!     CALL prop2b(el%t,el%coord,el%t,xast,gmcur,1,dx0de,ddxde)
 !  need new clotest using coo_cha
      CALL clo_test(elcar,iplamloc) 
      elsave=el 
      ider0=ider
 ! ===================================================================== 
-! choices about integration method and stepsize  
-     CALL ecc_peri(el,ecc,q,qg,enne)  
+! choices about integration method and stepsize
+     IF(rhs.eq.1)THEN  
+        CALL ecc_peri(el,ecc,q,qg,enne)
+     ELSEIF(rhs.eq.2)THEN
+        CALL ecc_peri(el,ecc,q,qg,enne) 
+     ELSEIF(rhs.eq.3)THEN
+! WARNING: automatic choice of method/dynamical model not supported in ORBIT9
+        WRITE(*,*)'propag: ORBIT9 not supported here '
+        STOP
+     ENDIF
      if(imet.eq.0) then 
 ! automatical choice of numerical integration method 
 ! logic must be: if e<<1 we can use multistep, otherwise always ra15
 ! but we use q and Q and e and a in selmet, thus new selmet is needed
-        call sel_met(ecc,q,qg,hmax) 
+        IF(rhs.eq.1)THEN
+           call sel_met(ecc,q,qg,hmax)
+        ELSEIF(rhs.eq.2)THEN
+           call sel_met_sat(ecc,q,qg,hmax)
+        ELSEIF(rhs.eq.3)THEN
+! WARNING: automatic choice of method/dynamical model not supported in ORBIT9
+           WRITE(*,*)'propag: ORBIT9 not supported here '
+           STOP
+        END IF
      else 
         icmet=imet 
         icrel=irel
      endif
 ! read masses from JPL header (stored in a module)         
 ! alignement of masses might have changed, because of different list of 
-! asteroids (to avoid self perturbation)  
-     call masjpl    
+! asteroids (to avoid self perturbation) 
+     IF(rhs.eq.1)THEN 
+        CALL masjpl    
+     ELSEIF(rhs.eq.2)THEN
+        CALL eamoon_mass
+     ELSEIF(rhs.eq.3)THEN
+! WARNING: automatic choice of method/dynamical model not supported in ORBIT9
+        WRITE(*,*)'propag: ORBIT9 not supported here '
+        STOP 
+     ENDIF
 ! control if both position and vel. are needed in dpleph      
      if(icmet.eq.3.and.iclap.eq.1) then 
         velo_req=.true. 
@@ -588,6 +635,192 @@ SUBROUTINE inipro
      b_ms(j+mms+1)=b_ms0(j)    
   enddo
 END SUBROUTINE inipro
+! *****************************************************                 
+!  INTEIN initialisation of the  propagator                             
+!  version for propin9c, with automatic stepsize control                
+! *****************************************************                 
+SUBROUTINE intein(iun,dtin,aa,enne,ecc,norb,norbx)
+  USE runge_kutta_gauss
+  USE ra15_mod
+  INTEGER, INTENT(IN) :: iun, norb, norbx ! option unit, no. bodies, max
+! filter input delta t, mean motion, semimajor axis, eccentricity 
+  DOUBLE PRECISION, INTENT(IN):: dtin,enne(norbx),aa(norbx),ecc(norbx)
+! END INTERFACE 
+  double precision step(norbx),z(norbx),err(norbx) 
+! output units 
+! include 'proout.h' 
+  character*1 cc 
+!                                                                  
+  integer iauto,nn,j,nb,iork,isfl,iord,m 
+  double precision hh,hhh,emin,econv,eps,sign,ee, hmax 
+  double precision roff 
+  INTEGER icha ! now dummy
+! *****************************************************                 
+!  options for numerical integration: input from options file           
+  read(iun,108)cc 
+108 format(a1) 
+! stepsize (either fixed or maximum)                                    
+  call reaflo(iun,'h',hmax) 
+!  h must go in the right direction - not here                          
+  if(hmax*dtin.lt.0.d0)hmax=-hmax 
+  hh=abs(hmax) 
+  sign=hmax/hh 
+!  precision for output times                                           
+  deltos=abs(hmax)/1.d5 
+!  options for automatic stepsize control                               
+  call reaint(iun,'iauto',iauto) 
+  call reaflo(iun,'error',error) 
+!  options:                                                             
+!  controllo metodi propagazione:                                       
+!           imet=1 (multistep) =2 (runge-kutta) =3 (everhart)           
+!    runge-kutta:                                                       
+!           isrk=ordine del runge-kutta (diviso 2)                      
+!           h=passo di integrazione                                     
+!           eprk=controllo di convergenza nell'equaz. implicita del rk  
+!           lit1,lit2=iterazioni di gauss-seidel al primo passo e dopo  
+!           iusci=flag uscita controlli numerici                        
+!    multistep:                                                         
+!           mms=ordine del multistep ('m-2' nell'art. Cel.Mech)         
+! nnnn      ipc=iteraz correttore; epms=controllo;                      
+!           iusci=flag uscita controlli numerici                        
+!    everhart:                                                          
+! nnnn      isrk=ordine (per ora solo 15)                               
+!           h=passo (fisso se ll.le.0)                                  
+!           ll=controllo e' 10**(-ll); se ll.gt.0, scelta automatica del
+! nnnn      iusci=flag uscita contr. num.; se iusci.ge.0, uscita passo c
+  call reaint(iun,'iord',iord) 
+  mms=iord-2 
+  call reaflo(iun,'epms',epms) 
+  call reaint(iun,'iork',iork) 
+  isrk=iork/2 
+  call reaflo(iun,'eprk',eprk) 
+  call reaint(iun,'lit1',lit1) 
+  call reaint(iun,'lit2',lit2) 
+  call reaint(iun,'imet',imet) 
+  IF(imet.le.0.or.imet.gt.3)THEN
+     WRITE(*,*)' intein: option not supported imet=', imet
+     STOP
+  ENDIF
+  icmet=imet
+  IF(imet.eq.3)THEN
+     hev=hmax
+     lit1_r=lit1
+     lit2_r=lit2
+     eprk_r=eprk
+  ENDIF
+  call reaint(iun,'iusci',iusci) 
+  call reaint(iun,'icha',icha) 
+  call reaint(iun,'ll',llev) 
+! ********************************************************************  
+!  find machine error; if the machine has statistically even (IEEE 754) 
+!  rounding off, the rounding off error will be of the order of eps     
+!  per revolution squared, or even less; otherwise, the rounding off    
+!  will be the dominant part of the error                               
+  eps=EPSILON(1.d0) 
+! ********************************************************************  
+!  input coefficients for Runge-Kutta                                   
+  if(imet.ne.3)then 
+     call legnum(isrk,isfl) 
+     if(isfl.ne.0)then 
+        write(9,997)isrk,isfl 
+997     format(' required isrk=',i4,'  found only up to ',i4) 
+        stop 
+     endif
+  endif
+! ********************************************************************  
+!   calcolo coefficienti multistep                                      
+!   cambio notazione-nell'input iord=m nell'art. cel.mech.              
+!   d'ora in poi m come in revtst, orbit8a                              
+!     write(9,*)iord                                                    
+  if(imet.eq.1)then 
+     m=mms 
+     if(m.gt.mmax)then 
+        write(9,998)m,mmax 
+998     format(' required m=',i4,' space only for ',i4) 
+        stop 998 
+     endif
+!   calcolo coefficienti predittore                                     
+!   c=Cow pred f=Cow corr b=Ad pred a=Ad corr                           
+!   warning: one order more than used, because c(m+2) is required       
+!   by the error formula                                                
+     call compco(m+2,c_ms0,f_ms0,b_ms0,a_ms0)
+ !  duplicazione per ridurre i calcoli di indici nel multistep 
+! this is useful only if sel_ste is not used
+     do  j=1,m+1 
+        c_ms(j)=c_ms0(j) 
+        f_ms(j)=f_ms0(j)
+        a_ms(j)=a_ms0(j) 
+        b_ms(j)=b_ms0(j)
+        c_ms(j+mms+1)=c_ms0(j) 
+        f_ms(j+mms+1)=f_ms0(j)
+        a_ms(j+mms+1)=a_ms0(j) 
+        b_ms(j+mms+1)=b_ms0(j)    
+     enddo
+     cerr=c_ms0(m+2) 
+! ***************************************************************       
+!  file header for                                                      
+!  numeric controls file (unit 10)                                      
+     ipirip=10 
+     open(ipirip,file='orb9.num',status='unknown') 
+     if(iusci.gt.0)then 
+        write(ipirip,113)hmax,iord,epms,iork,eprk,                   &
+     &           lit1,lit2,imet,iusci,icha                              
+113     format(' hmax=',f10.5,' iord=',i3,' epms=',1P,d12.4,0p,'iork=',i3,' eprk=',1P,d12.4/5i4)
+     endif
+! ********************************************************************  
+!  for each orbit, compute the truncation error in longitude            
+!  according to Milani and Nobili, 1988, Celest. Mech. 43, 1--34        
+!  and select a stepsize giving a truncation  error equivalent to       
+!  one roundoff per revolution squared (or to the value given in input) 
+! (the maximum is however held fixed at hh)                             
+     emin=0.05 
+     econv=1.d0 
+     write(9,*)' Selection of the best stepsize, maximum=',hmax
+     DO 10 j=1,norb 
+        ee=max(ecc(j),emin) 
+        call sel_ste(ee,enne(j),error,mms,hh,step(j)) 
+        write(9,109)j,step(j),aa(j),ecc(j) 
+109     format(' orbit no.',i3,' sugg.step=',f7.4,' a,e=',f6.3,f8.4) 
+10   ENDDO
+! ********************************************************************  
+!  now find the minimum for all orbits                                  
+     hhh=hh  ! =abs(hmax)
+     DO j=1,norb 
+        hhh=min(hhh,step(j)) 
+     ENDDO
+     if(iauto.gt.0)then 
+        hms=hhh*sign 
+        nn=dtin/hms+1 
+        hms=dtin/nn 
+        write(9,110)hhh,hms,nn 
+110     format(' min. step required ',f9.6,' selected ',f9.6,' nn=',i6) 
+     else 
+        write(9,111)hms 
+111     format(' fixed stepsize h=',d12.5) 
+     endif
+  endif
+! ********************************************************************  
+END SUBROUTINE intein
+
+
+
+! version 3.6.1 A. Milani D. Farnocchia Oct 2008  
+! =====================================================================      
+! *** SEL_MET_SAT ***
+! Choice of numerical integration method for satellite  
+! 
+! This routine is called from propag only if  imet=0
+! in 'namerun'.top.   
+!            INPUT: eccentricity, pericenter, apocenter 
+!            OUTPUT : icmet etc. stored in model.h  
+! ===================================================================== 
+SUBROUTINE sel_met_sat(ecc,q,qg,hmax)
+  USE force_model
+! satellite  eccentricity, perielion, aphelion 
+  DOUBLE PRECISION, INTENT(IN) :: ecc,q,qg 
+  DOUBLE PRECISION, INTENT(OUT) :: hmax
+  hmax=1.d0 
+END SUBROUTINE sel_met_sat
 ! version 3.1 A. Milani Aug 2003  
 ! =====================================================================      
 ! *** SEL_MET ***
@@ -774,13 +1007,15 @@ END SUBROUTINE sel_met
 SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de) 
   USE runge_kutta_gauss
   USE ra15_mod
-  USE tp_trace 
+  USE tp_trace, ONLY: str_clan
   USE force_model
+  USE force_sat
+  USE force9d
   USE close_app, ONLY: kill_propag,min_dist
 ! INPUT
   double precision, intent(inout) :: h ! times, stepsize
 ! derivatives of initial cartesian with respect to elements
-  DOUBLE PRECISION, INTENT(IN) :: dx0de(6,6)
+  DOUBLE PRECISION, INTENT(IN), OPTIONAL :: dx0de(6,6)
   integer, intent(in) ::  nfl ! restart control 
   integer, intent(in) ::  nvar! actual dimension of y1,y2
 ! INPUT/OUTPUT
@@ -852,45 +1087,51 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
      else 
         nclass=-2 
      endif
+     IF(PRESENT(dx0de))THEN
 ! accumulate state transition matrix      
-     IF(nvar.gt.6)THEN 
-        CALL vawrxv(y1,y1(nvar2+1),stm0,nvar2) 
-        CALL invaxv(y1,y1(nvar2+1),nvar2) 
+        IF(nvar.gt.6)THEN 
+           CALL vawrxv(y1,y1(nvar2+1),stm0,nvar2) 
+           CALL invaxv(y1,y1(nvar2+1),nvar2) 
+        ENDIF
      ENDIF
 666  CONTINUE 
      call ra15(y1,y1(nvar2+1),t1,t2,tcur,nvar2,nclass,idc) 
      IF(tcur.eq.t2)THEN 
 !  current time and state is the final one;         
-        IF(nvar.gt.6)THEN 
+        IF(PRESENT(dx0de))THEN
+           IF(nvar.gt.6)THEN 
 !  but the accumulated state    
 !  transition matrix stm0 has to be used: stmout=stm*stm0     
-           CALL vawrxv(y1,y1(nvar2+1),stm,nvar2) 
-           stmout=MATMUL(stm,stm0)  ! CALL mulmat(stm,6,6,stm0,6,6,stmout) 
-           CALL varunw(stmout,y1,y1(nvar2+1),nvar2) 
+              CALL vawrxv(y1,y1(nvar2+1),stm,nvar2) 
+              stmout=MATMUL(stm,stm0)  
+              CALL varunw(stmout,y1,y1(nvar2+1),nvar2) 
+           ENDIF
         ENDIF
         y2(1:nvar)=y1(1:nvar) 
         t1=t2 
-        return 
+        RETURN
      ELSE 
 ! write message      
 !       WRITE(*,*)'end close approach to planet',idc,tcur       
 ! propagation has been interrupted because of a close approach
-        IF(nvar.gt.6)THEN 
+        IF(PRESENT(dx0de))THEN
+           IF(nvar.gt.6)THEN 
 ! setup the close approach record with derivatives  
-           IF(min_dist) CALL str_clan(stm0,dx0de) 
+              IF(min_dist) CALL str_clan(stm0,dx0de) 
 ! multiply the accumulated state transition matrix          
-           CALL vawrxv(y1,y1(nvar2+1),stm,nvar2) 
-           stmout=MATMUL(stm,stm0) 
-           stm0=stmout
-           CALL invaxv(y1,y1(nvar2+1),nvar2) 
-        ELSE
+              CALL vawrxv(y1,y1(nvar2+1),stm,nvar2) 
+              stmout=MATMUL(stm,stm0) 
+              stm0=stmout
+              CALL invaxv(y1,y1(nvar2+1),nvar2)
+           ELSE
 ! setup the close approach record without derivatives
 !          WRITE(*,*)' calling str_clan, t=', tcur
-           IF(min_dist) CALL str_clan(stm0,dx0de)
-        ENDIF
-        IF(kill_propag)THEN
-           IF(verb_pro.gt.9) WRITE(*,*)' propin: returning because of kill_propag, t=',tcur
-           RETURN
+              IF(min_dist) CALL str_clan(stm0,dx0de)
+           ENDIF
+           IF(kill_propag)THEN
+              IF(verb_pro.gt.9) WRITE(*,*)' propin: returning because of kill_propag, t=',tcur
+              RETURN
+           ENDIF
         ENDIF
         t1=tcur 
         GOTO 666 
@@ -945,10 +1186,17 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
 24   continue 
 !  passo iniziale?      
      if(nrk.le.0)then 
-!  passo iniziale: store secondo membro         
-        call force(y1,y1(nvar2+1),t1,delta(1,m+1),nvar2,idc,xxpla,0,1) 
+!  passo iniziale: store secondo membro  
+        IF(rhs.eq.1)THEN       
+           CALL force(y1,y1(nvar2+1),t1,delta(1,m+1),nvar2,idc,xxpla,0,1)
 ! close approach control
-        CALL clocms(idc,t1,y1(1:3),y1(nvar2+1:nvar2+3),xxpla) 
+           CALL clocms(idc,t1,y1(1:3),y1(nvar2+1:nvar2+3),xxpla) 
+        ELSEIF(rhs.eq.2)THEN
+           CALL forcesat(y1,y1(nvar2+1),t1,delta(1,m+1),nvar2,idc,xxpla,0,1)
+        ELSEIF(rhs.eq.3)THEN
+           CALL force9(y1,y1(nvar2+1),t1,delta(1,m+1),nvar2,idc,xxpla,0,1) 
+           CALL clocms9(idc,t1)
+        ENDIF
 !  passo iniziale: inizializzazione di ck a zero
         ck=0.d0 
         lit=lit1 
@@ -959,8 +1207,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
          lit=lit2 
       endif
 !  un passo del rk      
-22    call rkimp(t1,h,y1,dery,ck,isrk,y2,lit,force,      &
-     &nvar,eprk,ep,lf,ndim)         
+22    call rkimp(t1,h,y1,dery,ck,isrk,y2,lit,nvar,eprk,ep,lf,ndim)
 !     WRITE(*,*)t1,h,npas,nrk,m
 !  controllo di avvenuta convergenza
       if(lf.le.0)then 
@@ -983,11 +1230,17 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
 1000     format(' npas',i6,' ep ',5d12.3/(5d12.3)) 
       endif
       if(icmet.lt.2)then 
-!  preparazione per il multistep    
-         call force(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,       &
-     &idc,xxpla,0,1)    
+!  preparazione per il multistep   
+         IF(rhs.eq.1)THEN       
+            CALL force(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,idc,xxpla,0,1)
 ! close approach control
-         CALL clocms(idc,t1,y1(1:3),y1(nvar2+1:nvar2+3),xxpla) 
+            CALL clocms(idc,t1,y1(1:3),y1(nvar2+1:nvar2+3),xxpla) 
+         ELSEIF(rhs.eq.2)THEN
+            CALL forcesat(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,idc,xxpla,0,1)
+         ELSEIF(rhs.eq.3)THEN
+            CALL force9(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,idc,xxpla,0,1) 
+            CALL clocms9(idc,t1)
+         ENDIF
 ! store in differences array        
          if(npas.eq.m)call catst(m,m+1,nvar2,nvar2x,nvar,delta,dd,y1,h,h2)
       endif
@@ -1000,7 +1253,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
       din=(t2-t1+sdelto)/h 
       nstep=din 
 !  propagazione per nstep passi     
-32    call bdnste(t1,y1,h,h2,nstep,m,j1,dd,delta,nvar2,nvar2x,nvar,force)
+32    call bdnste(t1,y1,h,h2,nstep,m,j1,dd,delta,nvar2,nvar2x,nvar)
 !  passo del ms adottato
       npas=npas+nstep 
       t1=t0+h*npas 
@@ -1025,7 +1278,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
          lit=lit1 
          epin=eprk 
          tint=t2-t1 
-94       call rkimp(t1,tint,y1,dery,ck2,isrk,y2,lit,force,nvar,epin,ep,lf,ndim)
+94       call rkimp(t1,tint,y1,dery,ck2,isrk,y2,lit,nvar,epin,ep,lf,ndim)
          if(lf.le.0)then 
 !  interpolatore impazzito          
             it=iabs(lf) 
@@ -1058,12 +1311,14 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
 !           j1=0,1 indice flip=flop per l'indirizzamento 
 !           delta=differenze; dd=somme    
 !           
- SUBROUTINE bdnste(t1,y1,h,h2,nstep,m,j1,dd,delta,nvar2,nvar2x,nvar,fct2)
-   USE force_model, ONLY: velo_req
+ SUBROUTINE bdnste(t1,y1,h,h2,nstep,m,j1,dd,delta,nvar2,nvar2x,nvar)
+   USE force_model, ONLY: velo_req, force
+   USE force_sat
+   USE force9d
    integer, intent(IN) :: nstep,m ! no. steps, order-2
    integer, intent(inout) :: j1 ! flipflop control, 
    double precision, intent(in) :: h,h2 ! stepsize
-   external fct2 ! name of right hand side
+!   external fct2 ! name of right hand side
 ! workspace
    integer, intent(IN) ::  nvar,nvar2,nvar2x 
    double precision, intent(inout) ::  delta(nvar2x,m2max),dd(nvar2x,4)
@@ -1150,10 +1405,16 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
       ENDIF                                           
 !   accelerazione nel nuovo punto       
       kj2p=kj2+1 
-      call fct2(y1,y1(nvar2+1),tt,delta(1,kj2p),nvar2,idc,xxpla,0,1) 
-! ==============================        
+      IF(rhs.eq.1)THEN       
+         CALL force(y1,y1(nvar2+1),tt,delta(1,kj2p),nvar2,idc,xxpla,0,1)
 ! close approach control
-      CALL clocms(idc,tt,y1(1:3),y1(nvar2+1:nvar2+3),xxpla) 
+         CALL clocms(idc,tt,y1(1:3),y1(nvar2+1:nvar2+3),xxpla) 
+      ELSEIF(rhs.eq.2)THEN
+         CALL forcesat(y1,y1(nvar2+1),tt,delta(1,kj2p),nvar2,idc,xxpla,0,1)
+      ELSEIF(rhs.eq.3)THEN
+         CALL force9(y1,y1(nvar2+1),tt,delta(1,kj2p),nvar2,idc,xxpla,0,1) 
+         CALL clocms9(idc,tt)
+      ENDIF
 ! ===============================       
 !   aggiornamento catasta               
       DO i=1,nvar2 
@@ -1191,7 +1452,13 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
 !           WRITE(*,199)'pred ',tt,ycmax,yvmax,h
 !   accelerazione nel nuovo punto       
             kj2p=kj2+1 
-            call fct2(yc,yc(nvar2+1),tt,delta(1,kj2p),nvar2,idc,xxpla,1,1) 
+            IF(rhs.eq.1)THEN       
+               CALL force(yc,yc(nvar2+1),tt,delta(1,kj2p),nvar2,idc,xxpla,1,1)
+            ELSEIF(rhs.eq.2)THEN
+               CALL forcesat(yc,yc(nvar2+1),tt,delta(1,kj2p),nvar2,idc,xxpla,1,1)
+            ELSEIF(rhs.eq.3)THEN
+               CALL force9(yc,yc(nvar2+1),tt,delta(1,kj2p),nvar2,idc,xxpla,1,1) 
+            ENDIF
 ! nuovo  aggiornamento catasta               
             DO i=1,nvar2 
                dd(i,in1)=dd(i,id1)+delta(i,kj2p) 
@@ -1336,12 +1603,29 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
    END SUBROUTINE compco_intrp
  END SUBROUTINE bdintrp
 !=============================== 
+! CLOCMS9
+! close approach control for orbit9
+ SUBROUTINE clocms9(idc,tt)
+   USE massmod
+   INTEGER, INTENT(IN) :: idc
+   DOUBLE PRECISION, INTENT(IN) :: tt
+   INCLUDE 'comnbo.h90'
+   INTEGER np,n
+   np=MOD(idc,nbod-1)
+   IF(np.eq.0) np=nbod-1
+   n=(idc-np)/(nbod-1)
+   if(idc.ne.0)then
+      write(*,*)'t =',tt,' close approach of ',ida(n),' to planet ',nompla(np)
+      write(iuncla,*)'t =',tt,' close approach of ',ida(n),' to planet ',nompla(np)
+   endif
+ END SUBROUTINE clocms9
+!=============================== 
 ! CLOCMS            
 ! close approach control         
  SUBROUTINE clocms(idc,tt,xa,va,xpla) 
    USE planet_masses
    USE close_app, ONLY : clost
-   USE force_model, ONLY: iclap,iorbfit,velo_req ! only for close app. control
+   USE force_model, ONLY: iclap,velo_req ! only for close app. control
    INTEGER,INTENT(IN):: idc ! current planet approached, if any
    DOUBLE PRECISION,INTENT(IN) :: tt,xpla(6),xa(3),va(3) ! time, 
 ! heliocentric position and velocity, planet pos-vel
@@ -1365,7 +1649,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
       velo_reqsave=velo_req
    ENDIF
    IF(iclap.eq.0)RETURN
-! separation of orb9/orb11 cases
+! separation of orb9/orb11 cases: WARNING: use rhs
 !      IF(iorbfit.eq.11)THEN 
 !      IF(idc.ne.0)THEN
 ! to be improved with a real safety feature   
@@ -1420,7 +1704,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
          velo_req=velo_reqsave ! reset velocity computation
       ENDIF
    ENDIF
-!      ELSEIF(iorbfit.eq.9)THEN 
+!      ELSEIF(iorbfit.eq.9)THEN  WARNING: use rhs
 !         if(idc.ne.0)then 
 !            write(*,*)'t =',tt,' close approach code=',idc 
 !            write(iuncla,*)'t =',tt,' close approach code =',idc 
@@ -1742,7 +2026,14 @@ SUBROUTINE clo_test(el0,iplanet,dist0)
 ! from planet_masses.mod mass of the sun from fund_const
 ! radius of the close approach sphere for the planets                   
 ! JPL Earth vector at observation time                                  
-  CALL earcar(el0%t,xea,1) 
+  IF(rhs.eq.1)THEN
+     CALL earcar(el0%t,xea,1)
+  ELSEIF(rhs.eq.2)THEN
+     xea=0.d0
+  ELSEIF(rhs.eq.3)THEN
+! should not happen
+     STOP
+  ENDIF 
 ! cartesian coordinates of the asteroid                                 
   CALL coo_cha(el0,'CAR',elcar,fail_flag) 
   xast=elcar%coord
@@ -1752,7 +2043,7 @@ SUBROUTINE clo_test(el0,iplanet,dist0)
      dist0=dist
   ENDIF
 ! test                                                                  
-  IF(dist.le.dmin(3))THEN 
+  IF(dist.le.dmea)THEN 
 !        WRITE(*,*)' clotest: warning! close approach to Earth'         
 !        WRITE(*,*)' at the initial epoch, dist=',dist                  
      iplanet=3

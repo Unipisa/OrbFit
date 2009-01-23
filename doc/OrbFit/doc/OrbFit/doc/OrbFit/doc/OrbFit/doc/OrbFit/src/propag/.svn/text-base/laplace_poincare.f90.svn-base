@@ -117,8 +117,8 @@ SUBROUTINE laplace_poincare(m,obs,obsw,el,nroots,nsol,rr,fail,msg,debug)
      rho=qe/C0*(h0-qe**3/roots(ir)**3)
      xp=qea(1:3)+qobs+rho*rhat
 ! missing equation for rhodot using att%etadot
-     rhodot=(-rho*att%etadot+gms*qhdvh/(2*att%eta*qe**2)*(1.d0-lambda_v-qe**3/roots(ir)**3))/(2*att%eta)
-     vp=qea(4:6)+qpobs+att%eta*vhat + rhodot*rhat               
+     rhodot=(-rho*att%etadot+gms*qhdvh/(qe**2)*(1.d0-lambda_v-qe**3/roots(ir)**3))/(2*att%eta)
+     vp=qea(4:6)+qpobs+rho*att%eta*vhat + rhodot*rhat               
 ! remove spurious root
      IF(rho.lt.0.01d0)THEN
         IF(debug)WRITE(*,*) ' spurious root , r, rho ',roots(ir),rho

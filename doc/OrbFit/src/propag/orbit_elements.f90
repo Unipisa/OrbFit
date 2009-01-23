@@ -66,7 +66,8 @@ TYPE(orbit_elem), PARAMETER :: undefined_orbit_elem = ORBIT_ELEM( &
 &     )  ! 
 
 TYPE orb_uncert
-! normal and covariance matrix (warning: covariance not full if not all solved)
+! normal and covariance matrix (warning: covariance not full if not 
+! all solved)
 DOUBLE PRECISION, DIMENSION(ndimx,ndimx):: c,g 
 ! norm of residuals, of last correction, RMS of magnitudes
 LOGICAL :: succ ! logical for success (convergent differential corrections)
@@ -86,11 +87,12 @@ TYPE(orb_uncert), PARAMETER :: undefined_orb_uncert= ORB_UNCERT( &
 
 TYPE orb_with_uncert
 TYPE(orbit_elem) :: orbit ! nominal orbit, solution of least squares
-TYPE(orb_uncert) :: uncertainty ! covaraiance matrix etc.
+TYPE(orb_uncert) :: uncertainty ! covariance matrix etc.
 END TYPE orb_with_uncert
 
 ! public entities
-PUBLIC orbit_elem,undefined_orbit_elem,orb_uncert,undefined_orb_uncert,ndimx, eccbou
+PUBLIC orbit_elem,undefined_orbit_elem,orb_uncert,undefined_orb_uncert
+PUBLIC ndimx, eccbou
 
 CONTAINS
 
@@ -122,13 +124,14 @@ TYPE(orbit_elem), INTENT(INOUT) :: y ! needed to allow for x=y
 INTEGER, INTENT(OUT) :: fail_flag ! see above
 ! partial derivatives \partial y/\partial x
 DOUBLE PRECISION, INTENT(OUT), OPTIONAL, DIMENSION(x%ndim,x%ndim) :: del 
-INTEGER, OPTIONAL, INTENT(IN) :: obscode ! output observer
+INTEGER, INTENT(IN), OPTIONAL :: obscode ! output observer
 INTEGER, INTENT(IN), OPTIONAL :: iplanet ! output center
 ! END INTERFACE
 TYPE(orbit_elem) z
 LOGICAL kepgr_in,kepgr_ou,cargr_in,cargr_ou,opposite, done
 CHARACTER*3 coox
-INTEGER ndim,obscod,planet
+! target_center is the output gravitational center
+INTEGER ndim,obscod,planet,target_center
 DOUBLE PRECISION, DIMENSION(x%ndim,x%ndim) :: del1,del2 
 
 done=.false.
@@ -137,11 +140,29 @@ coox=x%coo
 ndim=x%ndim
 IF(PRESENT(iplanet))THEN
    planet=iplanet
-ELSEIF(cooy.eq.'ATT')THEN
-   planet=3
+   target_center=planet
+ELSEIF(coox.eq.'ATT')THEN
+   IF(rhs.eq.1.or.rhs.eq.3)THEN
+      target_center=0
+   ELSEIF(rhs.eq.2)THEN
+      target_center=3
+   ELSE
+      WRITE(*,*)' coo_cha: rhs not initialized, rhs=', rhs
+      STOP
+   ENDIF
 ELSE
-   planet=0
+   target_center=x%center
 ENDIF
+
+!IF(coox.ne.'ATT')THEN
+!   target_center=x%center
+!ELSEIF(cooy.eq.'ATT')THEN
+!   planet=3
+!   target_center=0
+!ELSE
+!   planet=0
+!   target_center=0
+!ENDIF
 !IF(x%center.ne.planet)THEN
 !   WRITE(*,*)'coo_cha: change of center from ',x%center,' to ',planet
 !ENDIF
@@ -165,30 +186,31 @@ cargr_ou=(cooy.eq.'CAR'.or.cooy.eq.'ATT')
 
 IF(cargr_in)THEN
    IF(coox.eq.'ATT')THEN
+!      IF(planet.eq.0)THEN
 ! attributable case must be converted to cartesian heliocentric
       IF(PRESENT(del))THEN
-         z=car_att(x,del1) ! convert to CAR heliocentric
+         z=car_att(x,target_center,del1) ! convert to CAR
       ELSE
-         z=car_att(x)                     ! convert to CAR heliocentric
+         z=car_att(x,target_center)      ! convert to CAR
       ENDIF
    ELSEIF(coox.eq.'CAR')THEN
       z=x                                 ! already cartesian
       IF(PRESENT(del))THEN
          CALl eye(ndim,del1)     ! initialize by identity
       ENDIF
-!   ELSEIF(coox.eq.'OPI')THEN
-!      WRITE(*,*)' coo_cha: this conversion not ready ', coox, ' ',cooy
-!      STOP
+   !   ELSEIF(coox.eq.'OPI')THEN
+   !      WRITE(*,*)' coo_cha: this conversion not ready ', coox, ' ',cooy
+   !      STOP
    ENDIF
    IF(cooy.eq.'CAR')THEN
       y=z ! done
       IF(PRESENT(del))del=del1
    ELSEIF(cooy.eq.'ATT')THEN
       IF(PRESENT(del))THEN
-         y=att_car(z,obscod,del2)
+         y=att_car(z,obscod,target_center,del2)
          del=MATMUL(del2,del1)
       ELSE
-         y=att_car(z,obscod)
+         y=att_car(z,obscod,target_center)
       ENDIF
    ELSEIF(kepgr_ou)THEN
 ! convert to elements  
@@ -201,12 +223,15 @@ IF(cargr_in)THEN
 ! handle fail_flag
       IF(fail_flag.gt.0.and.fail_flag.le.3)THEN
 ! zero eccentricity/inclination
-         IF(cooy.eq.'EQU')fail_flag=0 ! EQU are differentiable
-         IF(.not.PRESENT(del))fail_flag=0 ! KEP, COM are defined but not diff.
+! EQU are differentiable
+         IF(cooy.eq.'EQU')fail_flag=0 
+! KEP, COM are defined but not diff.
+         IF(.not.PRESENT(del))fail_flag=0 
       ELSEIF(fail_flag.eq.5)THEN 
 ! force to COT, leaving fail_flag=5 as warning
          IF(PRESENT(del))THEN
-            IF(y%coo.ne.'COT')THEN ! should not be necessary
+ ! should not be necessary
+            IF(y%coo.ne.'COT')THEN
                WRITE(ierrou,*)' coo_cha: fail_flag, outcoo ', fail_flag, y%coo
                numerr=numerr+1
                y=to_elems(z,'COT',fail_flag,del2)
@@ -238,10 +263,10 @@ IF(kepgr_in.and.cargr_ou)THEN
    ENDIF
    IF(cooy.eq.'ATT')THEN
       IF(PRESENT(del))THEN
-         y=att_car(z,obscod,del2)
+         y=att_car(z,obscod,target_center,del2)
          del=MATMUL(del2,del1)
       ELSE
-         y=att_car(z,obscod)
+         y=att_car(z,obscod,target_center)
       ENDIF
    ELSEIF(cooy.eq.'CAR')THEN
       y=z ! done
@@ -350,13 +375,16 @@ IF(kepgr_in.and.kepgr_ou)THEN ! twelfe cases
             ENDIF
          ENDIF
       ELSEIF(cooy.eq.'COT')THEN
+!         WRITE(*,*)coox,cooy,x
          IF(PRESENT(del))THEN
             y=cot_com(x,fail_flag,del)
          ELSE
             y=cot_com(x,fail_flag)
          ENDIF
+!      WRITE(*,*)coox,cooy, y
       ENDIF
       done=.true.
+!      WRITE(*,*)coox,cooy,done, y
       RETURN
    ENDIF
 ! starting from COT
@@ -466,7 +494,15 @@ TYPE(orbit_elem) el1
 INTEGER fail_flag
 !
 eps=100*epsilon(1.d0)
-gm=centerbody_mass(0) ! we want alwqys eccentricity heliocentric
+IF(rhs.eq.1)THEN
+   gm=centerbody_mass(0) ! we want always eccentricity heliocentric
+ELSEIF(rhs.eq.2)THEN
+   gm=centerbody_mass(3) ! we want always eccentricity geocentric
+ELSE
+! WARNING: automatic choice of method/dynamical model not supported in ORBIT9
+   WRITE(*,*)'ecc_peri: ORBIT9 not supported here '
+   STOP
+ENDIF 
 IF(el%coo.eq.'EQU')THEN
    ecc=sqrt(el%coord(2)**2+el%coord(3)**2)
    q=el%coord(1)*(1.d0-ecc)
@@ -532,14 +568,19 @@ DOUBLE PRECISION FUNCTION centerbody_mass(iplanet)
 USE planet_masses
 INTEGER,INTENT(IN) :: iplanet
 IF(iplanet.eq.0)THEN
+! WARNING: does not work in ORBIT9
+   IF(rhs.gt.2)THEN
+      WRITE(*,*)' centerbody_mass: not ready for rhs=', rhs
+      STOP
+   ENDIF
    centerbody_mass=gms
-ELSEIF(iplanet.le.npla)THEN
+ELSEIF(iplanet.eq.3)THEN
+   centerbody_mass=gmearth
+ELSEIF(iplanet.le.npla+iatrue.and.iplanet.ne.3)THEN
    centerbody_mass=gm(iplanet)
-!ELSEIF(iplanet.eq.3)THEN
-!   centerbody_mass=gmearth
 ELSE
    WRITE(*,*)' centerbody_mass: center not available ', iplanet
-   centerbody_mass=gmearth ! just not to stop, but....
+   STOP
 ENDIF 
 END FUNCTION centerbody_mass
 !
@@ -1536,7 +1577,8 @@ END FUNCTION kep_com
 ! ====================================================================
 ! =======================================================
 ! ATT_CAR
-! attributable elements from cartesian position and velocity, planetocentric  
+! attributable elements from cartesian position and velocity, 
+! planetocentric  
 ! attributable is:
 !     %coord(1) = alpha
 !     %coord(2) = delta
@@ -1544,147 +1586,186 @@ END FUNCTION kep_com
 !     %coord(4) = d(delta)/dt
 !     %coord(5) = range
 !     %coord(6) = range rate
-! WARNING: att in equatorial, car in ecliptic coordinates
+! WARNING: att in equatorial, car in ecliptic coordinates 
+! if the center is different from the Earth
 ! =======================================================
-TYPE(orbit_elem) FUNCTION att_car(el,obscode,del)
-!USE reference_systems
-TYPE(orbit_elem),INTENT(IN):: el
-INTEGER, INTENT(IN) :: obscode
+TYPE(orbit_elem) FUNCTION att_car(el,obscode,target_center,del)
+  USE reference_systems
+  TYPE(orbit_elem),INTENT(IN):: el
+  INTEGER, INTENT(IN) :: obscode
+  INTEGER, INTENT(in) ::target_center
 ! optional jacobian matrix. in output: derivatives d(el)/d(eqn)
-DOUBLE PRECISION, DIMENSION(el%ndim,el%ndim),INTENT(OUT),OPTIONAL :: del 
+  DOUBLE PRECISION, DIMENSION(el%ndim,el%ndim),INTENT(OUT),OPTIONAL :: del 
 ! end interface
-DOUBLE PRECISION,DIMENSION(6) :: att ! attributable
-DOUBLE PRECISION, DIMENSION(3) :: dadx,dddx,d,dv !first derivatives, 
-DOUBLE PRECISION, DIMENSION(3,3) :: ddadx,ddddx ! second derivatives
-DOUBLE PRECISION :: dz,dis0,vsize,prscal,tobs ! distances, functions
-DOUBLE PRECISION, DIMENSION(6) :: xtop,xobs
-! DOUBLE PRECISION rsun,phase,appmag !for magnitude correction
+  DOUBLE PRECISION,DIMENSION(6) :: att ! attributable
+  DOUBLE PRECISION, DIMENSION(3) :: dadx,dddx,d,dv !first derivatives, 
+  DOUBLE PRECISION, DIMENSION(3,3) :: ddadx,ddddx ! second derivatives
+  DOUBLE PRECISION :: dz,dis0,vsize,prscal,tobs,princ ! distances, functions
+  DOUBLE PRECISION, DIMENSION(6) :: xtop,xobs
 ! aux. var for computation of second derivatives
-double precision den,x2,y2,z2,x4,y4 
-double precision x2y2,x2z2,y2z2
-
-! rotation matrices
-LOGICAL first
-double precision ddd(3) ! rotation matrices from reference-systems.mod 
+  DOUBLE PRECISION den,x2,y2,z2,x4,y4 
+  DOUBLE PRECISION x2y2,x2z2,y2z2, ddd(3)
 ! =======================================================               
-IF(el%coo.ne.'CAR')THEN
-   WRITE(*,*)' att_car: wrong source coordinates ', el%coo
-   STOP
-ENDIF
+  IF(el%coo.ne.'CAR')THEN
+     WRITE(*,*)' att_car: wrong source coordinates ', el%coo
+     STOP
+  ENDIF
+  if(target_center.ne.0.and.target_center.ne.3)then
+     write(*,*)'att_car: Center different from Earth or Sun'
+     stop
+  end if
 ! compute observer position, taking into account light time
-CALL iter_obs(el%t,el%coord,obscode,xtop,xobs,tobs,dis0)
-! rotate to equatorial
-d=MATMUL(roteceq,xtop(1:3)) ! d= topocentric equatorial of asteroid
-dv=MATMUL(roteceq,xtop(4:6))
+  CALL iter_obs(el%t,el%coord,obscode,xtop,tobs,dis0,target_center)
+  d=xtop(1:3)
+  dv=xtop(4:6)
 ! Computation of observation: right ascension (radians)                 
-dz=d(1)**2+d(2)**2 
-if (dz.le.100*epsilon(1.d0)) then
+  dz=d(1)**2+d(2)**2 
+  if (dz.le.100*epsilon(1.d0)) then
 ! remove singularity at poles 
-   att(1)=0.d0 
-else 
-   att(1)=atan2(d(2),d(1)) 
-   if (att(1).lt.0.d0) then 
-      att(1)=att(1)+dpig 
-   endif
-endif
+     att(1)=0.d0 
+  else 
+     att(1)=atan2(d(2),d(1)) 
+  endif
 ! Computation of observation: declination (radians)                     
-att(2)=asin(d(3)/dis0) 
+  att(2)=asin(d(3)/dis0) 
 ! Computation of first derivatives of $\alpha$ and $\delta$ w.r. to posi
 ! (if required): we derived eq. (2.20)                                  
-dadx(1)=-d(2)/dz 
-dadx(2)=d(1)/dz 
-dadx(3)=0.d0 
-dddx(1)=-d(3)*(d(1)/(sqrt(dz)*dis0**2)) 
-dddx(2)=-d(3)*(d(2)/(sqrt(dz)*dis0**2)) 
-dddx(3)=sqrt(dz)/dis0**2 
+  dadx(1)=-d(2)/dz 
+  dadx(2)=d(1)/dz 
+  dadx(3)=0.d0 
+  dddx(1)=-d(3)*(d(1)/(sqrt(dz)*dis0**2)) 
+  dddx(2)=-d(3)*(d(2)/(sqrt(dz)*dis0**2)) 
+  dddx(3)=sqrt(dz)/dis0**2 
 ! Apparent motion:                                                      
-att(3)=prscal(dadx,dv) 
-att(4)=prscal(dddx,dv)
+  att(3)=prscal(dadx,dv) 
+  att(4)=prscal(dddx,dv)
 ! range, range rate
-att(5)=dis0
-att(6)=prscal(d,dv)/dis0
+  att(5)=dis0
+  att(6)=prscal(d,dv)/dis0
 ! assign attributable type elements
-att_car=el !defaults
-att_car%coord=att
-att_car%coo='ATT'
+  att_car=el !defaults
+  att_car%center=3
+  att_car%coord=att
+  att_car%coo='ATT'
 ! aberration correction NO!!!
-!att_car%t=el%t+dis0/vlight
-att_car%obscode=obscode
+  att_car%obscode=obscode
 ! h magnitude is already the absolute one
-!IF(el%mag_set)THEN
-!   rsun=vsize(el%coord(1:3))
-!   phase=acos(prscal(xtop,el%coord(1:3))/(dis0*rsun)) 
-!   att_car%h_mag=appmag(el%h_mag,el%g_mag,rsun,dis0,phase)
-!ENDIF
 ! derivatives, if required
-IF(PRESENT(del))THEN
-   del=0.d0
-   del(1,1:3)= MATMUL(roteqec,dadx) ! = MATMUL(dadx,roteceq)
-   del(2,1:3)=MATMUL(roteqec,dddx)
-   del(3,4:6)=del(1,1:3) ! commutation of d/dt
-   del(4,4:6)=del(2,1:3) ! commutation of d/dt
-   del(5,1:3)=MATMUL(roteqec,d*(1.d0/dis0))
-   del(6,1:3)=MATMUL(roteqec,d*(-att(6)/dis0**2)+dv*(1.d0/dis0))
-   del(6,4:6)=del(5,1:3) ! commutation of d/dt
+  IF(PRESENT(del))THEN
+     if(target_center.eq.0)then
+        del=0.d0
+        del(1,1:3)= MATMUL(roteqec,dadx) ! = MATMUL(dadx,roteceq)
+        del(2,1:3)=MATMUL(roteqec,dddx)
+        del(3,4:6)=del(1,1:3) ! commutation of d/dt
+        del(4,4:6)=del(2,1:3) ! commutation of d/dt
+        del(5,1:3)=MATMUL(roteqec,d*(1.d0/dis0))
+        del(6,1:3)=MATMUL(roteqec,d*(-att(6)/dis0**2)+dv*(1.d0/dis0))
+        del(6,4:6)=del(5,1:3) ! commutation of d/dt
 ! ===================================================================== 
 ! partials of adot,ddot with respect to positions require the           
 ! second derivatives of alpha, delta with respect to the                
 ! equatorial reference system                                           
 ! ===================================================================== 
 ! Computation of second derivatives of $\alpha$ w.r. to positions       
-   ddadx(1,1)=2.d0*d(1)*d(2)/dz**2 
-   ddadx(1,2)=(d(2)**2-d(1)**2)/dz**2 
-   ddadx(2,1)=ddadx(1,2) 
-   ddadx(2,2)=-ddadx(1,1) 
-   ddadx(3,1)=0.d0 
-   ddadx(3,2)=0.d0 
-   ddadx(3,3)=0.d0 
-   ddadx(2,3)=0.d0 
-   ddadx(1,3)=0.d0 
+        ddadx(1,1)=2.d0*d(1)*d(2)/dz**2 
+        ddadx(1,2)=(d(2)**2-d(1)**2)/dz**2 
+        ddadx(2,1)=ddadx(1,2) 
+        ddadx(2,2)=-ddadx(1,1) 
+        ddadx(3,1)=0.d0 
+        ddadx(3,2)=0.d0 
+        ddadx(3,3)=0.d0 
+        ddadx(2,3)=0.d0 
+        ddadx(1,3)=0.d0 
 ! chain rule for derivatives of adot                                    
-   ddd=MATMUL(ddadx,dv) 
+        ddd=MATMUL(ddadx,dv) 
 ! rotation to the equatorial reference system   
-   del(3,1:3)=MATMUL(roteqec,ddd)
+        del(3,1:3)=MATMUL(roteqec,ddd)
 ! =======================================================               
 ! Computation of second derivatives of $\delta$ w.r. to positions       
-   den=1.d0/(dis0**4*dz*sqrt(dz)) 
-   x2=d(1)**2
-   y2=d(2)**2 
-   z2=d(3)**2
-   x4=x2*x2 
-   y4=y2*y2                                    
-   x2y2=x2*y2 
-   x2z2=x2*z2 
-   y2z2=y2*z2 
-   ddddx(1,1)=d(3)*(2.d0*x4+x2y2-y2z2-y4)*den 
-   ddddx(2,2)=d(3)*(2.d0*y4+x2y2-x2z2-x4)*den 
-   ddddx(1,2)=d(1)*d(2)*d(3)*(z2+3.d0*x2+3.d0*y2)*den 
-   ddddx(2,1)=ddddx(1,2) 
-   ddddx(3,3)=-2.d0*d(3)*dz**2*den 
-   ddddx(1,3)=d(1)*dz*(z2-x2-y2)*den 
-   ddddx(3,1)=ddddx(1,3) 
-   ddddx(2,3)=d(2)*dz*(z2-x2-y2)*den 
-   ddddx(3,2)=ddddx(2,3) 
+        den=1.d0/(dis0**4*dz*sqrt(dz)) 
+        x2=d(1)**2
+        y2=d(2)**2 
+        z2=d(3)**2
+        x4=x2*x2 
+        y4=y2*y2                                    
+        x2y2=x2*y2 
+        x2z2=x2*z2 
+        y2z2=y2*z2 
+        ddddx(1,1)=d(3)*(2.d0*x4+x2y2-y2z2-y4)*den 
+        ddddx(2,2)=d(3)*(2.d0*y4+x2y2-x2z2-x4)*den 
+        ddddx(1,2)=d(1)*d(2)*d(3)*(z2+3.d0*x2+3.d0*y2)*den 
+        ddddx(2,1)=ddddx(1,2) 
+        ddddx(3,3)=-2.d0*d(3)*dz**2*den 
+        ddddx(1,3)=d(1)*dz*(z2-x2-y2)*den 
+        ddddx(3,1)=ddddx(1,3) 
+        ddddx(2,3)=d(2)*dz*(z2-x2-y2)*den 
+        ddddx(3,2)=ddddx(2,3) 
 ! chain rule for derivatives of ddot                                    
-   ddd=MATMUL(ddddx,dv)
+        ddd=MATMUL(ddddx,dv)
 ! rotation to the equatorial reference system 
-   del(4,1:3)=MATMUL(roteqec,ddd)
-ENDIF
+        del(4,1:3)=MATMUL(roteqec,ddd)
+! the same for the earth, but without rotation
+     elseif(target_center.eq.3)then
+        del=0.d0
+        del(1,1:3)=dadx
+        del(2,1:3)=dddx
+        del(3,4:6)=del(1,1:3)
+        del(4,4:6)=del(2,1:3)
+        del(5,1:3)=d*(1.d0/dis0)
+        del(6,1:3)=d*(-att(6)/dis0**2)+dv*(1.d0/dis0)
+        del(6,4:6)=del(5,1:3) ! commutation of d/dt
+        ddadx(1,1)=2.d0*d(1)*d(2)/dz**2 
+        ddadx(1,2)=(d(2)**2-d(1)**2)/dz**2 
+        ddadx(2,1)=ddadx(1,2) 
+        ddadx(2,2)=-ddadx(1,1) 
+        ddadx(3,1)=0.d0 
+        ddadx(3,2)=0.d0 
+        ddadx(3,3)=0.d0 
+        ddadx(2,3)=0.d0 
+        ddadx(1,3)=0.d0 
+        ddd=MATMUL(ddadx,dv) 
+        del(3,1:3)=ddd
+        den=1.d0/(dis0**4*dz*sqrt(dz)) 
+        x2=d(1)**2
+        y2=d(2)**2 
+        z2=d(3)**2
+        x4=x2*x2 
+        y4=y2*y2                                    
+        x2y2=x2*y2 
+        x2z2=x2*z2 
+        y2z2=y2*z2 
+        ddddx(1,1)=d(3)*(2.d0*x4+x2y2-y2z2-y4)*den 
+        ddddx(2,2)=d(3)*(2.d0*y4+x2y2-x2z2-x4)*den 
+        ddddx(1,2)=d(1)*d(2)*d(3)*(z2+3.d0*x2+3.d0*y2)*den 
+        ddddx(2,1)=ddddx(1,2) 
+        ddddx(3,3)=-2.d0*d(3)*dz**2*den 
+        ddddx(1,3)=d(1)*dz*(z2-x2-y2)*den 
+        ddddx(3,1)=ddddx(1,3) 
+        ddddx(2,3)=d(2)*dz*(z2-x2-y2)*den 
+        ddddx(3,2)=ddddx(2,3) 
+        ddd=MATMUL(ddddx,dv)
+        del(4,1:3)=ddd
+     else
+        write(*,*)'att_car: Center different from Earth or Sun'
+        stop
+     end if
+  ENDIF
 END FUNCTION att_car
 
 ! =======================================================
 ! ITER-OBS
 ! =======================================================
-SUBROUTINE iter_obs(t,x,obscode,xtop,xobs,tobs,r)
+SUBROUTINE iter_obs(t,x,obscode,xtop,tobs,r,target_center)
 USE reference_systems, ONLY: pvobs
+! x is heliocentric ecliptic (tc=0), geocentric equatorial (tc=3)
 DOUBLE PRECISION, INTENT(IN) :: t, x(6)
-INTEGER, INTENT(IN) :: obscode
-DOUBLE PRECISION, DIMENSION(6), INTENT(OUT):: xtop,xobs ! topocentric ecliptic
+INTEGER, INTENT(IN) :: obscode, target_center
+DOUBLE PRECISION, DIMENSION(6), INTENT(OUT):: xtop ! topocentric
 ! pos/vel with respect to observer obscode at appropriate time
 ! also ecliptic heliocentric position of observer
 DOUBLE PRECISION, INTENT(OUT) :: tobs, r !obs time, range
 DOUBLE PRECISION, DIMENSION(6) :: xpla
-DOUBLE PRECISION vsize,tc
+DOUBLE PRECISION vsize,tc, xobs(6)
 INTEGER, PARAMETER :: jmax=5
 DOUBLE PRECISION, PARAMETER :: tcont=1.d-8
 INTEGER j
@@ -1692,8 +1773,19 @@ INTEGER j
 tc=t
 DO j=1,jmax
    CALL pvobs(tc,obscode,xobs(1:3),xobs(4:6)) ! xobs = geocentric ecliptic
-   CALL earcar(tc,xpla,1) ! xpla=heliocentric ecliptic of geocenter
-   xobs=xpla+xobs ! now xobs= heliocentric ecliptic of topos
+   IF(target_center.eq.0)THEN 
+      CALL earcar(tc,xpla,1) ! xpla=heliocentric ecliptic of geocenter
+      xobs=xpla+xobs ! now xobs= heliocentric ecliptic of topos
+      xtop=x-xobs   
+      xtop(1:3)=MATMUL(roteceq,xtop(1:3)) ! xtop=topocentric equatorial
+      xtop(4:6)=MATMUL(roteceq,xtop(4:6))
+   ELSEIF(target_center.eq.3)THEN
+      xobs(1:3)=MATMUL(roteceq,xobs(1:3)) ! xobs=geocentric equatorial
+      xobs(4:6)=MATMUL(roteceq,xobs(4:6))
+      xtop=x-xobs ! topocentric equatorial
+   ELSE
+      STOP
+   ENDIF
 ! ecliptic topocentric vector of the asteroid
    xtop=x-xobs ! xtop=topocentric ecliptic of asteroid
    r=vsize(xtop)
@@ -1705,103 +1797,132 @@ WRITE(*,*) 'iter_obs: slow convergence ', j-1, tobs, t, r
 END SUBROUTINE iter_obs
 
 ! =======================================================
-! NONITER-OBS
+! NONITER_OBS
 ! =======================================================
-SUBROUTINE noniter_obs(tobs,obscode,xobs)
-USE reference_systems
-DOUBLE PRECISION, INTENT(IN) :: tobs
-INTEGER, INTENT(IN) :: obscode
-DOUBLE PRECISION, DIMENSION(6), INTENT(OUT):: xobs ! topocentric ecliptic
+SUBROUTINE noniter_obs(tobs,obscode,xobs, target_center)
+  USE reference_systems
+  DOUBLE PRECISION, INTENT(IN) :: tobs
+  INTEGER, INTENT(IN) :: obscode, target_center
+  DOUBLE PRECISION, DIMENSION(6), INTENT(OUT):: xobs ! topocentric ecliptic
 ! pos/vel with respect to observer obscode at appropriate time
-DOUBLE PRECISION, DIMENSION(6) :: xpla
+  DOUBLE PRECISION, DIMENSION(6) :: xpla
 ! change center: get ecliptic coordinates of the observer
-CALL pvobs(tobs,obscode,xobs(1:3),xobs(4:6)) ! xobs = geocentric ecliptic
-CALL earcar(tobs,xpla,1) ! xpla=heliocentric ecliptic of geocenter
-xobs=xpla+xobs ! now xobs= heliocentric ecliptic of topos
+  CALL pvobs(tobs,obscode,xobs(1:3),xobs(4:6)) ! xobs = geocentric ecliptic
+  IF(target_center.eq.0)THEN
+     CALL earcar(tobs,xpla,1) ! xpla=heliocentric ecliptic of geocenter
+     xobs=xpla+xobs ! now xobs= heliocentric ecliptic of topos
+  ELSEIF(target_center.eq.3)THEN
+     xobs(1:3)=matmul(roteceq,xobs(1:3))
+     xobs(4:6)=matmul(roteceq,xobs(4:6))
+  ELSE
+     STOP
+  ENDIF
 END SUBROUTINE noniter_obs
 
 ! =======================================================
 ! CAR_ATT
-! cartesian position and velocity, planetocentric, from attributable elements 
+! cartesian position and velocity, planetocentric, from 
+! attributable elements 
 ! WARNING:  car in ecliptic coordinates, att in equatorial
 ! =======================================================
-TYPE(orbit_elem) FUNCTION car_att(el,del)
-!USE reference_systems
-USE fund_const, ONLY: vlight
-TYPE(orbit_elem),INTENT(IN) :: el
+TYPE(orbit_elem) FUNCTION car_att(el,target_center,del)
+  USE reference_systems
+  USE fund_const, ONLY: vlight
+  TYPE(orbit_elem),INTENT(IN) :: el
+! New variable to know the center
+  INTEGER, INTENT(in) ::target_center
 ! optional jacobian matrix. in output: derivatives d(el)/d(eqn)
-DOUBLE PRECISION, DIMENSION(el%ndim,el%ndim),INTENT(OUT),OPTIONAL :: del 
+  DOUBLE PRECISION, DIMENSION(el%ndim,el%ndim),INTENT(OUT),OPTIONAL :: del 
 ! end interface
-DOUBLE PRECISION, DIMENSION(3) :: rhat,ralphat,rdelhat,ralpalp,rdeldel,ralpdel
-DOUBLE PRECISION, DIMENSION(6) :: att,x
-DOUBLE PRECISION cosa,cosd,sina,sind,r,rdot,tobs
-DOUBLE PRECISION, DIMENSION(6) :: xobs
-! DOUBLE PRECISION :: rsun, phase, vsize, prscal, appmag
-! rotation matrices
-LOGICAL first
-double precision ddd(3) ! rotation matr from reference_systems.mod 
+  DOUBLE PRECISION, DIMENSION(3) :: rhat,ralphat,rdelhat,ralpalp, &
+     & rdeldel,ralpdel
+  DOUBLE PRECISION, DIMENSION(6) :: att,x
+  DOUBLE PRECISION cosa,cosd,sina,sind,r,rdot,tobs
+  DOUBLE PRECISION, DIMENSION(6) :: xobs
 !
-IF(el%coo.ne.'ATT')THEN
-   WRITE(*,*)' car_att: wrong source coordinates ', el%coo
-   STOP
-ENDIF
-att=el%coord
+  IF(el%coo.ne.'ATT')THEN
+     WRITE(*,*)' car_att: wrong source coordinates ', el%coo
+     STOP
+  ENDIF
+
+  if(target_center.ne.3.and.target_center.ne.0)then
+     write(*,*)'car_att: The center is different frome Earth and Sun'
+     stop
+  endif
+
+  att=el%coord
 ! UNIT vectors of the r alpha delta ref. system
-cosa=cos(att(1))
-cosd=cos(att(2))
-sina=sin(att(1))
-sind=sin(att(2))
-r=att(5)
-rhat(1)=cosa*cosd
-rhat(2)=sina*cosd
-rhat(3)=sind
-ralphat(1)=-sina*cosd ! note: contains cosd and is not an unit vector
-ralphat(2)= cosa*cosd ! that is d(rhat)/d(alpha)=ralphat
-ralphat(3)=0.d0
-rdelhat(1)=-cosa*sind
-rdelhat(2)=-sina*sind
-rdelhat(3)=cosd
+  cosa=cos(att(1))
+  cosd=cos(att(2))
+  sina=sin(att(1))
+  sind=sin(att(2))
+  r=att(5)
+  rhat(1)=cosa*cosd
+  rhat(2)=sina*cosd
+  rhat(3)=sind
+  ralphat(1)=-sina*cosd ! note: contains cosd and is not an unit vector
+  ralphat(2)= cosa*cosd ! that is d(rhat)/d(alpha)=ralphat
+  ralphat(3)=0.d0
+  rdelhat(1)=-cosa*sind
+  rdelhat(2)=-sina*sind
+  rdelhat(3)=cosd
 ! second derivatives
-ralpalp(1)=-cosa*cosd
-ralpalp(2)=-sina*cosd
-ralpalp(3)=0.d0
-ralpdel(1)=sina*sind
-ralpdel(2)=-cosa*sind
-ralpdel(3)=0.d0
-rdeldel(1)=-cosa*cosd
-rdeldel(2)=-sina*cosd
-rdeldel(3)=-sind
+  ralpalp(1)=-cosa*cosd
+  ralpalp(2)=-sina*cosd
+  ralpalp(3)=0.d0
+  ralpdel(1)=sina*sind
+  ralpdel(2)=-cosa*sind
+  ralpdel(3)=0.d0
+  rdeldel(1)=-cosa*cosd
+  rdeldel(2)=-sina*cosd
+  rdeldel(3)=-sind
+
+  if(target_center.eq.0)then
 ! planetocentric position and velocity, equatorial, converted to ecliptic
-x(1:3)=MATMUL(roteqec,att(5)*rhat)
-x(4:6)=MATMUL(roteqec,att(6)*rhat+r*(att(3)*ralphat+att(4)*rdelhat))
+     x(1:3)=MATMUL(roteqec,att(5)*rhat)
+     x(4:6)=MATMUL(roteqec,att(6)*rhat+r*(att(3)*ralphat+att(4)*rdelhat))
+  else
+     x(1:3)=att(5)*rhat
+     x(4:6)=att(6)*rhat+r*(att(3)*ralphat+att(4)*rdelhat)
+  end if
 ! assign output
-car_att=el
+  car_att=el
 ! aberration correction
-tobs=el%t+r/vlight
-CALL noniter_obs(tobs,el%obscode,xobs)
-! change center
-car_att%coord=x+xobs ! heliocentric, ecliptic pos. of asteroid at epoch
-car_att%coo='CAR'
-car_att%center=0
-car_att%obscode=500
+  tobs=el%t+r/vlight
+  CALL noniter_obs(tobs,el%obscode,xobs,target_center)
+! change center: heliocentric, ecliptic/ geocentric, equatorial pos. at epoch
+  car_att%center=target_center
+  car_att%coord=x+xobs ! 
+  car_att%coo='CAR'
+! Obscode does not change for the Earth case
+  car_att%obscode=500
 ! h magnitude is already absolute
-!IF(el%mag_set)THEN
-!   rsun=vsize(car_att%coord(1:3))
-!   phase=acos(prscal(rhat,car_att%coord(1:3))/rsun)
-!   car_att%h_mag=el%h_mag-appmag(0.d0,el%g_mag,rsun,r,phase)
-!ENDIF
-IF(PRESENT(del))THEN
-   del=0.d0
-   del(1:3,1)=MATMUL(roteqec,ralphat*r)
-   del(1:3,2)=MATMUL(roteqec,rdelhat*r)
-   del(1:3,5)=MATMUL(roteqec,rhat)
-   del(4:6,1)=MATMUL(roteqec,att(6)*ralphat+att(5)*(att(3)*ralpalp+att(4)*ralpdel))
-   del(4:6,2)=MATMUL(roteqec,att(6)*rdelhat+att(5)*(att(3)*ralpdel+att(4)*rdeldel))
-   del(4:6,3)=del(1:3,1) ! commutation of d/dt
-   del(4:6,4)=del(1:3,2) ! commutation of d/dt
-   del(4:6,5)=MATMUL(roteqec,att(3)*ralphat+att(4)*rdelhat)
-   del(4:6,6)=del(1:3,5) ! commutation of d/dt
-ENDIF
+  IF(PRESENT(del))THEN
+! for the earth case
+     if(target_center.eq.3)then
+        del=0.d0
+        del(1:3,1)=ralphat*r
+        del(1:3,2)=rdelhat*r
+        del(1:3,5)=rhat
+        del(4:6,1)=att(6)*ralphat+att(5)*(att(3)*ralpalp+att(4)*ralpdel)
+        del(4:6,2)=att(6)*rdelhat+att(5)*(att(3)*ralpdel+att(4)*rdeldel)
+        del(4:6,3)=del(1:3,1) ! commutation of d/dt
+        del(4:6,4)=del(1:3,2) ! commutation of d/dt
+        del(4:6,5)=att(3)*ralphat+att(4)*rdelhat
+        del(4:6,6)=del(1:3,5) ! commutation of d/dt
+     else
+        del=0.d0
+        del(1:3,1)=MATMUL(roteqec,ralphat*r)
+        del(1:3,2)=MATMUL(roteqec,rdelhat*r)
+        del(1:3,5)=MATMUL(roteqec,rhat)
+        del(4:6,1)=MATMUL(roteqec,att(6)*ralphat+att(5)*(att(3)*ralpalp+att(4)*ralpdel))
+        del(4:6,2)=MATMUL(roteqec,att(6)*rdelhat+att(5)*(att(3)*ralpdel+att(4)*rdeldel))
+        del(4:6,3)=del(1:3,1) ! commutation of d/dt
+        del(4:6,4)=del(1:3,2) ! commutation of d/dt
+        del(4:6,5)=MATMUL(roteqec,att(3)*ralphat+att(4)*rdelhat)
+        del(4:6,6)=del(1:3,5) ! commutation of d/dt
+     end if
+  ENDIF
 END FUNCTION car_att
 !=============================
 ! ATTELEMENTS 
@@ -2597,7 +2718,7 @@ SUBROUTINE wrikep(file,name,elem,covar,moid,pha)
   DOUBLE PRECISION enne, dkde(6,6), correl(6,6) 
                                                                         
 ! "Other useful data"                                                   
-  DOUBLE PRECISION perihe,aphe,period,dnode,anode 
+  DOUBLE PRECISION perihe,aphe,period,dnode,anode,vinfty
   INTEGER iconv 
                                                                         
 ! Open FIle    
@@ -2611,6 +2732,7 @@ SUBROUTINE wrikep(file,name,elem,covar,moid,pha)
 100 FORMAT(A) 
 ! Get Keplerian Elements
   CALL coo_cha(elem,'KEP',elk,fail_flag,dkde) 
+! WARNING: not working for cometary elements
 ! Write Orbital elements
   cnv(1:2)=1
   cnv(3:6)=degrad 
@@ -2638,21 +2760,25 @@ SUBROUTINE wrikep(file,name,elem,covar,moid,pha)
 ! MOID 0.00001                                                          
 ! PERIOD 1.11111                                                        
 ! PHA F                                                                 
+! VINFTY 14.5678 (in km/s)
   perihe=elk%coord(1)*(1.d0-elk%coord(2)) 
   aphe=elK%coord(1)*(1.d0+elk%coord(2)) 
   enne=sqrt(gms/elk%coord(1)**3)
   period=dpig/enne 
   CALL nomoid(elem%t,elem,moid,anode,dnode) 
   pha = moid.le.0.05d0.and.elk%h_mag.lt.22d0.and.elk%mag_set
+  vinfty= v_infty0(elk)
   WRITE(unit,102)comcha,perihe,comcha,aphe,comcha,                  &
-     &     anode,comcha,dnode,comcha,moid,comcha,period,comcha,pha      
+     &     anode,comcha,dnode,comcha,moid,comcha,period,comcha,pha, &
+     &     comcha,vinfty      
   102 FORMAT(A1,' PERIHELION ',F9.4/                                    &
      &       A1,' APHELION ',F9.4/                                      &
      &       A1,' ANODE ',F10.5/                                        &
      &       A1,' DNODE ',F10.5/                                        &
      &       A1,' MOID ',F10.5/                                         &
      &       A1,' PERIOD ',F16.4/                                       &
-     &       A1,' PHA ',L1)
+     &       A1,' PHA ',L1/                                             &
+     &       A1,' VINFTY ',F9.4)
 ! Get Keplerian Covariance  
   IF(covar%succ) THEN 
      cove=covar
@@ -2679,6 +2805,47 @@ SUBROUTINE wrikep(file,name,elem,covar,moid,pha)
   call filclo(unit,' ') 
                                                                         
 END SUBROUTINE wrikep
+
+! ===================================================
+! velocity at infinity with repect to Earth
+! (circular approx) in AU/day
+! this is a duplicate of the one in tp_trace, to be used by wrikep
+DOUBLE PRECISION FUNCTION v_infty0(el0)
+! input elements
+  TYPE(orbit_elem), INTENt(IN) :: el0
+! END INTERFACE
+  TYPE(orbit_elem) eleq
+  DOUBLE PRECISION eq0(6) 
+  DOUBLE PRECISION cosi,v2
+  CHARACTER*3 coo
+  INTEGER fail_flag
+  coo=el0%coo
+  CALL coo_cha(el0,'EQU',eleq,fail_flag)
+  eq0=eleq%coord
+  IF(fail_flag.eq.0)THEN 
+! v_infinity computation in equinoctal
+     cosi=(1.d0-eq0(4)**2-eq0(5)**2)/                                  &
+     &     (1.d0+eq0(4)**2+eq0(5)**2)                                   
+     v2=3.d0-1.d0/eq0(1) -                                             &
+     &     2.d0*sqrt(eq0(1)*(1.d0-eq0(2)**2-eq0(3)**2))*cosi            
+  ELSEIF(fail_flag.eq.5)THEN
+! v_infinity computation in cometary
+     cosi=cos(eq0(3))
+     v2=3.d0-(1.d0-eq0(2))/eq0(1) - 2.d0*sqrt(eq0(1)*(1.d0+eq0(2)))*cosi
+  ELSE
+     WRITE(*,*)' v_infty: coordinate conversion failed ', el0,fail_flag  
+  ENDIF
+! handle non hyperbolic (w.r. to Earth) case
+  IF(v2.gt.0.d0)THEN 
+     v_infty0=sqrt(v2) 
+  ELSE 
+     v_infty0=0.d0 
+  ENDIF
+! normalization in AU/day by Gauss constant
+  v_infty0=v_infty0*gk
+! conversion to km/s required by wrikep
+   v_infty0=v_infty0*aukm/86400.d0
+END FUNCTION v_infty0
 
 ! ===================================
 ! FIND_ELEMS

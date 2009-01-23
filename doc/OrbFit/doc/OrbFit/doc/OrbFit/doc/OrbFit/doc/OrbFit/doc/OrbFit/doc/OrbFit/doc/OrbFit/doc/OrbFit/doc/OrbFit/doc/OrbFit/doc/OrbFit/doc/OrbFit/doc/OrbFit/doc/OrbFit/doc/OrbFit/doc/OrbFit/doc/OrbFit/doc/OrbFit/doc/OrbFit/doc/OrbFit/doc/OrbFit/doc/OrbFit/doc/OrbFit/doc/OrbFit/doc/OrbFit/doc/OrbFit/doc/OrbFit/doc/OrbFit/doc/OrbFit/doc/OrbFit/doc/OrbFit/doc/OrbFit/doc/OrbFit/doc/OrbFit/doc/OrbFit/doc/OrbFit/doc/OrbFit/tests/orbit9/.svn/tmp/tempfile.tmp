@@ -1,0 +1,42 @@
+#tests: testo9 testprop
+
+tests: testo9 testprop testbaric
+
+testo9:
+	mv orb9.opt orb9.opt.tmp
+	cp -p testout/orb9.opt .
+	time orbit9.x
+	-(diff vast.dat testout)
+	-(diff vpla.dat testout)
+	-(diff vast.fil testout)
+	-(diff vpla.fil testout)
+	-(diff orb9.out testout)
+	mv orb9.opt.tmp orb9.opt
+
+testprop:
+	cp -p testout/prop.opt .
+	time prop9.x
+	-(diff v9.mea testout/v9.mea)
+	-(diff v9.rem testout/v9.rem)
+	-(diff v9.pro testout/v9.pro)
+	-(diff v9.ang testout/v9.ang)
+	-(diff v9.dis testout/v9.dis)
+	-(diff v9.adi testout/v9.adi)
+	-(diff v9.res testout/v9.res)
+
+testbaric:
+	mv inbaric.opt inbaric.opt.tmp
+	cp -p testout/inbaric.opt .
+	time inbaric.x
+	time inbarmerc.x
+	-(diff planxx.inc testout/)
+	-(diff pvenexx.inc testout/)
+	-(diff barsunxx.inc testout/)
+	-(diff barmerxx.inc testout/)
+	mv inbaric.opt.tmp inbaric.opt
+
+clean:
+	-(rm orb9.dma orb9.dmp orb9.num orb9.out v*.fil v*.dat orb9.clo)
+	-(rm v9* giffv.gnu giffv.tmp out.*)
+	-(rm barmerxx.inc pvenexx.inc allplmxx.inc barsunxx.inc allplaxx.inc planxx.inc epsi.out)
+

@@ -26,8 +26,8 @@ EPH_OBJ=jpl_ephem.o read_ephem.o fund_const.o planet_masses.o
 # File operations; I/O control
 FILE_OBJ=file_oper.o fidinam4.o output_control.o name_rules.o
 
-# Header and  Main option namelists
-HNAM_OBJ=header_input.o option_input.o
+# Header and  Main option namelists; also old version 
+HNAM_OBJ=header_input.o option_input.o genio7.o
 
 # Character strings and sorting
 CHA_OBJ=char_str.o bin_search.o

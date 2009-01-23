@@ -13,7 +13,7 @@ USE fund_const
 IMPLICIT NONE
 PRIVATE
 
-PUBLIC yarkdi, yarkse, yarkinit
+PUBLIC yarkdi, yarkse, yarkinit, secular_nongrav
 
 ! private common data
 ! former yarkom.h
@@ -29,8 +29,54 @@ PUBLIC yarkdi, yarkse, yarkinit
 ! logical flggs: availability of physical data, 
 !  has yarkinit routine been called
       LOGICAL yarfil,yarini
-      PUBLIC iyark,iyarpt,yardir,yarfil,yarini
+! secular perturbation in semiajor axis 
+      DOUBLE PRECISION dadt
+      PUBLIC iyark,iyarpt,yardir,yarfil,yarini,dadt
+      
 CONTAINS 
+
+! =========================================================
+! SECACC   added 17/9/2008
+! secular perturbation on semimajor axis, presumably due to
+! non gravitational perturbations (including Yarkovsky)
+! implemented as acceleration along the velocity
+      SUBROUTINE secular_nongrav(x,v,secacc)
+!  interface: INPUT
+        DOUBLE PRECISION, INTENT(IN), DIMENSION(3) :: x,v ! position and velocity, heliocentric
+!  interface: OUTPUT
+        DOUBLE PRECISION, INTENT(OUT), DIMENSION(3) :: secacc
+! end interface
+!        DOUBLE PRECISION :: vvec(3),vv2, rr, vsize, prscal, factor, conv
+        DOUBLE PRECISION :: rr,rr2,vv2,rv,angm_x,angm_y,angm_z,angm2
+        DOUBLE PRECISION :: factor,conv,yark_acc,trans_size,trans(3)
+        DOUBLE PRECISION :: vsize, prscal
+! =========================================================
+!! first attempt (David V.)
+!         rr=vsize(x)
+!         vv2=prscal(v,v)
+!         vvec=v*(1/vv2)
+!         factor=(2*gms/rr-vv2)**2/gms
+!! warning: dadt is in AU/My, thus it has to be converted in AU/d
+!         conv=1.d6*365.25d0 
+!         factor=factor/conv
+!         secacc=0.5*factor*vvec
+! Steve Chesley's implementation
+         rr=vsize(x)
+         rr2=prscal(x,x)
+         vv2=prscal(v,v)
+         rv =prscal(x,v)
+         angm_x=x(2)*v(3)-x(3)*v(2)
+         angm_y=x(3)*v(1)-x(1)*v(3)
+         angm_z=x(1)*v(2)-x(2)*v(1)
+         angm2=angm_x*angm_x+angm_y*angm_y+angm_z*angm_z
+         factor=angm2*dsqrt(2*gms/rr-vv2)/gms
+! warning: dadt is in AU/My, thus it has to be converted in AU/d
+         conv=1.d6*365.25d0 
+         yark_acc=0.5*factor/conv/rr2
+         trans=v-(x*rv/rr2)
+         trans_size=vsize(trans)
+         secacc=yark_acc*trans/trans_size
+      END SUBROUTINE secular_nongrav
 ! ******************************************************************    
       SUBROUTINE yarkdi(xast,a,iparti) 
 ! ******************************************************************    
@@ -388,7 +434,7 @@ SUBROUTINE yarkinit(astnam,elem)
 ! allowing computation of Yarkovsky; otherwise, the non gravitational   
 ! force is set to zero                                                  
 !                                                                       
-  IF(iyark.eq.0)RETURN 
+  IF(iyark.eq.0.or.iyark.ge.3)RETURN 
   yarini=.true. 
 ! convert elements to keplerian                                         
   call coo_cha(elem,'KEP',elekep,fail_flag)

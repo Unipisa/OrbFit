@@ -166,7 +166,11 @@
 ! Disables temporarily outlier rejection
           autrep=autrej
           autrej=.false.
-          IF(magopt.NE.0 .AND. ht.GT.-100.D0) gmagc=gt
+          IF(magopt.NE.0 .AND. ht.GT.-100.D0)THEN
+             gmagc=gt
+          ELSE
+             gmagc=0.15d0
+          ENDIF
           elem1=undefined_orbit_elem
           elem1%t=telemt
           elem1%coo='EQU'

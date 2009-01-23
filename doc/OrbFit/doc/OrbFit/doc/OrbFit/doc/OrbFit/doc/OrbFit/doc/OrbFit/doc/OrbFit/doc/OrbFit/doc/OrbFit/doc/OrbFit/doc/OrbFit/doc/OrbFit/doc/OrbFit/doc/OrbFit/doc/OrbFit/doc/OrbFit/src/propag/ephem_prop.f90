@@ -119,6 +119,7 @@ SUBROUTINE fsteph(name,dir,defele,ok,el0,                &
   USE fund_const
   USE orbit_elements 
   USE propag_state 
+  USE close_app, ONLY: kill_propag
   IMPLICIT NONE 
 ! =================INPUT=========================================       
 ! name, place, output element type                                      
@@ -142,6 +143,7 @@ SUBROUTINE fsteph(name,dir,defele,ok,el0,                &
   INTEGER, PARAMETER :: numsavx=10000
   TYPE(orbit_elem) :: elsav(numsavx)
   DOUBLE PRECISION tsav(numsavx),t1,t2,t0 
+  LOGICAL avail(numsavx)
   INTEGER jst, fail_flag
 ! output                                                                
   INTEGER unit 
@@ -200,6 +202,7 @@ SUBROUTINE fsteph(name,dir,defele,ok,el0,                &
   
 !========= PROPAGATE, SAVE, AND THEN WRITE IN TIME ORDER ===============
 !     step back in time first (if necessary)                            
+  avail=.false.
   IF(tr .le. t0)THEN
      elem1=elem0
      CALL set_restart(.true.)
@@ -207,18 +210,27 @@ SUBROUTINE fsteph(name,dir,defele,ok,el0,                &
 ! backward loop
      DO n=nbef,1,-1 
         t2=tsav(n)
+        kill_propag=.false.
         call pro_ele(elem1,t2,elem1)
         CALL set_restart(.false.)
-        if(moidfl)then 
-           call nomoid(t2,elem1,moid,dnp,dnm) 
-        endif
-        msav(n)=moid 
-        icsav(n)=0
-        ndsav(n,1)=dnp 
-        ndsav(n,2)=dnm 
-        elsav(n)=elem1
+        IF(kill_propag)THEN
+           avail(n)=.false.
+           EXIT
+        ELSE
+           avail(n)=.true.
+           if(moidfl)then 
+              call nomoid(t2,elem1,moid,dnp,dnm) 
+           endif
+           msav(n)=moid 
+           icsav(n)=0
+           ndsav(n,1)=dnp 
+           ndsav(n,2)=dnm 
+           elsav(n)=elem1
+        ENDIF
      ENDDO
   ENDIF
+! exit from the loop for kill_propag
+4 CONTINUE
   IF(tf.gt.t0)THEN
      CALL set_restart(.true.)
      elem1=elem0
@@ -226,25 +238,32 @@ SUBROUTINE fsteph(name,dir,defele,ok,el0,                &
 ! forward loop                                                     
      DO n=nbef+1,nrec 
         t2=tsav(n)
-        call pro_ele(elem1,t2,elem1) 
+        kill_propag=.false.
+        call pro_ele(elem1,t2,elem1)
         CALL set_restart(.false.) 
-        if(moidfl)then 
-           call nomoid(t2,elem1,moid,dnp,dnm) 
-        endif  
-        msav(n)=moid 
-        ndsav(n,1)=dnp 
-        ndsav(n,2)=dnm 
-        icsav(n)=0 
-        elsav(n)=elem1
+        IF(kill_propag)THEN
+           avail(n)=.false.
+           EXIT
+        ELSE
+           avail(n)=.true.
+           if(moidfl)then  
+              call nomoid(t2,elem1,moid,dnp,dnm) 
+           endif
+           msav(n)=moid  
+           ndsav(n,1)=dnp 
+           ndsav(n,2)=dnm 
+           icsav(n)=0 
+           elsav(n)=elem1
+        ENDIF
      ENDDO
      CALL set_restart(.true.) 
 !        write in forward time order                                    
      do i=1,nrec 
-        IF(ephefl)THEN
+        IF(ephefl.and.avail(i))THEN
            CALL coo_cha(elsav(i),cooy,elem1,fail_flag)
            CALL write_elems(elem1,name(1:lnnam),'1L',file,unit)
         ENDIF
-        if(moidfl) write(munit,199)tsav(i),msav(i),ndsav(i,1),ndsav(i,2)                                  
+        if(moidfl.and.avail(n)) write(munit,199)tsav(i),msav(i),ndsav(i,1),ndsav(i,2)
 199     format(f13.4,1x,f8.5,1x,f8.5,1x,f8.5) 
      enddo
   endif
@@ -323,7 +342,7 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
   DOUBLE PRECISION tdt,alpha,delta,mag,hour,sa,sd,difft,signdt,cvf 
   DOUBLE PRECISION alpha1,delta1,mag1,gamad1(2,2) ! for test comparison
   DOUBLE PRECISION gamad(2,2),sig(2),axes(2,2),err1,err2,pa 
-  DOUBLE PRECISION teph(nephx),velsiz 
+  DOUBLE PRECISION teph(nephx),velsiz, cosangzen, airmass 
   CHARACTER*1 siga,sigd,anguni 
   CHARACTER*3 cmonth(12) 
   CHARACTER*20 field(nfx),frameo,amuni,amunid,amfor 
@@ -334,7 +353,9 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
   INTEGER mjdt,mjdout 
   DOUBLE PRECISION sect,secout,tout 
   DOUBLE PRECISION :: adot,ddot ! proper motion
-  DOUBLE PRECISION :: pha,dis,dsun,elo,gallat,elev,elsun ! phase, distance to Earth, distance to Sun
+! phase, distance to Earth, distance to Sun, solar elongation, galactit lat. and longitude, 
+! elevation, elevation sun, lunar elongation
+  DOUBLE PRECISION :: pha,dis,dsun,elo,gallat,gallon,elev,elsun, elmoon 
   INTEGER lench 
   EXTERNAL lench 
                                                                         
@@ -421,16 +442,22 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
         lh=lh+8 
      ELSEIF(field(i).EQ.'elong') THEN 
         head1(lh+1:)=blank 
-        head2(lh+1:)=' Elong' 
-        head3(lh+1:)=' (deg)' 
-        head4(lh+1:)=' =====' 
-        lh=lh+6 
+        head2(lh+1:)='  SolEl' 
+        head3(lh+1:)='  (deg)' 
+        head4(lh+1:)=' ======' 
+        lh=lh+7 
+     ELSEIF(field(i).EQ.'mooel') THEN 
+        head1(lh+1:)=blank 
+        head2(lh+1:)='  LunEl' 
+        head3(lh+1:)='  (deg)' 
+        head4(lh+1:)=' ======' 
+        lh=lh+7 
      ELSEIF(field(i).EQ.'phase') THEN 
         head1(lh+1:)=blank 
-        head2(lh+1:)=' Phase' 
-        head3(lh+1:)=' (deg)' 
-        head4(lh+1:)=' =====' 
-        lh=lh+6 
+        head2(lh+1:)='  Phase' 
+        head3(lh+1:)='  (deg)' 
+        head4(lh+1:)=' ======' 
+        lh=lh+7 
      ELSEIF(field(i).EQ.'mag') THEN 
         outmag=(el0%h_mag.GT.-100.d0) 
         IF(outmag) THEN 
@@ -440,9 +467,27 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
            head4(lh+1:)=' =====' 
            lh=lh+6 
         END IF
+     ELSEIF(field(i).EQ.'elev') THEN 
+        head1(lh+1:)=blank 
+        head2(lh+1:)='  Alt ' 
+        head3(lh+1:)=' (deg)' 
+        head4(lh+1:)=' =====' 
+        lh=lh+6 
+     ELSEIF(field(i).EQ.'airm') THEN 
+        head1(lh+1:)=blank 
+        head2(lh+1:)=' Airmass ' 
+        head3(lh+1:)='         ' 
+        head4(lh+1:)=' ========' 
+        lh=lh+9 
      ELSEIF(field(i).EQ.'glat') THEN 
         head1(lh+1:)=blank 
         head2(lh+1:)=' Glat ' 
+        head3(lh+1:)=' (deg)' 
+        head4(lh+1:)=' =====' 
+        lh=lh+6 
+     ELSEIF(field(i).EQ.'glon') THEN 
+        head1(lh+1:)=blank 
+        head2(lh+1:)=' Glon ' 
         head3(lh+1:)=' (deg)' 
         head4(lh+1:)=' =====' 
         lh=lh+6 
@@ -559,17 +604,17 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
      &        alpha,delta,mag,inl,                                    &
      &        UNCERT=unc0,GAMAD=gamad,SIG=sig,AXES=axes,              &
      &        ADOT0=adot,DDOT0=ddot,DIS0=dis,PHA0=pha,DSUN0=dsun,   &
-     &        ELO0=elo,GALLAT0=gallat,ELEV0=elev,ELSUN0=elsun)
+     &        ELO0=elo,GALLAT0=gallat,ELEV0=elev,ELSUN0=elsun,ELMOON0=elmoon,GALLON0=gallon)
      ELSE 
         CALL predic_obs(el0,idsta,tdt,obstyp,  &
      &        alpha,delta,mag,inl,        &
      &        ADOT0=adot,DDOT0=ddot,DIS0=dis,PHA0=pha,DSUN0=dsun,   &
-     &        ELO0=elo,GALLAT0=gallat,ELEV0=elev,ELSUN0=elsun)
+     &        ELO0=elo,GALLAT0=gallat,ELEV0=elev,ELSUN0=elsun,ELMOON0=elmoon,GALLON0=gallon)
      END IF
      CALL set_restart(.false.) 
 
-     WRITE(11,111)tdt,alpha,delta,elev,elsun
-111  FORMAT(f15.8,1x,f12.9,1x,f12.9,1x,f10.5,1x,f10.5)     
+!     WRITE(11,111)tdt,alpha,delta,elev,elsun
+!111  FORMAT(f15.8,1x,f12.9,1x,f12.9,1x,f10.5,1x,f10.5)     
 ! COMPOSITION OF OUTPUT RECORD                                          
 ! Time scale conversion                                                 
      mjdt=FLOOR(tdt) 
@@ -608,18 +653,34 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
           lr=lr+8 
 ! Solar elongation                                                      
        ELSEIF(field(i).EQ.'elong') THEN 
-          WRITE(outrec(lr+1:),205) elo*degrad 
-          lr=lr+6 
+          WRITE(outrec(lr+1:),212) elo*degrad 
+          lr=lr+7 
+! Lunar elongation                                                      
+       ELSEIF(field(i).EQ.'mooel') THEN 
+          WRITE(outrec(lr+1:),212) elmoon*degrad 
+          lr=lr+7 
 ! Solar phase angle                                                     
        ELSEIF(field(i).EQ.'phase') THEN 
-          WRITE(outrec(lr+1:),205) pha*degrad 
-          lr=lr+6 
+          WRITE(outrec(lr+1:),212) pha*degrad 
+          lr=lr+7 
 ! Magnitude                                                             
        ELSEIF(field(i).EQ.'mag') THEN 
           IF(outmag) THEN 
              WRITE(outrec(lr+1:),205) mag 
              lr=lr+6 
           END IF
+! Elevation and Airmass
+       ELSEIF(field(i).EQ.'elev') THEN
+          WRITE(outrec(lr+1:),205) elev*degrad
+          lr=lr+6
+       ! Airmass calculation according Young (1994)
+         cosangzen=cos(pig/2-elev)
+         airmass=1.002432d0*cosangzen**2+0.148386d0*cosangzen+0.0096467d0
+         airmass=airmass/(cosangzen**3+0.149864d0*cosangzen**2+0.0102963d0*cosangzen+0.000303978)   
+       ELSEIF(field(i).EQ.'airm') THEN
+          IF(elev.gt.0)WRITE(outrec(lr+1:),209) airmass
+          IF(elev.le.0)WRITE(outrec(lr+1:),211)'    INF  '
+          lr=lr+9
 ! Sky plane error                                                       
        ELSEIF(field(i).EQ.'skyerr') THEN 
           IF(outerr) THEN 
@@ -646,6 +707,10 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
 ! Galactic latitude                                                     
        ELSEIF(field(i).EQ.'glat') THEN 
           WRITE(outrec(lr+1:),205) gallat*degrad 
+          lr=lr+6 
+! Galactic longitude
+       ELSEIF(field(i).EQ.'glon') THEN 
+          WRITE(outrec(lr+1:),205) gallon*degrad 
           lr=lr+6 
 ! Apparent motion      CORRECTED 9 Jan 2003
        ELSEIF(field(i).EQ.'appmot') THEN 
@@ -676,6 +741,10 @@ SUBROUTINE ephemc(unit,el0,unc0,defcov,t1,t2,dt,idsta,scale,fields)
 205 FORMAT(F6.1) 
 207 FORMAT(2F8.4) 
 208 FORMAT(2(F9.3,A1),F6.1) 
+209 FORMAT(F9.3) 
+210 FORMAT(A6)
+211 FORMAT(A9)
+212 FORMAT(F7.1) 
 340 FORMAT(' ERROR: illegal output field "',A,'"') 
     IF(lr.GT.lrx) STOP '**** ephemc: lr > lrx ****' 
     recv(ip)=outrec(1:lr) 

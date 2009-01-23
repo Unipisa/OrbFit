@@ -1,0 +1,11 @@
+input_files.
+	.incond = CPV.inc
+bineph.
+	.eph_obj= 1 2 4
+        .epoch.start = CAL 1801/Jan/01 0:0:0 TDT
+        .epoch.end   = CAL 2401/Jan/01 0:0:0 TDT
+	.step = 50
+force.JPLDE.
+	.planets = Mercury Venus Earth+Moon Mars Jupiter Saturn Uranus Neptune
+JPLDE.
+

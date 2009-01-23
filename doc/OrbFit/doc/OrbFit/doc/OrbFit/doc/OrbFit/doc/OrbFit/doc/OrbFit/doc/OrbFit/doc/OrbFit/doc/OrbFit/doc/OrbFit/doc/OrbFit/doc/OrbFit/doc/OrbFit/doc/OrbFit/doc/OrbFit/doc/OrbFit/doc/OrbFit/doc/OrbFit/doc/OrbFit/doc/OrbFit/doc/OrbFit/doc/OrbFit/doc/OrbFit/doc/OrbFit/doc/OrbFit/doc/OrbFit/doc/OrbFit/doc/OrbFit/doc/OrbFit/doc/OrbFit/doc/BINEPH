@@ -1,7 +1,7 @@
 #!/usr/bin/wish
 
 # Learn the path to the doc/ directory
-set u [open doclib.h r]
+set u [open doclib.h90 r]
 while {[gets $u line] >= 1} {
   set i1 [string first "'" $line]
   set i2 [string last "'" $line]

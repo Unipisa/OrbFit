@@ -61,12 +61,12 @@
       iodrok=2.D0 
       CALL rdnrea('init_orbdet.rms_val.','ok',iodrok,.false.,           &
      &            found,fail1,fail)                                     
-      iodrok=iodrok*radsec 
+!      iodrok=iodrok*radsec 
                                                                         
       iodrmx=1.D2 
       CALL rdnrea('init_orbdet.rms_val.','max',iodrmx,.false.,          &
      &            found,fail1,fail)                                     
-      iodrmx=iodrmx*radsec 
+!      iodrmx=iodrmx*radsec 
                                                                         
       iodnit=10 
       CALL rdnint('init_orbdet.noise.','ntrials',iodnit,.false.,        &

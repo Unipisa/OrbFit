@@ -23,7 +23,7 @@ SUBROUTINE finopt(progna,run,astna0,astnap,error_model)
 ! =============================
   CALL initopt(progna,run,'fop')                                         
 ! read option for physical model and integration method                 
-  CALL rmodel 
+  CALL rmodel(1) 
 ! ==============================                                        
 ! initialisations for Gauss method                                      
   CALL iodini 

@@ -386,3 +386,99 @@ subroutine trange
   emratio=emrat
 ! add dummy call to rdbep to setup the range of values for that too
 END subroutine trange
+
+! ======================================================================
+! MOONCAR - get Moon cartesian coordinates (ecliptic J2000)             
+! FB October 2008
+! ======================================================================
+SUBROUTINE mooncar(t0,xmoon,ifla) 
+  USE fund_const
+  USE planet_masses
+  IMPLICIT NONE 
+! input: epoch time, flag for getting Moon (heliocentric; ifla=1)      
+!        or Sun (barycentric; ifla=2)                                   
+  DOUBLE PRECISION, INTENT(IN) :: t0 
+  INTEGER, INTENT(IN) :: ifla 
+! output: heliocentric state vector of Moon (equinoctal, ecliptic)     
+!         or barycentric state vector of Sun (equinoctal, ecliptic)        
+  DOUBLE PRECISION, INTENT(OUT) :: xmoon(6) 
+! =============JPL EPHEM===============                                 
+! data for masses                                                       
+  INCLUDE 'jplhdr.h90' 
+! output of JPL routine, Julian date, rotation matrix                   
+  double precision et(2),rrd(6) 
+! integers for call to JPl routines                                     
+  integer ntarg,ncent,istate 
+! ====================================                                  
+! JPL Moon vector at observation time                                  
+  et(1)=2400000.5d0 
+  et(2)=t0 
+  if (ifla.eq.1) then 
+     ntarg=10 
+     ncent=11 
+  else 
+     ntarg=11 
+     ncent=12 
+  endif
+! duplicate computation of gmse, in case masjpl has not been called yet 
+  gmse=gms*(1.d0+cval(11)/cval(18)) 
+! ****** added on Sat Jun 14 1997 ******                                
+! first istate need to be=2  (dpleph calculates also vel.)              
+  istate=2 
+  call dpleph(et,ntarg,ncent,rrd,istate) 
+! Change of reference system EQUM00 ---> ECLM00                         
+!      call rotpn(rot,'EQUM','J2000',0.d0,'ECLM','J2000',0.d0) 
+  xmoon(1:3)=MATMUL(roteqec,rrd(1:3)) 
+  xmoon(4:6)=MATMUL(roteqec,rrd(4:6)) 
+END SUBROUTINE mooncar
+
+! ======================================================================
+! SUNMOON_ CAR - get Sun+Moon cartesian coordinates 
+!     either ecliptic or equatorial J2000 
+! GT November 2008
+! ======================================================================
+SUBROUTINE sunmoon_car(t0,equ,xsun,xmoon) 
+  USE fund_const
+  USE planet_masses
+  IMPLICIT NONE 
+! SUNMOON_CAR - get geocentric cartesian coordinates
+! for Sun and Moon, equatorial (equ=TRUE) or ecpliptic (equ=FALSE) 
+! input: epoch time 
+  DOUBLE PRECISION, INTENT(IN) :: t0
+! equatorial or ecliptic
+  LOGICAL, INTENT(IN) :: equ 
+! output: geocentric state vector of Sun and Moon (ecliptic)      
+  DOUBLE PRECISION, DIMENSION(6), INTENT(OUT) :: xsun, xmoon 
+! =============JPL EPHEM===============                                 
+! data for masses                                                       
+  INCLUDE 'jplhdr.h90' 
+! output of JPL routine, Julian date, rotation matrix                   
+  DOUBLE PRECISION ::  et(2),rrd(6) 
+! integers for call to JPl routines                                     
+  INTEGER :: ntarg,ncent,istate 
+! ====================================                                  
+! JPL Earth vector at observation time                                  
+  et(1)=2400000.5d0 
+  et(2)=t0 
+  ncent=3 
+! first istate need to be=2  (dpleph calculates also vel.)              
+  istate=2
+  ntarg=11 
+  CALL dpleph(et,ntarg,ncent,rrd,istate) 
+  IF(equ)THEN
+     xsun=rrd
+  ELSE
+! Change of reference system EQUM00 ---> ECLM00                         
+     xsun(1:3)=MATMUL(roteqec,rrd(1:3)) 
+     xsun(4:6)=MATMUL(roteqec,rrd(4:6))
+  ENDIF 
+  ntarg=10
+  CALL dpleph(et,ntarg,ncent,rrd,istate)
+  IF(equ)THEN
+     xmoon=rrd
+  ELSE   
+! Change of reference system EQUM00 ---> ECLM00                         
+     xmoon(1:3)=MATMUL(roteqec,rrd(1:3)) 
+     xmoon(4:6)=MATMUL(roteqec,rrd(4:6)) 
+  ENDIF
+END SUBROUTINE sunmoon_car

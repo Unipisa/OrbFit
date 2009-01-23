@@ -172,10 +172,10 @@ SUBROUTINE io_det(unirep,rwofil,name,obs,obsw,n,error_model,ifo,&
 210     FORMAT(8X,'Trying ',A,' method') 
         IF(iodvrb.GE.3) THEN 
            WRITE(*,240) iodmen(itry)(1:lm),name(1:ln),in,                &
-     &                 (noisea(i)*secrad,noised(i)*secrad,i=1,3)        
+     &                 (noisea(i),noised(i),i=1,3)        
            IF(unirep.GT.0) WRITE(unirep,240) iodmen(itry)(1:lm),         &
      &                    name(1:ln),in,                                &
-     &                    (noisea(i)*secrad,noised(i)*secrad,i=1,3)     
+     &                    (noisea(i),noised(i),i=1,3)     
         END IF
         IF(iodmet(itry).EQ.1) THEN 
            CALL gaussn(tdt3,alpha3,delta3,obsc3,elemv,ieltyv,t0v,        &
@@ -215,20 +215,21 @@ SUBROUTINE io_det(unirep,rwofil,name,obs,obsw,n,error_model,ifo,&
               IF(iodvrb.GE.2) THEN 
                  IF(ieltyv(is).EQ.'KEP') THEN 
                     WRITE(*,222) 'Gauss',name(1:ln),is,'a',elemv(1,is),   &
-     &                          elemv(2,is),rms1*secrad                 
+     &                          elemv(2,is),rms1                 
                     IF(unirep.GT.0) WRITE(unirep,222)'Gauss', name(1:ln), &
-     &                    is,'a',elemv(1,is),elemv(2,is),rms1*secrad    
+     &                    is,'a',elemv(1,is),elemv(2,is),rms1   
                  ELSE 
                     WRITE(*,222) 'Gauss',name(1:ln),is,'q',elemv(1,is),   &
-     &                          elemv(2,is),rms1*secrad                 
+     &                          elemv(2,is),rms1                 
                     IF(unirep.GT.0) WRITE(unirep,222) 'Gauss',name(1:ln), &
-     &                     is,'q',elemv(1,is),elemv(2,is),rms1*secrad   
+     &                     is,'q',elemv(1,is),elemv(2,is),rms1  
                  END IF
               END IF
-              IF((ieltyv(is).EQ.'KEP') .AND. (rms1.LE.iodrmx))            &
-                 &        CALL iodsbs(elem,ieltyb,telem,rmsb,methb,selb,irb, &
+              IF((ieltyv(is).EQ.'KEP') .AND. (rms1.LE.iodrmx))THEN
+                 CALL iodsbs(elem,ieltyb,telem,rmsb,methb,selb,irb, &
      &                    elemv(1,is),ieltyv(is),t0v(is),rms1,'Gauss',  &
-     &                    selipt,ir,existb)                             
+     &                    selipt,ir,existb)
+              ENDIF                             
 3          ENDDO
            IF(existb .AND. (rmsb.LE.iodrok)) GOTO 20 
                                                                         
@@ -258,16 +259,16 @@ SUBROUTINE io_det(unirep,rwofil,name,obs,obsw,n,error_model,ifo,&
               IF(iodvrb.GE.2) THEN 
                  IF(ieltyv(is).EQ.'KEP') THEN 
                     WRITE(*,222) 'Vaisala',name(1:ln),is,'a',elemv(1,is), &
-     &                         elemv(2,is),rms1*secrad                  
+     &                         elemv(2,is),rms1                  
                     IF(unirep.GT.0) WRITE(unirep,222) 'Vaisala',          &
      &                            name(1:ln),is,'a',elemv(1,is),        &
-     &                            elemv(2,is),rms1*secrad               
+     &                            elemv(2,is),rms1               
                  ELSE 
                     WRITE(*,222) 'Vaisala',name(1:ln),is,'q',elemv(1,is), &
-     &                          elemv(2,is),rms1*secrad                 
+     &                          elemv(2,is),rms1                 
                     IF(unirep.GT.0) WRITE(unirep,222) 'Vaisala',          &
      &                            name(1:ln),is,'q',elemv(1,is),        &
-     &                            elemv(2,is),rms1*secrad               
+     &                            elemv(2,is),rms1               
                  END IF
               END IF
               IF((ieltyv(is).EQ.'KEP') .AND. (rms1.LE.iodrmx))     &
@@ -312,14 +313,12 @@ SUBROUTINE io_det(unirep,rwofil,name,obs,obsw,n,error_model,ifo,&
   IF(existb) THEN 
      lm=lench(methb) 
      IF(in.LE.0) THEN 
-        WRITE(*,232) name(1:ln),methb(1:lm),rmsb*secrad 
-        IF(unirep.GT.0) WRITE(unirep,232) name(1:ln),methb(1:lm), &
-     &                                          rmsb*secrad             
+        WRITE(*,232) name(1:ln),methb(1:lm),rmsb
+        IF(unirep.GT.0) WRITE(unirep,232) name(1:ln),methb(1:lm),rmsb
         comele=methb(1:lm) 
      ELSE 
-        WRITE(*,233) name(1:ln),methb(1:lm),rmsb*secrad 
-        IF(unirep.GT.0) WRITE(unirep,233) name(1:ln),methb(1:lm), &
-     &                                          rmsb*secrad             
+        WRITE(*,233) name(1:ln),methb(1:lm),rmsb 
+        IF(unirep.GT.0) WRITE(unirep,233) name(1:ln),methb(1:lm),rmsb
         comele=methb(1:lm)//'(wN)' 
      END IF
      label=name(1:ln)//'/'//methb(1:lm) 

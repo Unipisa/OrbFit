@@ -170,7 +170,7 @@ CONTAINS
 ! =============================  
     CALL initopt(progna,run,'mop')  
 ! read option for physical model and integration method                 
-    CALL rmodel    
+    CALL rmodel(1)    
     ! Output files: for control                 
     file=run//'.mou' 
     CALL rmsp(file,le) 

@@ -27,7 +27,7 @@ DOUBLE PRECISION,               PARAMETER :: t2000 = 51544.5d0
 
 ! LIST OF PUBLIC ENTITIES
 ! SUBROUTINEs
-PUBLIC :: observer_position, pvobs, pvobs3, rotpn, posobs, ch2ref
+PUBLIC :: observer_position, pvobs, pvobs3, rotpn, posobs, ch2ref, obs2ecl
 
 
 ! pvobs2,pvobs4 to be removed
@@ -304,6 +304,74 @@ SUBROUTINE pvobs(t,idsta,dx,dv)
   dx=MATMUL(rotmat,dxbf)
   dv=MATMUL(rotmat,dvbf)
 END SUBROUTINE pvobs
+
+! Copyright (C) 2008 by Fabrizio Bernardi (bernardi@adams.dm.unipi.it)
+! Version: October 14, 2008
+! ---------------------------------------------------------------------
+!
+!  *****************************************************************
+!  *                                                               *
+!  *                          OBS2ECL                              *
+!  *                                                               *
+!  *      Change of reference frame from geocentric equatorial     *
+!  *                      to mean ecliptic                         *
+!  *                                                               *
+!  *****************************************************************
+!
+! INPUT:    T         -  Time (MJD, TDT)
+!           IDSTA     -  Observatory code
+!           XIN       -  Input Vector
+!
+! OUTPUT:   XOUT      -  Vector w.r. to the ecliptic frame (mean ecl. J2000)
+!
+
+SUBROUTINE obs2ecl(t,idsta,xin,xout)
+  USE station_coordinates
+  DOUBLE PRECISION rot(3,3),rot1(3,3),dxbf(3),dxtod(3)
+  DOUBLE PRECISION omega(3),dvbf(3),dvtod(3),xin(3),xout(3)
+! station identifiers
+  INTEGER idsta
+! times
+  INTEGER mjd1,mjd2
+  DOUBLE PRECISION t,sec1,sec2,tut,gast
+!**************************************
+! startup
+  CHARACTER*20 name
+  LOGICAL first
+! save old time and matrix
+  DOUBLE PRECISION ::  rotmat(3,3)
+! static memory allocation only for:
+  DATA first/.true./
+! Earth angular velocity (rad/d)
+     omega(1)=0.d0
+     omega(2)=0.d0
+     omega(3)=dpig*1.00273790934d0
+!**************************************
+! Station name
+  IF(idsta.eq.500)THEN
+     xout=0.d0
+     RETURN
+  ENDIF
+  CALL obscoo(idsta,dxbf,name)
+! Station position and velocity in the body fixed (equatorial) frame
+  CALL prvec(omega,dxbf,dvbf)
+! ET decomposed in days plus seconds; no trick (every day is 86400 sec)
+  mjd1=t
+  sec1=(t-mjd1)*86400
+! Computation of UT1
+  CALL cnvtim(mjd1,sec1,'ET ',mjd2,sec2,'UT1')
+  tut=sec2/86400+mjd2
+! Greenwich Apparent Sidereal Time = Greenwich Mean Sidereal Time +
+! Equation of the Equinoxes
+  gast=gmst(tut)+equequ(t)
+! Diurnal rotation matrix (transformation from body-fixed to
+! true-of-date frames), neglecting polar motion
+  CALL rotmt(-gast,rot,3)
+! Station position and velocity in the J2000 (ecliptic) frame
+  CALL rotpn(rot1,'EQUT','OFDATE',t,'ECLM','J2000',0.d0)
+  rotmat=MATMUL(rot1,rot)
+  xout=MATMUL(rotmat,xin)
+END SUBROUTINE obs2ecl
 
 ! fortran 90 version, using position from obs data type
 ! A. Milani, Mar. 2003

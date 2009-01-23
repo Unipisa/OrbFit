@@ -3,19 +3,19 @@ MODULE option_input
 ! ---------------------------------------------------------------------
 ! former PARNAM.H
 ! Max number of namelist entries (main namelist)
-  INTEGER, PARAMETER :: nnex=100
+  INTEGER, PARAMETER :: nnex=200
 ! Max number of namelist entries (simplified file-header namelist)
-  INTEGER, PARAMETER :: nfnex=100
+  INTEGER, PARAMETER :: nfnex=200
 ! Max number of entries in the list of keywords
-  INTEGER, PARAMETER :: nklsx=200
+  INTEGER, PARAMETER :: nklsx=500
 ! Max number of string to integer translations
-  INTEGER, PARAMETER :: ns2itx=200
+  INTEGER, PARAMETER :: ns2itx=300
 ! Length of the "key" field
   INTEGER, PARAMETER :: lckx=30
 ! Length of the "value" field
   INTEGER, PARAMETER :: lcvx=150
 ! Length of the "filename" field
-  INTEGER, PARAMETER :: lcfx=80
+  INTEGER, PARAMETER :: lcfx=300
   PUBLIC nnex,nfnex,nklsx,ns2itx,lckx,lcvx,lcfx
 
 ! ---------------------------------------------------------------------

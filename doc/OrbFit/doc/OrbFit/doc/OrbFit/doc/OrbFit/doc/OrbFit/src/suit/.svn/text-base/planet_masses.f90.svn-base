@@ -28,7 +28,7 @@ INTEGER,PARAMETER ::  nplax=10
 ! maximum number of perturbing bodies (including massive asteroids)
 INTEGER,PARAMETER :: nmassx=nplax+nbepx
 ! mass of sun, ?, of planets as used in integration, sun+earth+moon, earth
-DOUBLE PRECISION gm0,gmu,gm(nmassx),gmse,gmearth
+DOUBLE PRECISION gm0,gmu,gm(nmassx),gmse,gmearth,gmoon
 !  masses of the planets, flags to find them in order
 INTEGER npla,nmass,itarg(nplax),listpl(12)
 CHARACTER*30,DIMENSION(nmassx) :: ordnam !planet names

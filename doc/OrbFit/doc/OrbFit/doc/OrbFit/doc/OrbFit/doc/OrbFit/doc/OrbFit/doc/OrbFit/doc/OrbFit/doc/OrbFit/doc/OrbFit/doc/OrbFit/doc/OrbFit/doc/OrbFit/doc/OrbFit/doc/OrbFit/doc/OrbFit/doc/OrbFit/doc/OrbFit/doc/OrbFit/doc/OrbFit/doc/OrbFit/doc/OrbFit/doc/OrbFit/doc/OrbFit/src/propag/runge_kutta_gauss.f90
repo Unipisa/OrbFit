@@ -20,6 +20,7 @@
 ! 
 MODULE runge_kutta_gauss
 USE output_control
+USE fund_const
 IMPLICIT NONE
 
 PRIVATE
@@ -74,14 +75,12 @@ CONTAINS
 !      lf : flag che e' >0 se c'e' stata soddisfacente convergenza      
 !              altrimenti segnala problemi                              
 !  codice indici: i=1,nvar; j=1,is; id=1,ndim; it=indice di iterazione  
-      SUBROUTINE rkimp(t1,h,y1,dery,ck,is,y3,lit,fct2,                  &
-     &     nvar,epsi,ep,lfleps,ndim)  
+      SUBROUTINE rkimp(t1,h,y1,dery,ck,is,y3,lit,nvar,epsi,ep,lfleps,ndim)  
 !INPUT                                                       
       double precision, intent(in) ::  t1,h !  tempo, passo 
       integer,intent(in):: nvar !  dimensioni variabili 
       double precision,intent(in):: y1(nvar) ! current state
       double precision,intent(in) ::  epsi !  controlli 
-      external fct2 ! name of right hand side  
 ! OUTPUT
       double precision, intent(out) :: dery(nvar),y3(nvar) ! derivatives, new state
       double precision, intent(out) :: ep(itmax) ! controls on convergence
@@ -112,7 +111,7 @@ CONTAINS
    13       de=de+ark(j,jj)*ck(jj,i) 
    12     y3(i)=de*h+y1(i) 
         imem=j 
-        call fct(t(j),y3,dery,nvar,fct2,ips,imem) 
+        call fct(t(j),y3,dery,nvar,ips,imem) 
         do 14 i=1,ndim 
    14      ep(it)=ep(it)+dabs(dery(i)-ck(j,i)) 
         do 15 id=1,nvar 
@@ -148,41 +147,51 @@ CONTAINS
 !   right hand side routine                                             
 !   reduces equations to order 1                                        
 !   starting from accelerations computed by force                       
-      SUBROUTINE fct(t,y,dery,nvar,fct2,ips,imem)
-      USE planet_masses 
-      USE force_model
-      integer nvar,nvar2,idc,i 
-      double precision y(nvar),dery(nvar) 
-      double precision xxpla(6) 
-      double precision t 
-      INTEGER ips,imem 
-! name of right hand side                                               
-      external fct2 
+SUBROUTINE fct(t,y,dery,nvar,ips,imem)
+  USE planet_masses 
+  USE force_model
+  USE force_sat
+  USE force9d
+  INTEGER, INTENT(IN) :: nvar
+  DOUBLE PRECISION, INTENT(IN) :: y(nvar)
+  DOUBLE PRECISION, INTENT(IN) :: t 
+  INTEGER, INTENT(IN) :: ips,imem
+  DOUBLE PRECISION, INTENT(OUT) :: dery(nvar) 
+! END INTERFACE 
+  DOUBLE PRECISION xxpla(6) 
+  INTEGER nvar2,idc,i 
 ! close app. control options from force_model.mod
 !****************                                                       
 !   static memory not required                                          
 !****************                                                       
-      nvar2=nvar/2 
-      call fct2(y,y(nvar2+1),t,dery(nvar2+1),nvar2,idc,xxpla,ips,imem) 
-      IF(iorbfit.eq.11)THEN 
-         if(iclap.ne.0.and.idc.ne.0)then 
+  nvar2=nvar/2 
+  IF(rhs.eq.1)THEN
+     call force(y,y(nvar2+1),t,dery(nvar2+1),nvar2,idc,xxpla,ips,imem)
+  ELSEIF(rhs.eq.2)THEN
+     call forcesat(y,y(nvar2+1),t,dery(nvar2+1),nvar2,idc,xxpla,ips,imem)
+  ELSEIF(rhs.eq.3)THEN
+     CALL force9(y,y(nvar2+1),t,dery(nvar2+1),nvar2,idc,xxpla,ips,imem)
+  ENDIF
+  IF(rhs.eq.1)THEN 
+     if(iclap.ne.0.and.idc.ne.0)then 
 ! to be improved with a real close approach subroutine like closapp/fals
 !            write(*,*)'t =',t,' close approach to planet=',             &
 !     &           ordnam(idc)                                            
 !            write(iuncla,*)'t =',t,' close approach to planet=',        &
 !     &           ordnam(idc)                                            
-         endif 
-      ELSEIF(iorbfit.eq.9)THEN 
+     endif
+  ELSEIF(rhs.eq.3)THEN 
 !         if(idc.ne.0)then 
 !            write(*,*)'t =',t,' close approach code=',idc 
 !            write(iuncla,*)'t =',t,' close approach code =',idc 
 !         endif 
-      ENDIF 
-      do i=1,nvar2 
-        dery(i)=y(nvar2+i) 
-      enddo 
-      return 
-      END SUBROUTINE fct                                          
+  ELSEIF(rhs.eq.2)THEN
+! handle satellite case (ballistic orbit)
+  ENDIF
+  do i=1,nvar2 
+     dery(i)=y(nvar2+i) 
+  enddo
+END SUBROUTINE fct
                                        
 ! ==========================================================            
 ! RKSTEP                                                                
@@ -409,8 +418,10 @@ END SUBROUTINE rkstep
 !   equazioni ridotte all'ordine 1                                      
 !   a partire dall'eq del secondo ordine                                
 !   calcolata da force                                                  
-      SUBROUTINE fctcl(t,y,dery,nvar,xxpla,ips,imem)
-      USE force_model 
+    SUBROUTINE fctcl(t,y,dery,nvar,xxpla,ips,imem)
+      USE force_model
+      USE force_sat 
+      USE force9d
       integer nvar 
       double precision y(nvar),dery(nvar) 
       double precision xxpla(6) 
@@ -422,11 +433,17 @@ END SUBROUTINE rkstep
 !   static memory not required                                          
 !****************                                                       
       nvar2=nvar/2 
-      call force(y,y(nvar2+1),t,dery(nvar2+1),nvar2,idc,xxpla,ips,imem) 
+      IF(rhs.eq.1)THEN
+         call force(y,y(nvar2+1),t,dery(nvar2+1),nvar2,idc,xxpla,ips,imem) 
+      ELSEIF(rhs.eq.2)THEN
+         call forcesat(y,y(nvar2+1),t,dery(nvar2+1),nvar2,idc,xxpla,ips,imem) 
+      ELSEIF(rhs.eq.3)THEN
+          CALL force9(y,y(nvar2+1),t,dery(nvar2+1),nvar2,idc,xxpla,ips,imem)
+      ENDIF
       do  i=1,nvar2 
         dery(i)=y(nvar2+i) 
       enddo 
       return 
-      END SUBROUTINE  fctcl   
+    END SUBROUTINE  fctcl   
                                   
 END MODULE runge_kutta_gauss
