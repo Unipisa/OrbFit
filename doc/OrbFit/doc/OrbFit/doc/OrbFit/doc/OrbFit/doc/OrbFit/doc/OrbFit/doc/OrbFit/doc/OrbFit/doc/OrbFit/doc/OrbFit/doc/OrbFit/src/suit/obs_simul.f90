@@ -35,7 +35,12 @@ SUBROUTINE obs_simul(type1,t1,tut,astnam,ids,rmssec,rmsmag,alpha,delta,hmagn,obs
      obs%obscod_i=ids
      WRITE(obs%obscod_s(3:7),'(I4)')ids
      CALL codestat(ids,obs%obscod_s)
-     CALL observer_position(t1,obs%obspos,obs%obsvel,OBSCODE=ids,PRECISION=1)
+     IF(rhs.ne.1.and.rhs.ne.2)THEN
+        WRITE(*,*)'obs_simul: rhs=', rhs
+        STOP
+     ELSE
+        CALL observer_position(t1,obs%obspos,obs%obsvel,OBSCODE=ids)
+     END IF
   ELSEIF(type1.eq.'R'.or.type1.eq.'V')THEN
      obs%tech='c'
      obs%obscod_i=ids*10000+ids
@@ -54,6 +59,7 @@ SUBROUTINE obs_simul(type1,t1,tut,astnam,ids,rmssec,rmsmag,alpha,delta,hmagn,obs
      WRITE(obs%mag_str,110)hmagn
 110  FORMAT(F4.1,' V')
      obs%acc_mag=1.e-2
+     obs%mag_band='V'
   ENDIF 
 ! weights
   obsw=undefined_ast_wbsr

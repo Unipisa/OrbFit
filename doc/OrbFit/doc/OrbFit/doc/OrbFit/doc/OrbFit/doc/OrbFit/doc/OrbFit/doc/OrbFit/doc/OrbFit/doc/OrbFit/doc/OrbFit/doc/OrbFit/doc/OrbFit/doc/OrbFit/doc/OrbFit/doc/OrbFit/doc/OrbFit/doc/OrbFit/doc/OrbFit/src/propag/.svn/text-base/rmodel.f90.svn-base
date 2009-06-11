@@ -192,7 +192,6 @@ SUBROUTINE rmodel(rhs0)
   verb_prelim=1
   verb_covariance=1
   verb_matrix=1
-  verb_2body=1
 !                                                                       
   IF(fail)STOP '**** rmodel: abnormal end ****' 
   RETURN 

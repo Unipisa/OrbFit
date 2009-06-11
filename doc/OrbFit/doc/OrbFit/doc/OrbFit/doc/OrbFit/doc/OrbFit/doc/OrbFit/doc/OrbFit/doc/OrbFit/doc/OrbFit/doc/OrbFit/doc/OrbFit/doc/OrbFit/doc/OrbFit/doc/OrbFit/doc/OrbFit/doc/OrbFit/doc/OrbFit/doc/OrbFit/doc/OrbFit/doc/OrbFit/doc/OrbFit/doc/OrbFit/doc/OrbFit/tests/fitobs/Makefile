@@ -15,7 +15,7 @@ test_catpro: catpro.x mult.ctc
 	time catpro.x
 
 distclean:
-	-(rm -f gmon.out core *.pro *.clo *.fga *.rwo *.fou *.fel *.cbd \
+	-(rm gmon.out core *.pro *.clo *.fga *.rwo *.fou *.fel *.cbd \
 	giffv.* *.frw *.*~ *~ *.tmp *.err *.done multprop.ctc *.mou \
 	virimp.* *.vis mult.ctc *.rms)
 

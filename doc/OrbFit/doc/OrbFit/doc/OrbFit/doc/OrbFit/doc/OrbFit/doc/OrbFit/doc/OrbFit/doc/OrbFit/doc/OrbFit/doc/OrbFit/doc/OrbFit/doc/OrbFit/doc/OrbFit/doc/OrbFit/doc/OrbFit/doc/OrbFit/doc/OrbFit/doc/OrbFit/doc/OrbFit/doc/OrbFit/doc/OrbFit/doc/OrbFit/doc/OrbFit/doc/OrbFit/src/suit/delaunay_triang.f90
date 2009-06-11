@@ -55,19 +55,6 @@ SUBROUTINE triangola(npox,ntrix,xRR,yRR,nodiest,noditot,triang,nt)
       
   raggiocirccentr=0.d0      
             
-!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&      
-! write on file external nodes
-  CALL filopn(iun,'bordo_esterno','unknown')
-  DO j =1, nodiest
-!         WRITE(iun,199)j,xR(j),yR(j)
-     WRITE(iun,*)j,xR(j),yR(j)
-  ENDDO
-
-199 FORMAT(i5,1x,f20.17,1x,f20.17)
-  CALL filclo(iun,' ')
-!&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&      
-
-
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&      
 ! INITIAL TRIANGULATION
   nt=0
@@ -1054,7 +1041,7 @@ END SUBROUTINE smoothing
 ! =========================================================================
 SUBROUTINE outtriang(trifil,noditot,nt,xR,yR,triang)
   CHARACTER*(*),INTENT(IN) :: trifil
-  INTEGER, INTENT(IN) :: noditot,nt,triang(nt,4)
+  INTEGER, INTENT(IN) :: noditot,nt,triang(nt,3)   !triang(nt,4)
   DOUBLE PRECISION, INTENT(IN) :: xR(noditot),yR(noditot)
   ! END INTERFACE
 ! =========================================================================
@@ -1063,7 +1050,7 @@ SUBROUTINE outtriang(trifil,noditot,nt,xR,yR,triang)
   INTEGER :: iun ! unit number      
   CALL filopn(iun,trifil,'unknown')  
   !       write total number of nodes and of triangles
-  write(iun,100) noditot,nt,nfunc
+  write(iun,100) noditot,nt, 0.d0 !,nfunc
 100 FORMAT(i5,8x,i5,8x,i5)
   DO i=1,noditot
      write(iun,101) xR(i),yR(i), 0.d0

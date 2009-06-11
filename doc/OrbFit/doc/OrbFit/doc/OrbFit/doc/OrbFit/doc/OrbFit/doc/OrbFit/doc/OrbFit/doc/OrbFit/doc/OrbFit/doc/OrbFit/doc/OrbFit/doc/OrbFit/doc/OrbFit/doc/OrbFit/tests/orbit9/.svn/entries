@@ -1,15 +1,15 @@
 9
 
 dir
-105
+92
 file:///home/orbfit/orbfit_subv/trunk/tests/orbit9
 file:///home/orbfit/orbfit_subv
 
 
 
-2009-01-07T16:44:38.300955Z
-102
-orbfit_mes
+2008-11-28T17:38:03.888030Z
+86
+orbfit_amc
 
 
 svn:special svn:externals svn:needs-lock
@@ -37,6 +37,13 @@ file
 2008-11-12T11:12:48.673907Z
 71
 orbfit_amc
+
+secres.m
+file
+0
+
+
+add
 
 OrbFitSoft
 file
@@ -91,6 +98,13 @@ ef3d00ae83ca49d62fd31ebcc36f95af
 81
 orbfit_amc
 
+resonances.m
+file
+0
+
+
+add
+
 o9stor
 file
 
@@ -106,37 +120,31 @@ has-props
 
 orb9t.opt
 file
-106
 
 
 
-2008-12-31T16:12:03.000000Z
-62875822fc03c7a761f3b5563c4afede
-2009-01-13T18:04:51.533078Z
-106
+
+2008-11-20T18:12:00.000000Z
+c563f4caaea8c1320b4ea479f9e48809
+2008-11-20T18:28:49.703854Z
+82
 orbfit_amc
+
+secre9.x
+file
+0
+
+
+add
 
 
 
 
 
+has-props
+has-prop-mods
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-2190
+svn:special
 
 plan00.inc
 file
@@ -221,18 +229,6 @@ dccd55f7a96b3a2ddcc2e2428bfe668a
 1
 orbfit
 
-short8s.opt
-file
-
-
-
-
-2000-05-30T13:09:40.000000Z
-6e8e977473d46d222cdb8f429c0012c5
-2008-11-12T11:12:48.673907Z
-71
-orbfit_amc
-
 long8s.opt
 file
 
@@ -245,14 +241,38 @@ file
 71
 orbfit_amc
 
-orb9.opt
+short8s.opt
 file
 
 
 
 
+2000-05-30T13:09:40.000000Z
+6e8e977473d46d222cdb8f429c0012c5
+2008-11-12T11:12:48.673907Z
+71
+orbfit_amc
+
+orb9.opt
+file
+98
+
+
+
 2008-12-16T14:13:07.000000Z
 12457cd2fdd7fad33cddb584c9b666bb
+2008-12-18T18:02:36.575954Z
+98
+orbfit_amc
+
+Makefile
+file
+98
+
+
+
+2008-12-16T16:50:28.000000Z
+d12e398cba6d9deafa02a62912120451
 2008-12-18T18:02:36.575954Z
 98
 orbfit_amc
@@ -265,52 +285,6 @@ file
 
 2000-06-01T13:37:36.000000Z
 a99be1f18167c92bceceef313f957be7
-2008-11-12T11:12:48.673907Z
-71
-orbfit_amc
-
-Makefile
-file
-106
-
-
-
-2008-12-31T16:32:45.000000Z
-1772cdd7a102be8e1a39e50ee9c01f74
-2009-01-13T18:04:51.533078Z
-106
-orbfit_amc
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-1095
-
-chunk.cat
-file
-
-
-
-
-2000-06-01T13:16:57.000000Z
-f1a69f358a7c3c441fd492ef70dcd3e1
 2008-11-12T11:12:48.673907Z
 71
 orbfit_amc
@@ -331,6 +305,18 @@ has-props
 
 svn:special
 
+chunk.cat
+file
+
+
+
+
+2000-06-01T13:16:57.000000Z
+f1a69f358a7c3c441fd492ef70dcd3e1
+2008-11-12T11:12:48.673907Z
+71
+orbfit_amc
+
 prop9.x
 file
 
@@ -349,7 +335,7 @@ svn:special
 
 prop.opt
 file
-
+98
 
 
 
@@ -359,39 +345,28 @@ file
 98
 orbfit_amc
 
+troj.cat
+file
+0
+
+
+add
+
 propert3.x
 file
-106
+0
+
+
+add
 
 
 
-2009-01-13T16:00:55.000000Z
-e404c18f3cee77c0680a15b41e1c1b53
-2009-01-13T18:04:51.533078Z
-106
-orbfit_amc
+
+
 has-props
-
+has-prop-mods
 
 svn:special
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-25
 
 filter.100
 file
@@ -404,40 +379,6 @@ file
 2007-12-24T17:00:34.975856Z
 1
 orbfit
-
-troj.cat
-file
-106
-
-
-
-2008-12-31T16:20:41.000000Z
-84fd45c522593a19a0614b3164a6c189
-2009-01-13T18:04:51.533078Z
-106
-orbfit_amc
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-461
 
 orbselect.x
 file
@@ -455,6 +396,13 @@ has-props
 
 svn:special
 
+secre8.opt
+file
+0
+
+
+add
+
 filter.d5
 file
 
@@ -466,6 +414,18 @@ e6690366cdeacaad1b470c72314377f3
 2007-12-24T17:00:34.975856Z
 1
 orbfit
+
+barsun00.inc
+file
+
+
+
+
+2000-07-31T07:27:50.000000Z
+1c232efe53b8d9062062451292b35968
+2008-11-12T11:12:48.673907Z
+71
+orbfit_amc
 
 orbit9t.x
 file
@@ -482,18 +442,6 @@ has-props
 
 
 svn:special
-
-barsun00.inc
-file
-
-
-
-
-2000-07-31T07:27:50.000000Z
-1c232efe53b8d9062062451292b35968
-2008-11-12T11:12:48.673907Z
-71
-orbfit_amc
 
 hamil.ind
 file

@@ -103,8 +103,7 @@ PROGRAM fitobs
   INTEGER le,lnam 
   CHARACTER*6 progna 
 ! logical units                                                         
-  INTEGER iunrms,nrej ! for statisctical report
-!  INTEGER iunout,iuncov
+  INTEGER iunrms,nrej,nscobs ! for statistical report
 ! ======== controls and flags =============== 
   LOGICAL batch ! batch control
 ! main menus, choice of arc,covariance required?,copy to/from,test deriv.
@@ -124,6 +123,8 @@ PROGRAM fitobs
   WRITE(*,*) 'Run name =' 
   READ(*,100) run 
 100 FORMAT(a) 
+! Change format of rwo files, taking into account the catalog biases !!! One time keyword!!!
+  change_format=' '
   IF(run.eq.'')stop 'No run specified.' 
 ! input options                                                         
   progna='fitobs' 
@@ -177,12 +178,12 @@ PROGRAM fitobs
      ifun=2 
      GOTO 60 
   ENDIF
-  IF(init)THEN 
+  IF(init)THEN
      ifun=1 
      GOTO 60 
   ENDIF
   menunam='mainmenu' 
-  CALL menu(ifun,menunam,11,'What would you like?=',                &
+  CALL menu(ifun,menunam,12,'What would you like?=',                    &
      &   'input of observational data=',                                &
      &   'acquire orbital elements=',                                   &
      &   'differential corrections=',                                   &
@@ -193,7 +194,8 @@ PROGRAM fitobs
      &   'coordinate change=',                                          &
      &   'attributables=',                                              &
      &   'status=',                                                     &
-     &   'date conversion=')                                            
+     &   'date conversion=',                                            &
+     &   'test derivatives=')                                            
 60 IF(ifun.eq.0)THEN 
 ! ==========TERMINATE CLEANLY=========================                  
      CALL filclo(iun_log,' ') 
@@ -221,6 +223,7 @@ PROGRAM fitobs
         GOTO 61 
      ENDIF
      WRITE(*,*)' INPUT OF OBSERVATIONAL DATA' 
+     change_format='INPUT'
 51   menunam='inputobs' 
      CALL menu(ifobs,menunam,5,' which data to input?=',            &
      &      'first arc=','second arc=','both=',                         &
@@ -533,10 +536,17 @@ PROGRAM fitobs
       &         rwofic,elc,uncc,csinoc,delnoc,rmshc,succ)
 ! output for global parameter determination
         nrej=0
+        nscobs=0
         DO j=1,mc
-           IF(obswc(j)%sel_coord.eq.0) nrej=nrej+1
+           IF(obsc(j)%type.eq.'O')THEN
+              nscobs=nscobs+2
+              IF(obswc(j)%sel_coord.eq.0)nrej=nrej+2
+           ELSEIF(obsc(j)%type.eq.'R'.or.obsc(j)%type.eq.'V')THEN
+              nscobs=nscobs+1
+              IF(obswc(j)%sel_coord.eq.0)nrej=nrej+1
+           ENDIF
         ENDDO
-        WRITE(iunrms,222)astnac,mc,nrej,mc-nrej,csinoc,csinoc**2*(mc-nrej)
+        WRITE(iunrms,222)astnac,nscobs,nrej,nscobs-nrej,csinoc,csinoc**2*(nscobs-nrej)
 222     FORMAT(A9,1X,I5,1X,I4,1X,I5,1X,F10.7,1X,F14.9)
      ENDIF
 ! availability of observations, initial condition, JPL and ET-UT data   
@@ -1222,14 +1232,10 @@ PROGRAM fitobs
      WRITE(*,777)jd-2400000.5d0 
 777  FORMAT('MJD=',f13.6) 
 ! ===================================================================== 
-  ELSEIF(ifun.eq.13)THEN 
+  ELSEIF(ifun.eq.12)THEN 
 ! ===================================================================== 
-     WRITE(*,*)' THIS FUNCTION IS NOT READY' 
-     GOTO 50 
 ! Check first and possibly second derivatives at the starting points    
-     WRITE(*,*)' test derivatives of order (1,2)?' 
-     READ(*,*) ider2 
-!    CALL twotes(m,t0,tau,idsta,eq0,ider2)                          
+     CALL twotes(1,obs(1)%time_tdt,obs(1)%obscod_i,el0,obs(1)%obspos,obs(1)%obsvel)
 ! ===================================================================== 
   ELSE 
 ! ===================================================================== 

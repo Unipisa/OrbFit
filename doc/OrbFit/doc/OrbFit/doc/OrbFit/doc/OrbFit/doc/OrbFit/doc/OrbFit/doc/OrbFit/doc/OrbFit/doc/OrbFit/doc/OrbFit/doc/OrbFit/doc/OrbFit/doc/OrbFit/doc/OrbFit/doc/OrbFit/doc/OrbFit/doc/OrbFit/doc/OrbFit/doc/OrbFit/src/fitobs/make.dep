@@ -67,3 +67,7 @@ two_states.o: \
 	../suit/astrometric_observations.mod \
 	../suit/output_control.mod \
 	../suit/util_suit.mod 
+
+twotes.o: \
+	../propag/orbit_elements.mod \
+	../propag/pred_obs.mod 

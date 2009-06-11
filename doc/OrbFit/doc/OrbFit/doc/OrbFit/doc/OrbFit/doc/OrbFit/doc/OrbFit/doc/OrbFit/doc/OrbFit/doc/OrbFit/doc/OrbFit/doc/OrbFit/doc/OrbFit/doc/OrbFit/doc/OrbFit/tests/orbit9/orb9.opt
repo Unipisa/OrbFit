@@ -3,16 +3,17 @@
 inplan='planxx.inc'; input file name for initial conditions of the planets
 ibar= 1; barycentric correction 1=yes 0=no
 inbar='barsunxx.inc'; file containing the barycentric correction
-inast='chunk.cat'; input file name for initial conditions of the asteroids
+inast='allnum.cat'; input file name for initial conditions of the asteroids
 ; 2. job description: ast. are ordered in two list, with and without LCE
-nvz= 1 ; no. Lyapounov exponents
-10 
+nvz= 2 ; no. Lyapounov exponents
+490
+844
   
 ; 3. options: output           $ = option not yet implemented
-dt= 100.d0 ; time between two outputs
-nout= 100; output number at job termination
-idump= 50; number of outputs between dump/renormalisation
-nsamp= 5; sampling ratio of the filter; choose 5, 20,50 or 100
+dt= 500.d0 ; time between two outputs
+nout= 4000; output number at job termination
+idump= 500; number of outputs between dump/renormalisation
+nsamp= 100; sampling ratio of the filter; choose 5, 20,50 or 100
 iprqua=  2; how much output: 1 elem. filtr; 2 also sampl.;
 sysz= 'HEL' ; output system: BAR, HEL, JAC, HEC
 refz= 'INVL1B' ; output reference system: INVL1B, ECLM50, EQUM00, etc

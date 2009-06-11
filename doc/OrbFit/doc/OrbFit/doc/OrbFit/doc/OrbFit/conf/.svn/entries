@@ -1,7 +1,7 @@
 9
 
 dir
-105
+92
 file:///home/orbfit/orbfit_subv/trunk/conf
 file:///home/orbfit/orbfit_subv
 
@@ -194,18 +194,6 @@ file
 1
 orbfit
 
-mf.intel8-Xeon.p
-file
-
-
-
-
-2008-11-12T09:01:13.000000Z
-76cfc0883530d63a04fdf5094b2b1e81
-2007-12-24T17:00:34.975856Z
-1
-orbfit
-
 mf.intel.O
 file
 
@@ -218,26 +206,14 @@ dee78384ddc485b866f3af3b714419c8
 19
 orbfit_amc
 
-mf.generic.O
+mf.intel8-Xeon.p
 file
 
 
 
 
 2008-11-12T09:01:13.000000Z
-d282e4cec09fef2137ae64eb30444e7a
-2007-12-24T17:00:34.975856Z
-1
-orbfit
-
-mf.SOLARIS.O
-file
-
-
-
-
-2008-11-12T09:01:13.000000Z
-7ceb12130e06f0b1974440ecbb9e8c85
+76cfc0883530d63a04fdf5094b2b1e81
 2007-12-24T17:00:34.975856Z
 1
 orbfit
@@ -253,6 +229,30 @@ c74b8104e29292617b25844eb0f470d9
 2008-03-17T15:15:44.857338Z
 19
 orbfit_amc
+
+mf.SOLARIS.O
+file
+
+
+
+
+2008-11-12T09:01:13.000000Z
+7ceb12130e06f0b1974440ecbb9e8c85
+2007-12-24T17:00:34.975856Z
+1
+orbfit
+
+mf.generic.O
+file
+
+
+
+
+2008-11-12T09:01:13.000000Z
+d282e4cec09fef2137ae64eb30444e7a
+2007-12-24T17:00:34.975856Z
+1
+orbfit
 
 list.modfla
 file
@@ -362,14 +362,14 @@ ba4d53cec75fa27095b192214dfeb199
 19
 orbfit_amc
 
-mf.generic.d
+mf.SOLARIS.d
 file
 
 
 
 
 2008-11-12T09:01:13.000000Z
-a99c84746052cbc3132e93db713d1da8
+32d49f4b8be4245d8f6eac8efb150a88
 2007-12-24T17:00:34.975856Z
 1
 orbfit
@@ -386,14 +386,14 @@ file
 1
 orbfit
 
-mf.SOLARIS.d
+mf.generic.d
 file
 
 
 
 
 2008-11-12T09:01:13.000000Z
-32d49f4b8be4245d8f6eac8efb150a88
+a99c84746052cbc3132e93db713d1da8
 2007-12-24T17:00:34.975856Z
 1
 orbfit

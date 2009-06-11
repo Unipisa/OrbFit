@@ -1,0 +1,6 @@
+version =   1
+errmod  = ' '
+END_OF_HEADER
+! Object   Obser ============= Date ============= ================== Right Ascension =================  ================= Declination ===================== ==== Magnitude ==== Obs  Residual SEL
+! Design   K T N YYYY MM DD.dddddddddd   Accuracy HH MM SS.sss  Accuracy      RMS  F     Bias    Resid sDD MM SS.ss  Accuracy      RMS  F     Bias    Resid Val  B   RMS  Resid Cod       Chi A M
+ 2005A2123 O C 1 2005 01 23.123456789   1.200E-09 12 23 34.123  1.333E+00    1.333 F    0.000          +12 22 33.22  1.333E+00    1.333 F    0.000          20   V  1.00        599           1 0

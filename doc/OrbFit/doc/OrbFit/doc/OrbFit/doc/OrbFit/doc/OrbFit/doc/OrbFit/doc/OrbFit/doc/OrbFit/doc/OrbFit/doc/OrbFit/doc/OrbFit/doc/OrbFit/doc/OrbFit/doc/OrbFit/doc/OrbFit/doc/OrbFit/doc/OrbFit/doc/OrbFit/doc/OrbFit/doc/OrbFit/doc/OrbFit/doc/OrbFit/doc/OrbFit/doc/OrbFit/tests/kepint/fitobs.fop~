@@ -1,0 +1,25 @@
+! input file for fitobs
+fitobs.
+! first arc
+!        .astna0='37117_2'    ! full name, first arc
+!        .astna0='96217_4'    ! full name, first arc
+!         .astna0='2008TC3_1'  ! full name, first arc
+        .astna0='101878_1'   ! full name, first arc
+!        .astna0='ida_1'      ! full name, first arc
+!        .astna0='vesta_1'    ! full name, first arc
+        .obsdir0='obsdata'    ! directory of observs. file, first arc 
+!        .elefi0='ida_1.eq0'  ! first arc elements file
+!        .elefi0='8825.eq0'   ! first arc elements file
+!         .elefi0='37117.eq0' ! first arc elements file
+
+
+! second arc
+!        .astnap='37117_3'    ! full name, second arc
+!         .astnap='96217_5'   ! full name, second arc
+!         .astnap='2008TC3_2'  ! full name, second arc
+        .astnap='101878_2'   ! full name, second arc
+!        .astnap='ida_2'      ! full name, second arc
+!        .astnap='vesta_2'    ! full name, second arc
+        .obsdirp='obsdata'    ! directory of observs. file, second arc 
+
+propag.

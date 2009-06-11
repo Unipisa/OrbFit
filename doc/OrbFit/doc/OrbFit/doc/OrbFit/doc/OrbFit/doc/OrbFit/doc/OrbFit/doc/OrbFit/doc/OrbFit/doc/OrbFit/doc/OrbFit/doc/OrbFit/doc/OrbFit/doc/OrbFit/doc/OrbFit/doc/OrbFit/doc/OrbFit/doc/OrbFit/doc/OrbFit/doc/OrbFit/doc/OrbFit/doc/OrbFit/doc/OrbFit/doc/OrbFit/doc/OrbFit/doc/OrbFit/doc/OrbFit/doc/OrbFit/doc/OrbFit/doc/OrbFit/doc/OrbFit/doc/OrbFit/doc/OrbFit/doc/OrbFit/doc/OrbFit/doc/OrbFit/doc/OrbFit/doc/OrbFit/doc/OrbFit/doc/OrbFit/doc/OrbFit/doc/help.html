@@ -1,7 +1,10 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html><head>
+
+
    <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-    <title>OrbFit: online help</title>
+   <meta name="GENERATOR" content="Mozilla/4.07 [en] (X11; I; Linux 2.0.36 i586) [Netscape]">
+   <title>OrbFit: online help</title>
 <!-- Created by A. Milani, February 13, 1999 -->
 </head><body bgcolor="#ffffff">
 
@@ -135,18 +138,18 @@ files necessary to use it from our site.
 
 </p><p>&nbsp;From your web browser you should open the location (URL):
 
-</p><p>&nbsp;<tt><a href="http://adams.dm.unipi.it/orbfit/" target="refwin">
-http://adams.dm.unipi.it/orbfit/</a></tt>
+</p><p>&nbsp;<tt><a href="http://newton.dm.unipi.it/orbfit/" target="refwin">
+http://newton.dm.unipi.it/orbfit/</a></tt>
 
 </p><p>You are now offered the following choices:
 </p><ol>
 
 <li> You can browse the directory structure, and have an idea of the
-system, by entering in <tt><a href="http://adams.dm.unipi.it/orbfit/OrbFit/">
-http://adams.dm.unipi.it/orbfit/OrbFit/</a></tt>
+system, by entering in <tt><a href="http://newton.dm.unipi.it/orbfit/OrbFit/">
+http://newton.dm.unipi.it/orbfit/OrbFit/</a></tt>
 
 </li><li> You can upload a 
-<a href="http://adams.dm.unipi.it/orbfit/unixtar.tar.gz"> tarball</a>
+<a href="http://newton.dm.unipi.it/orbfit/unixtar.tar.gz"> tarball</a>
 file containing a complete distribution for all UNIX systems
 (including LINUX). The tarball contains all the necessary source
 files, and the Makefiles for automated compilation on every UNIX
@@ -171,16 +174,16 @@ once every few months.
 
 </p><p>&nbsp; Minor upgrades are such that a few new sources have to be added,
 or maybe overwrite a previous source file. They are indicated with a patch
-number, e.g. the first patch after distribution 4.0 shall be 4.0.1 Major
+number, e.g. the first patch after distribution 3.1 shall be 3.1.1 Major
 upgrades require to remove the old sources. 
 
 </p><p>&nbsp;Although you are by no means obliged to upgrade, if you want
 to do so you need to connect again to the 
-<a href="http://adams.dm.unipi.it/orbfit/"> distribution site</a> and
+<a href="http://newton.dm.unipi.it/orbfit/"> distribution site</a> and
 get the new archives containing the changed sources.  
 
 </p><p>In that directory, their name is something like
-<tt>patch4.0.1.Xtar.gz</tt>.  Once this file is on your hard disk, use
+<tt>patch3.1.Xtar.gz</tt>.  Once this file is on your hard disk, use
 the <a href="#upgrunix">upgrade procedure</a>.
 
 <br>&nbsp; </p><p><a name="licence"></a><b>Free software license</b>
@@ -233,7 +236,6 @@ Then you have to configure for the specific Fortran compiler in use (each
 compiler requires some non-standard flags): to do this you have to give
 the command <tt>config</tt>. If you type <tt>config</tt> without arguments,
 you get the online help, with the currenttly supported options:
-
 <pre>$ config
 Usage: config [options] [configuration]
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; where options can be:
@@ -241,14 +243,11 @@ Usage: config [options] [configuration]
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -O&nbsp; (optimized)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; -p&nbsp; (profiling)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; and [configuration] is one of the following:
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; SunOS&nbsp; (SunOS, Fortran 77/90)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; intel (INTEL compiler)
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; lf95&nbsp;&nbsp;&nbsp; (Lahey-Fujitsu compiler)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; gfortran&nbsp; (GNU F95 compiler) requires gcc 4.1 and later 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; the program may compile with the following compilers,
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; but there are problems:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; HP90&nbsp;&nbsp; (HP Fortran 90)
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; g95&nbsp;&nbsp;  (g95 free software, http://g95.sourceforge.net)
-</pre>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ALPHA&nbsp; (Digital alpha f90 compiler)
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; HP90&nbsp;&nbsp; (HP Fortran 90)</pre>
 
 If you find either that compilation cannot be completed, or that the executable
 does not perform as it should (e.g., it fails the tests), please let us
@@ -262,13 +261,12 @@ utility.
 hardware/operating system environment, e.g. for Linux: 
 <br>&nbsp;
 </p><pre>$ config -O intel 
-default library directory is /home/milani/orbfit/orb40/lib 
-default documentation directory is /home/milani/orbfit/orb40/doc
+default library directory is /home/milani/orbfit/orb31/lib 
+default documentation directory is /home/milani/orbfit/orb31/doc
 </pre> 
 
 you can proceed to the compilation, by giving the <tt>make</tt>
-command. For an example of the output, see the file <tt><a
-href="http://adams.dm.unipi.it/orbfit/OrbFit/doc/README.compile">README.compile</a></tt>.
+command. For an example of the output, see the file <tt><a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/doc/readme.compile">readme.compile</a></tt>.
 
 <p>&nbsp;For your convenience, all the executables
 <tt><i>progname</i>.x</tt> have been linked from the directory
@@ -295,22 +293,36 @@ is release 405.
 </p><p>&nbsp;For the LINUX users who would like to have OrbFit up and running
 immediately, we have prepared some binary ephemerides files. These can
 be downloaded from this link <tt> 
-<a href="http://adams.dm.unipi.it/orbfit/JPLEPH/">linux/jpleph</a></tt>.
+<a href="http://newton.dm.unipi.it/orbfit/JPLEPH/">linux/jpleph</a></tt>.
 
-</p><p>As an alternative, necessary if you want to run the program
-over a longer time span, you can retrieve the JPL ephemerides from the
-Internet, directly from the JPL FTP site.  You can use the FTP
-facility of the Web browser by accessing <a
-href="ftp://ssd.jpl.nasa.gov/pub/eph/planets/unix/">
-ftp://ssd.jpl.nasa.gov/pub/eph/planets/unix/</a> and you can also
-start an anonymous ftp session.
+</p><p>As an alternative, necessary if you want to run the program over a longer
+time span, you can retrieve the JPL ephemerides in two ways: either by
+purchasing a CDROM, or from the Internet. For the CDROM version you should
+visit <a href="http://www.willbell.com/">http://www.willbell.com</a>. There
+you click on 'SOFTWARE' and on the image of a CDROM with JPL ephemerides.
+There is plenty of information on the ephemerides themselves to be found
+at the site, as well as an on-line ordering form.
+
+</p><p>&nbsp;The other possibility is to retrieve the ephemerides directly
+from the JPL FTP site. However, bear in mind that each package of
+ephemerides, covering a period of 20 or 25 years, depending on the
+ephemerides release, is typically about 6 MB in size. Thus, we
+recommend this method only for partial installation (cf. for software
+testing purpose, in which case you can download, say, only two
+packages, covering the period from 1950/60 to 2000), unless you have a
+very good network connection to JPL. In practice, you can use the FTP
+facility of the Web browser by accessing 
+<a href="ftp://navigator.jpl.nasa.gov/ephem/export"> 
+ftp://navigator.jpl.nasa.gov/ephem/export</a>
+and you can also start an anonymous ftp session. We have prepared a <a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/doc/jpl.ftp">sample ftp session</a> to assist in obtaining the files
+this way.
 
 </p><p>&nbsp;Once you have downloaded the ephemerides, you have to run the
 <tt>asc2eph</tt> conversion routine to produce a binary ephemerides
 file <tt>jpleph</tt>.  Starting with version 1.9.0 we are distributing
 a Makefile and suitably modified Fortran files to assist with the
 task. See the file 
-<tt><a href="http://adams.dm.unipi.it/orbfit/OrbFit/src/jpleph/README.OrbFit"> src/jpleph/README.OrbFit</a></tt>
+<tt><a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/src/jpleph/readme.OrbFit"> src/jpleph/readme.OrbFit</a></tt>
 for more information. To test your ephemerides see the JPL
 <tt>usrguide</tt>.
 
@@ -320,7 +332,7 @@ for more information. To test your ephemerides see the JPL
 Digital Ephemeris file in the lib/ directory: </p><pre>$ln -s
 /<i>somepath</i>/DE<i>nnn</i>.dat lib/jpleph</pre> and then give the
 command: <pre>$make tests</pre> The output should look like the
-example in the <tt><a href="http://adams.dm.unipi.it/orbfit/OrbFit/doc/README.tests">README.tests</a></tt>.  If
+example in the <tt><a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/doc/readme.tests">readme.tests</a></tt>.  If
 it does not, please let us know.
 
 <p><a name="upgrunix"></a><b>UNIX upgrade</b>
@@ -559,7 +571,7 @@ organized into separate files with the form
 temporary designation of the object.  Each record in the <tt>.rad</tt>
 file should include only the first 100 columns from the file published
 by JPL and blank lines must be removed.  A few examples are provided
-in the <a href="http://adams.dm.unipi.it/orbfit/OrbFit/tests/fitobs/obsdata">./tests/fitobs/obsdata</a>
+in the <a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/tests/fitobs/obsdata">./tests/fitobs/obsdata</a>
 directory.</li>
 
 <li>Most observers would be willing to provide you with their own observations,
@@ -571,7 +583,7 @@ typically in the MPC format, suitable for <tt>.obs</tt> files.</li>
 described under <a href="#jplephunix">installation</a>.  For the
 ephemerides files of the largest asteroids, needed for extreme
 accuracy, see the <a href="#bineph">bineph</a> entry under the 
-<a href="http://adams.dm.unipi.it/orbfit/OrbFit/doc/help.html#faq">FAQ</a>.</li> </ul>
+<a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/doc/help.html#faq">FAQ</a>.</li> </ul>
 
 <hr>
 <p><a name="cando"></a> </p><h3> What can I do with OrbFit?</h3> 
@@ -589,7 +601,7 @@ which data files are available.
 <p>&nbsp;<b>Fitobs</b>
 </p><p>In <tt>fitobs</tt>, after launching the program and supplying the
 <i>runname</i>, the main menu is accessed. Online help is available by
-answering "-1" to each menu: the <a href="http://adams.dm.unipi.it/orbfit/OrbFit/doc/mainmenu.help">main menu
+answering "-1" to each menu: the <a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/doc/mainmenu.help">main menu
 help file</a> proposes a wide choice of possible actions. You are
 advised to often use the status menu item, not to loose the account of
 what you have already done, e.g.  which orbits you have already
@@ -623,9 +635,9 @@ it, let us know how), but just refuse to do what is not possible.
 identifications, ephemerides.  However, the sequence of actions is
 predetermined, the option file can be used to jump some of the
 steps. The list of possible options is huge, as can be seen in the
-commented <a href="http://adams.dm.unipi.it/orbfit/OrbFit/doc/README.options">options file</a>, but in most cases
+commented <a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/doc/readme.options">options file</a>, but in most cases
 a very simple option file is enough, as can be seen in the examples in
-the ./tests/orbfit directory. The file <a href="http://adams.dm.unipi.it/orbfit/OrbFit/tests/orbfit/README.examples">README.examples</a> discusses
+the ./tests/orbfit directory. The file <a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/tests/orbfit/readme.examples">readme.examples</a> discusses
 these examples.
 </p><p>
 </p><hr>
@@ -739,13 +751,13 @@ way to provide you with some reasonably up to date information is to give
 you access to two files that are more or less continuously maintained.
 </p><ul>
 <li>
-<a href="http://adams.dm.unipi.it/orbfit/OrbFit/README.patches">README.patches</a> is the file where we note the
+<a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/readme.patches">readme.patches</a> is the file where we note the
 most recent corrections and improvements since the previous full distribution,
 plus those not yet incorporated in a full distribution, but already available
 in the last patch.</li>
 
 <li>
-<a href="http://adams.dm.unipi.it/orbfit/OrbFit/README.workinprog">README.workinprog</a> is the file where we
+<a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/readme.workinprog">readme.workinprog</a> is the file where we
 write what we are either doing, or planning to do soon. But please do not
 ask how soon, because we would like to know ourselves!</li>
 </ul>
@@ -881,12 +893,12 @@ of the largest asteroids?</b></dt>
 
 <br>&nbsp;
 <dd>
-See the file <a href="http://adams.dm.unipi.it/orbfit/OrbFit/tests/bineph/README.bineph">./tests/bineph/README.bineph</a>
+See the file <a href="http://adams.dm.unipi.it/%7Eorbmaint/orbfit/OrbFit/tests/bineph/readme.bineph">./tests/bineph/readme.bineph</a>
 for instructions.</dd>
 <br>&nbsp;
 
 <dt>
-<b>How do I force statistical weighting of optical artrometry?</b></dt>
+<b>How do I force statistical weighting of optical astrometry?</b></dt>
 
 <br>&nbsp;
 <dd>

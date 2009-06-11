@@ -12,16 +12,63 @@ MODULE perturbations
 ! PERTURBATIONS: perturbation routines used by Debris Software        
 !                                                                       
 !  sunplan: Simplified computations for lunisolar perturbations 
-  PUBLIC :: sunmoon_pert, radp
+  PUBLIC :: sunmoon_pert, radp, secacc
 
 ! shared data
 ! options for non gravitational perturbations
-  INTEGER, PUBLIC :: irad
+  INTEGER, PUBLIC :: irad ! 1= direct, spherical 2=secular accel 3=both
+! A/M x CR coefficient of radiation pressure (m^2/kg)  
+  DOUBLE PRECISION, PUBLIC :: amrat 
+! A/M x CR x fraction in hat T direction (m^2/kg)
+  DOUBLE PRECISION, PUBLIC :: amratsec
 ! options for sun-moon perturbations
   INTEGER, PUBLIC :: itide ! tide
   INTEGER, PUBLIC :: ipla  ! 0=no, 2=Sun+Moon
 CONTAINS
 
+! =========================================================
+! SECACC   added 24/4/2009
+! secular perturbation on semimajor axis, presumably due to
+! non gravitational perturbations (including Yarkovsky)
+! implemented as acceleration along the velocity
+  SUBROUTINE secacc(x,v,s,accradsec)
+!  interface: INPUT
+    DOUBLE PRECISION, INTENT(IN), DIMENSION(3) :: x,v ! position and velocity, geocentric 
+    DOUBLE PRECISION, INTENT(IN), DIMENSION(3) :: s ! geo-centric position of the Sun
+!  interface: OUTPUT
+    DOUBLE PRECISION, INTENT(OUT), DIMENSION(3) :: accradsec
+! end interface
+    DOUBLE PRECISION :: rr,rr2,vv2,rv,angm_x,angm_y,angm_z,angm2
+    DOUBLE PRECISION :: factor,conv,yark_acc,trans_size,trans(3)
+    DOUBLE PRECISION :: vsize, prscal
+    DOUBLE PRECISION :: rsatsun, au2, asum, scc 
+! =========================================================
+! Steve Chesley's implementation
+    rr=vsize(x)
+    rr2=prscal(x,x)
+    vv2=prscal(v,v)
+    rv =prscal(x,v)
+! get radiation force-factor; note the coefficient is
+! amrat=A/M x C_R coefficient of radiation pressure (m^2/kg)
+    au2=(aukm*1.d3)**2 
+! WARNING: Area/mass scaling, note that this parameter should be 
+! placed in input or determined $(Km^2/Kg)$
+    asum=1.d0
+! conversion from AU^2/Kg
+    asum=asum/au2
+! Solar Constant at 1AU (Kg/day^3) divided by velocity of light
+    scc=1.37d3*(86400.d0**3)/vlight
+! distance to the Sun
+    rsatsun=vsize(x(1:3)-s)
+! transversal vector
+    trans=v-(x*rv/rr2)
+! transversal unit vector
+    trans=trans*(1/vsize(trans))
+! size of the acceleration, scaled such that coefficient can be in $m^2/kg$
+    yark_acc=asum*scc/rsatsun**2
+! acceleration vector
+    accradsec=yark_acc*trans
+  END SUBROUTINE secacc
 
 ! \bighorline
   SUBROUTINE sunmoon_pert(x,ef,dplan,dlove,pk2cur,partials) 
@@ -179,129 +226,106 @@ CONTAINS
 ! \comments
 ! \begin{verbatim}
 ! This is a modified version of the direct solar radiation              
-! pressure soubroutine for the purpose of the Mercury                   
-! orbiter mission. At the moment it contains only the spherical         
+! pressure subroutine for the purpose of the Space Debris
+! work. At the moment it contains only the spherical         
 ! model of the satellite, but accounts correctly for the                
-! geometric shadowing of the solar disk by the Mercury's                
+! geometric shadowing of the solar disk by the Earth's                
 ! surface.                                                              
 !                                                                       
 ! written by D Vokrouhlicky (Nov 1999)                                  
-! (queries to vokrouhl mbox.cesnet.cz)                                  
+! (queries to vokrouhl mbox.cesnet.cz)              
+! modified by Milani, Rossi, Farnocchia, Tommei 2009                    
 ! \end{verbatim}
 
-     SUBROUTINE radp(x,s,accrad) 
-! x(6) = mercuro-centric state vector of the satellite\par              
-! s(3) = mercuro-centric position of the Sun\par                        
-! accrad(3) = mercuro-centric acceleration of the satellite             
-!               due to the radiation pressure\par                       
-! accradp(3) = partial derivative of accrad(3) wrt the                  
-!                reflectivity coefficient                               
+  SUBROUTINE radp(x,s,accrad) 
+! x(6) = geo-centric state vector of the satellite\par              
+! s(3) = geo-centric position of the Sun\par                        
+! accrad(3) = geo-centric acceleration of the satellite             
+!   due to the radiation pressure, for unit A/M m^2/kg\par
 ! \interface
 !  INPUT                                                                
-      REAL(KIND=dkind), INTENT (IN) :: x(6),s(3)
+    REAL(KIND=dkind), INTENT (IN) :: x(3),s(3)
 !  OUTPUT                                                               
-      REAL(KIND=dkind), INTENT (OUT) :: accrad(3)
+    REAL(KIND=dkind), INTENT (OUT) :: accrad(3)
 ! \endint
 ! local variables                                                       
-      REAL(KIND=dkind) :: rsun,rsun2,rsat,scal,ciome,siome,cs1,cs2,css 
-      REAL(KIND=dkind) :: au2,dsrpma,asum,crad,cbeta,beta,omega 
-      REAL(KIND=dkind) :: commb,dor,facdi,ratrr,brac,dsrpmap 
-
+    REAL(KIND=dkind) :: rsun,rsun2,rsat,scal,ciome,siome,cs1,cs2,css 
+    REAL(KIND=dkind) :: au2,dsrpma,asum,crad,cbeta,beta,omega 
+    REAL(KIND=dkind) :: commb,dor,facdi,dsrpmap,rsatsun! ratrr,brac 
+  
 ! functions                                                             
-      REAL(KIND=dkind) :: prscal 
+    REAL(KIND=dkind) :: prscal, vsize 
 ! radius of Sun, of planet
-      REAL(KIND=dkind) :: radsun, rpla,scc
+    REAL(KIND=dkind) :: radsun, rpla,scc
 ! loop integers                                                         
-      INTEGER :: i 
-!                                                                       
-!      INCLUDE 'parpar.h' 
-!      INCLUDE 'compar.h' 
-!      INCLUDE 'trig.h' 
-!     INCLUDE 'comcon.h' 
-      INCLUDE 'jplhdr.h90' 
-!      INCLUDE 'satellite.h' 
-!      INCLUDE 'planet.h' 
-
+    INTEGER :: i 
+    INCLUDE 'jplhdr.h90' 
 ! initialization
 ! Radius of Sun in AU                                                        
-      radsun=r_sun/aukm
+    radsun=r_sun/aukm
 !      rpla=r_planet
-      rpla=reau
-      accrad=0.d0 
-      rsun2=prscal(s,s) 
-      rsun=dsqrt(rsun2) 
-      rsat=dsqrt(prscal(x,x)) 
-      scal=prscal(x,s) 
-      ciome=scal/rsat/rsun 
-      siome=dsqrt(1.d0-ciome*ciome) 
-      ratrr=rsat/rsun 
-      brac=1.d0+ratrr*(ratrr-2.d0*ciome) 
-! get radiation force-factor                                            
-!      au2=aucm*aucm 
-      au2=aukm**2 
-! WARNING
-      asum=pig*1d-8
-! ===============
-!      asum=pig*ragsfe*ragsfe/pmas 
-!      dsrpma=asum*crad*scc*au2/rsun2/brac
-      scc=1.37d16*aukm**2 
-      dsrpma=asum*scc*au2/rsun2/brac
-!      dsrpmap=asum*scc*au2/rsun2/brac 
+    rpla=reau
+    accrad=0.d0 
+    rsun2=prscal(s,s) 
+    rsun=dsqrt(rsun2) 
+    rsat=dsqrt(prscal(x,x)) 
+    scal=prscal(x,s) 
+    ciome=scal/rsat/rsun 
+    siome=dsqrt(1.d0-ciome*ciome) 
+    rsatsun=vsize(x(1:3)-s)
+! get radiation force-factor; note the coefficient is
+! amrat=A/M x C_R coefficient of radiation pressure (m^2/kg)
+    au2=(aukm*1.d3)**2 
+! WARNING: Area/mass, note that this parameter should be 
+! placed in input or determined $(Km^2/Kg)$
+    asum=1.d0
+! AU^2/Kg
+    asum=asum/au2
+! Solar Constant at 1AU (Kg/day^3) divided by velocity of light
+    scc=1.37d3*(86400.d0**3)/vlight
+! Solar flux scaled, in such a way that coefficient can be in $m^2/kg$
+    dsrpma=asum*scc/rsatsun**2
 ! test the shadow occurence and its penumbra/umbra phase                
-      cs2=-((radsun-rpla)*rpla/rsun/rsat)-                              &
-     &     dsqrt(1.d0-(((radsun-rpla)/rsun)**2))*                       &
-     &     dsqrt(1.d0-((rpla/rsat)**2))                                 
+    cs2=-((radsun-rpla)*rpla/rsun/rsat)-                              &
+         &     dsqrt(1.d0-(((radsun-rpla)/rsun)**2))*                       &
+         &     dsqrt(1.d0-((rpla/rsat)**2))                                 
 ! satellite in full shadow:                                             
-      IF(ciome.LE.cs2)THEN 
+    IF(ciome.LE.cs2)THEN 
 !       write(93,111)(t/86400.)                                         
 ! 111   format(f7.3)                                                    
        RETURN 
-      ENDIF 
-      cs1=((radsun+rpla)*rpla/rsun/rsat)-                               &
-     &     dsqrt(1.d0-(((radsun+rpla)/rsun)**2))*                       &
-     &     dsqrt(1.d0-((rpla/rsat)**2))                                 
-      IF(ciome.GE.cs1)THEN 
+    ENDIF
+    cs1=((radsun+rpla)*rpla/rsun/rsat)-                               &
+         &     dsqrt(1.d0-(((radsun+rpla)/rsun)**2))*                       &
+         &     dsqrt(1.d0-((rpla/rsat)**2))                                 
+    IF(ciome.GE.cs1)THEN 
 ! satellite fully illuminated by the Sun                                
        facdi=1.d0 
-      ELSE 
+    ELSE 
 ! satellite in penumbra                                                 
        cbeta=rpla/rsat 
        css=(cbeta*rpla/rsun)-dsqrt(1.d0-((rpla/rsun)**2))*              &
-     &     dsqrt(1.d0-(cbeta**2))                                       
+            &     dsqrt(1.d0-(cbeta**2))                                       
        omega=dacos(ciome) 
        beta=dacos(cbeta) 
        commb=dcos(omega-beta) 
        IF(ciome.GE.css)THEN 
 ! - more than a half of the solar disk seen from the satellite          
-        dor=(rsun*commb-rpla)/radsun 
-        facdi=1.d0-(dacos(dor)-dor*dsqrt(1.d0-dor*dor))/pig 
+          dor=(rsun*commb-rpla)/radsun 
+          facdi=1.d0-(dacos(dor)-dor*dsqrt(1.d0-dor*dor))/pig 
        ELSE 
 ! - less than a half of the solar disk seen from the satellite          
-        dor=(rpla-rsun*commb)/radsun 
-        facdi=(dacos(dor)-dor*dsqrt(1.d0-dor*dor))/pig 
-       ENDIF 
-      ENDIF 
+          dor=(rpla-rsun*commb)/radsun 
+          facdi=(dacos(dor)-dor*dsqrt(1.d0-dor*dor))/pig 
+       ENDIF
+    ENDIF
 ! Spherical satellite assumed                                           
-      IF(irad.EQ.1)THEN 
-       DO i=1,3 
-          accrad(i)=-dsrpma*(s(i)-x(i))*facdi/rsun/dsqrt(brac) 
-       ENDDO 
-      ENDIF 
-! Cylindrical satellite with antenna                                    
-! (see Milani etal. ...)                                                
-      IF(irad.EQ.2)THEN 
-! TO BE ADDED LATER FROM NONGRAV.F IF NECESSARY                         
-       WRITE(*,*)' model of the satellite not ready' 
-       WRITE(*,*)' yet; in prad ',irad 
-       STOP 
-      ENDIF 
-! out-of-range check                                                    
-      IF(irad.GT.2)THEN 
-       WRITE(*,*)' Parameter irad out-of-range; in prad ',irad 
-       STOP 
-      ENDIF 
-    END SUBROUTINE radp
-
-
+    DO i=1,3 
+! $ F=-\Phi*C_R*A/M*\frac{\mathbf{s}-\mathbf{x}}{|\mathbf{s}-\mathbf{x}|^3}*C_{shadow}$
+       accrad(i)=-dsrpma*(s(i)-x(i))/rsatsun*facdi 
+    ENDDO
+  END SUBROUTINE radp
+  
+  
 END MODULE perturbations
 

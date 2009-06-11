@@ -135,6 +135,9 @@ SUBROUTINE laplace_poincare(m,obs,obsw,el,nroots,nsol,rr,fail,msg,debug)
      xv(4:6)=MATMUL(roteqec,vp)
 ! Orbital elements of preliminary orbit                                 
      el(nsol)=undefined_orbit_elem
+     IF(rhs.EQ.2)THEN
+        el(nsol)%center=3
+     END IF
      el(nsol)%coord=xv
      el(nsol)%coo='CAR'
 ! planetary aberration 

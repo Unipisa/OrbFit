@@ -42,7 +42,7 @@
 SUBROUTINE rmodel(rhs0)
 ! add a lot of ONLY here 
 ! it needs only these
-  USE least_squares, ONLY : difini, rejini, output_old_rwo
+  USE least_squares, ONLY : difini, rejini, output_des
   USE propag_state, ONLY : inipro ! calls inipro
   USE tp_trace, ONLY: tpplane
   USE close_app ! sets former closapl options
@@ -120,14 +120,16 @@ SUBROUTINE rmodel(rhs0)
   ELSEIF(rhs.EQ.2)THEN
      fail=.false.
      CALL rdnint('propag.','irad',irad,.TRUE.,found,fail1,fail)
+     CALL rdnrea('propag.','amrat',amrat,.TRUE.,found,fail1,fail)
+     CALL rdnrea('propag.','amratsec',amratsec,.TRUE.,found,fail1,fail)
      CALL rdnint('propag.','itide',itide,.TRUE.,found,fail1,fail)
      CALL rdnint('propag.','ites',ites,.TRUE.,found,fail1,fail)
      CALL rdnint('propag.','ipla',ipla,.TRUE.,found,fail1,fail)     
      CALL rdncha('propag.','modfile',modfile,.TRUE.,found,fail1,fail)
+     CALL eamoon_mass
      IF(ites.ge.2)THEN
         CALL geopot(ites)
      ENDIF
-     CALL eamoon_mass
   ELSEIF(rhs.EQ.3)THEN
      WRITE(*,*)'rmodel: for rhs=3 work in progress'
      STOP
@@ -162,7 +164,7 @@ SUBROUTINE rmodel(rhs0)
   CALL difini 
   CALL rejini 
 ! output new/old format for rwo files (only applies in fdiff_cor)
-  CALL rdnlog('propag.','output_old_rwo',output_old_rwo,.TRUE.,found,fail1,fail)
+  CALL rdnlog('propag.','output_des',output_des,.TRUE.,found,fail1,fail)
 ! Options for stopping difcor at bizarre orbits; use default            
   IF(rhs.eq.1)THEN
      ecclim=0.d0 
@@ -192,7 +194,6 @@ SUBROUTINE rmodel(rhs0)
   verb_prelim=1
   verb_covariance=1
   verb_matrix=1
-  verb_2body=1
 !                                                                       
   IF(fail)STOP '**** rmodel: abnormal end ****' 
   RETURN 

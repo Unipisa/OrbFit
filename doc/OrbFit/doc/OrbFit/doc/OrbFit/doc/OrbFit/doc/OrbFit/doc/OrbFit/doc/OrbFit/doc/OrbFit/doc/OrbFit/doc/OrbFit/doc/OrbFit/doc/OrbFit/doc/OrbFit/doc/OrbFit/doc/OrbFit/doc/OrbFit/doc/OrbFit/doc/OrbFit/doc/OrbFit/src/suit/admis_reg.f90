@@ -14,7 +14,9 @@
        & xo,vo,a_orb,E_bound,nrootsd,rootsd)
     USE fund_const
     USE reference_systems
+    USE planet_masses
     USE station_coordinates
+!    USE force_sat
     IMPLICIT NONE
     CHARACTER*(*),INTENT(IN) :: name0 ! asteroid name
     INTEGER,INTENT(IN) :: iun ! output unit (former 12)
@@ -45,7 +47,7 @@
     DOUBLE PRECISION,DIMENSION(8) :: srootsd ! roots of the poly derivative
     DOUBLE PRECISION,DIMENSION(8) :: rootsdtmp
     INTEGER :: nrootsdtmp 
-    DOUBLE PRECISION :: gamma,gammod,eta,a(0:6),b(0:8)
+    DOUBLE PRECISION :: gmcenter,rootgm,gamma,gammod,eta,a(0:6),b(0:8)
     ! Earth and observer coordinates, equatorial
     DOUBLE PRECISION :: xea(6),xoec(3),voec(3),xeaeq(6),xogeo(3)
     DOUBLE PRECISION :: rhat(3),repshat(3),rthetahat(3) 
@@ -65,14 +67,34 @@
     INTEGER :: j ! loop index
     DOUBLE PRECISION :: rot(3,3), rotinv(3,3)
 ! ====================================
-    CALL earcar(tc,xea,1) ! earth coord, heliocentric ecliptic 
-    CALL statcode(idsta_s,idsta_i) 
-    CALL pvobs(tc,idsta_i,xoec,voec) ! obs. coord, geocentric ecliptic 
-    xogeo=MATMUL(roteceq,xoec) ! obs coord, geocentric equatorial
-    xoec=xoec+xea(1:3) ! obs coord, heliocentric ecliptic
-    voec=voec+xea(4:6) ! id velocity
-    xo=MATMUL(roteceq,xoec) ! obs coord, heliocentric equatorial
-    vo=MATMUL(roteceq,voec) ! id velocity
+! assignement of gmcenter and root_gm
+    IF(rhs.EQ.1)THEN
+       gmcenter=gms
+       CALL earcar(tc,xea,1) ! earth coord, heliocentric ecliptic
+    ELSEIF(rhs.EQ.2)THEN  
+       gmcenter=gmearth
+       xea=0.d0 ! geocentric
+    ELSE
+       WRITE(*,*)'admis_reg: wrong rhs=', rhs
+       STOP
+    END IF
+    rootgm=SQRT(gmcenter)
+     CALL statcode(idsta_s,idsta_i) 
+!    CALL pvobs(tc,idsta_i,xoec,voec) ! obs. coord, geocentric ecliptic 
+    CALL observer_position(tc,xoec,voec,idsta_i)
+    IF(rhs.EQ.1)THEN
+       xogeo=MATMUL(roteceq,xoec) ! obs coord, geocentric equatorial
+       xoec=xoec+xea(1:3) ! obs coord, heliocentric/geocentric ecliptic
+       voec=voec+xea(4:6) ! id velocity
+       xo=MATMUL(roteceq,xoec) ! obs coord, heliocentric/geocentric equatorial
+       vo=MATMUL(roteceq,voec) ! id velocity
+    ELSEIF(rhs.EQ.2)THEN
+       xogeo=xoec       
+       xo=xoec ! obs coord, heliocentric/geocentric equatorial
+       vo=voec
+    ELSE
+       STOP
+    ENDIF
     IF(iun.gt.0)WRITE(iun,112)name0,tc,xo,vo,att,xogeo
 112 FORMAT(a9,1x,f12.4,1p,6(1x,d13.6),0p,2(1x,f10.7),1p,2(1x,d12.5),3(1x,d13.6)) 
     ! eq. (5)
@@ -92,11 +114,12 @@
     c(4) = prscal(vo,vo)
     c(5) = 2.d0*prscal(xo,rhat)
     gamma=c(4)-c(1)*c(1)/4.d0
+    
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 ! computation of the roots of the zero energy curve
 ! coefficients in eq. (8)
-!    a0(0) = c(0)*gamma**2 - 4*gk**4
+!    a0(0) = c(0)*gamma**2 - 4*rootgm**4
 !    a0(1) = c(5)*gamma**2 + 2.d0*c(0)*c(3)*gamma
 !    a0(2) = gamma**2 + 2.d0*c(3)*c(5)*gamma + c(0)*(c(3)**2 + 2.d0*c(2)*gamma)
 !    a0(3) = 2.d0*c(3)*gamma + c(5)*(c(3)**2 + 2.d0*c(2)*gamma) +&
@@ -113,12 +136,12 @@
 !    ENDIF
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-! computation of the roots of the -gk/2*100 energy curve
+! computation of the roots of the -gm/2*a_orb energy curve
 ! coefficients in eq. (8)
-    E_bound = -gms/(2.d0*a_orb)
+    E_bound = -gmcenter/(2.d0*a_orb)
     gammod= c(4) -2.d0* E_bound - c(1)*c(1)/4.d0
     
-    a(0) = c(0)*gammod**2 - 4*gk**4
+    a(0) = c(0)*gammod**2 - 4*rootgm**4
     a(1) = c(5)*gammod**2 + 2.d0*c(0)*c(3)*gammod
     a(2) = gammod**2 + 2.d0*c(3)*c(5)*gammod + c(0)*(c(3)**2 + &
          & 2.d0*c(2)*gammod)
@@ -147,10 +170,11 @@
 
 ! &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 ! coefficients of the derivative
-      b(0) = -gk**4*c(5)**2 + c(0)**3*c(3)**2
+      b(0) = -rootgm**4*c(5)**2 + c(0)**3*c(3)**2
       b(1) = 3.d0*c(5)*c(0)**2*c(3)**2 + 4.d0*c(3)*c(2)*c(0)**3 - &
-           & 4.d0*c(5)*gk**4
-      b(2) = -4.d0*gk**4 + 3.d0*c(0)*c(5)**2*c(3)**2 + 3.d0*c(3)**2*c(0)**2 +&
+           & 4.d0*c(5)*rootgm**4
+      b(2) = -4.d0*rootgm**4 + 3.d0*c(0)*c(5)**2*c(3)**2 + &
+           &3.d0*c(3)**2*c(0)**2 +&
            & 4.d0*c(2)**2*c(0)**3 + 12.d0*c(0)**2*c(5)*c(2)*c(3)
       b(3) = 6.d0*c(0)*c(5)*c(3)**2 + 12.d0*c(3)*c(2)*c(0)**2 + &
            & 12.d0*c(0)**2*c(5)*c(2)**2 + c(5)**3*c(3)**2 + &

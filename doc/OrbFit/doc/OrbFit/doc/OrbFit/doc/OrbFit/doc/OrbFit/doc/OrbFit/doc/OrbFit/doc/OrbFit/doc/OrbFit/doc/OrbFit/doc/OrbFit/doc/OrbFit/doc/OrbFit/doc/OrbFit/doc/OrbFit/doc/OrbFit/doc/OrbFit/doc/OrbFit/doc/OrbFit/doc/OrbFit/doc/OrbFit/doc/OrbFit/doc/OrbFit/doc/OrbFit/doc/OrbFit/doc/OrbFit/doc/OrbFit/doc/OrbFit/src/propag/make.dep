@@ -220,10 +220,12 @@ propag_state.o: \
 	force_sat.o \
 	massmod.o \
 	orbit_elements.o \
+	perturbations.o \
 	propag_state.o \
 	ra15_mod.o \
 	runge_kutta_gauss.o \
-	tp_trace.o 
+	tp_trace.o \
+	yark_pert.o 
 
 ra15_mod.o: \
 	../include/comnbo.h90 \

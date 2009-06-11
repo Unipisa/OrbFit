@@ -40,7 +40,7 @@ MODULE iers_ser
 
 IMPLICIT NONE
 
-PUBLIC rotpv
+PUBLIC rotpv, rotsys
 
 ! data common to the module
 

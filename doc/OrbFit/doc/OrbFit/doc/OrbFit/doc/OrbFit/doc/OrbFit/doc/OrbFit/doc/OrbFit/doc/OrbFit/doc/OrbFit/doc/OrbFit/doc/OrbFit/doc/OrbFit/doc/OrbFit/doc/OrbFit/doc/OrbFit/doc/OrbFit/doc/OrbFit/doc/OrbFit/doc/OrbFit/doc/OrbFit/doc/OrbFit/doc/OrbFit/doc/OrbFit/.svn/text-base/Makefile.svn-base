@@ -18,7 +18,7 @@ distclean:
 	(cd src; make distclean)
 	(cd lib; make distclean)
 	(cd tests; make distclean)
-	-(cd src/lib; rm -f *.a)
+	-(cd src/lib; rm *.a)
 	(rm -f .conf.status)
 
 .conf.status:

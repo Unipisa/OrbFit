@@ -1,0 +1,9 @@
+version =   1
+errmod  = ' '
+RMSast  =   5.34963E-01
+RMSmag  =   5.99380E-01
+END_OF_HEADER
+! Object   Obser ============= Date ============= ================== Right Ascension =================  ================= Declination ===================== ==== Magnitude ==== Obs  Residual SEL
+! Design   K T N YYYY MM DD.dddddddddd   Accuracy HH MM SS.sss  Accuracy      RMS  F     Bias    Resid sDD MM SS.ss  Accuracy      RMS  F     Bias    Resid Val  B   RMS  Resid Cod       Chi A M
+ 100000    O A   1982 09 20.39314       1.000E-05 00 06 54.610  1.500E-01    1.000 F    0.000    3.276 +07 03 01.60  1.000E-01    1.000 F    0.000    4.605                     675      5.40 0 0
+ 100000    O A   1982 09 24.37509       1.000E-05 00 04 11.230  1.500E-01    1.000 F    0.000   -0.149 +05 10 12.60  1.000E-01    1.000 F    0.000   -3.306 17.5    0.70  -0.87 675      3.28 0 1

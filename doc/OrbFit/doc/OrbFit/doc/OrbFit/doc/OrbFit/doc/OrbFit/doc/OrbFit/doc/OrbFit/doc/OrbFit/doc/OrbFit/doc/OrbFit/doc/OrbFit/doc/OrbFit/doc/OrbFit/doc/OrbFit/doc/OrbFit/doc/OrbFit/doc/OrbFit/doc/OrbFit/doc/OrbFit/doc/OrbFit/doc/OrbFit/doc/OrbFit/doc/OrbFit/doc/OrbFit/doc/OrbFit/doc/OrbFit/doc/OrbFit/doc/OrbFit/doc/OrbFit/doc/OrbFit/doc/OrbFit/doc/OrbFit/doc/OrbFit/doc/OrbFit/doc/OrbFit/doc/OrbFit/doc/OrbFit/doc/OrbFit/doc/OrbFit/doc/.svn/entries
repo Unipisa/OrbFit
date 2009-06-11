@@ -1,14 +1,14 @@
 9
 
 dir
-105
+92
 file:///home/orbfit/orbfit_subv/trunk/doc
 file:///home/orbfit/orbfit_subv
 
 
 
-2008-12-25T20:08:01.920971Z
-99
+2008-11-29T11:22:45.851807Z
+91
 orbfit_amc
 
 
@@ -173,14 +173,14 @@ orbfit
 
 orbfit.html
 file
-107
+99
 
 
 
-2009-01-13T18:47:23.000000Z
-1893cb6cff4563d94f7a631862898000
-2009-01-23T19:15:07.825110Z
-107
+2008-12-25T19:44:06.000000Z
+b6f89da430711ad3530e72d5a1e4c908
+2008-12-25T20:08:01.920971Z
+99
 orbfit_amc
 
 
@@ -203,7 +203,7 @@ orbfit_amc
 
 
 
-6646
+6675
 
 orbfit.gif
 file
@@ -221,53 +221,6 @@ has-props
 windows
 dir
 
-help.html
-file
-106
-
-
-
-2009-01-13T17:29:45.000000Z
-e0c95945c8110f76da897fee5b773bc5
-2009-01-13T18:04:51.533078Z
-106
-orbfit_amc
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-41688
-
-ORBHELP
-file
-
-
-
-
-2008-11-25T13:20:04.000000Z
-345b769c4d14a1abbd275778c2e95b35
-2008-11-28T17:35:17.163799Z
-85
-orbfit_amc
-has-props
-
 doclib.h90
 file
 
@@ -283,6 +236,53 @@ has-props
 
 
 svn:special
+
+ORBHELP
+file
+
+
+
+
+2008-11-25T13:20:04.000000Z
+345b769c4d14a1abbd275778c2e95b35
+2008-11-28T17:35:17.163799Z
+85
+orbfit_amc
+has-props
+
+help.html
+file
+99
+
+
+
+2008-12-25T19:01:16.000000Z
+2e79c86de076870bde39829613d49eed
+2008-12-25T20:08:01.920971Z
+99
+orbfit_amc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+42714
 
 README.workinprog
 file
@@ -324,17 +324,17 @@ df2bb0ea10bdc633df91a2e636dc3fea
 1
 orbfit
 
-README.orbit9
+propagat.help
 file
 
 
 
 
-2008-11-25T11:58:08.000000Z
-e901b802d8ed32b98d8e331245ec3909
-2008-11-28T17:35:17.163799Z
-85
-orbfit_amc
+2008-11-12T09:01:13.000000Z
+537b037205696819b4876a295f18d990
+2007-12-24T17:00:34.975856Z
+1
+orbfit
 
 README.changes
 file
@@ -348,17 +348,17 @@ file
 1
 orbfit
 
-propagat.help
+README.orbit9
 file
 
 
 
 
-2008-11-12T09:01:13.000000Z
-537b037205696819b4876a295f18d990
-2007-12-24T17:00:34.975856Z
-1
-orbfit
+2008-11-25T11:58:08.000000Z
+e901b802d8ed32b98d8e331245ec3909
+2008-11-28T17:35:17.163799Z
+85
+orbfit_amc
 
 GNUPUB.LIC
 file
@@ -388,27 +388,14 @@ file
 85
 orbfit_amc
 
-ORBIT9
-file
-
-
-
-
-2008-11-24T09:37:13.000000Z
-160f5e701485a66337770c141a6b4448
-2008-11-28T17:35:17.163799Z
-85
-orbfit_amc
-has-props
-
-open.orbit9
+prelimet.help
 file
 
 
 
 
 2008-11-12T09:01:13.000000Z
-398df2f68b445efd7609f73785d444f7
+9f459b977e2d275941ffc343d250468f
 2007-12-24T17:00:34.975856Z
 1
 orbfit
@@ -425,17 +412,30 @@ c144c15c4be51d212d36fc6b404f9456
 1
 orbfit
 
-prelimet.help
+open.orbit9
 file
 
 
 
 
 2008-11-12T09:01:13.000000Z
-9f459b977e2d275941ffc343d250468f
+398df2f68b445efd7609f73785d444f7
 2007-12-24T17:00:34.975856Z
 1
 orbfit
+
+ORBIT9
+file
+
+
+
+
+2008-11-24T09:37:13.000000Z
+160f5e701485a66337770c141a6b4448
+2008-11-28T17:35:17.163799Z
+85
+orbfit_amc
+has-props
 
 README.futurework
 file

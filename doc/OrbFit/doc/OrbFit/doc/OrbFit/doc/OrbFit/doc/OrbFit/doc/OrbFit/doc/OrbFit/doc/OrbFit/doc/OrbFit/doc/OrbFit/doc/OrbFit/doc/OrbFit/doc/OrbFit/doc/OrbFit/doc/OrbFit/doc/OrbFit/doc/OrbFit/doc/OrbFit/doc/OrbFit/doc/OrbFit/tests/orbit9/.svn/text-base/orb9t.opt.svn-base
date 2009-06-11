@@ -3,7 +3,7 @@
 inplan='planxx.inc'; input file name for initial conditions of the planets
 ibar= 1; barycentric correction 1=yes 0=no
 inbar='barsunxx.inc'; file containing the barycentric correction
-inast='troj.cat'; input file name for initial conditions of the asteroids
+inast='allnum.cat'; input file name for initial conditions of the asteroids
 ; 2. job description: ast. are ordered in two list, with and without LCE
 nvz=  1 ; no. Lyapounov exponents
       588

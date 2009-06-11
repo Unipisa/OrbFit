@@ -1,14 +1,14 @@
 9
 
 dir
-105
+92
 file:///home/orbfit/orbfit_subv/trunk
 file:///home/orbfit/orbfit_subv
 
 
 
-2009-01-09T12:08:59.413030Z
-105
+2008-11-29T16:46:18.523964Z
+92
 orbfit_amc
 
 
@@ -26,6 +26,18 @@ svn:special svn:externals svn:needs-lock
 
 8274e527-0b42-0410-9bf8-b60396510e46
 
+notar
+file
+93
+
+
+
+2008-12-03T15:08:18.000000Z
+7711b4f37e5b40ce938f2a89840d2190
+2008-12-03T15:09:20.604012Z
+93
+orbfit_amc
+
 README.patches
 file
 
@@ -38,40 +50,6 @@ b4d39fcb30102e942964a919f2d5e6b1
 70
 orbfit_amc
 
-notar
-file
-109
-
-
-
-2009-01-23T19:17:40.000000Z
-75264eb29cd28c8fa199fbf77a0beae0
-2009-01-23T19:17:59.249192Z
-109
-orbfit_amc
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-671
-
 conf
 dir
 
@@ -80,7 +58,7 @@ dir
 
 patchlist
 file
-
+100
 
 
 
@@ -114,40 +92,15 @@ orbfit_amc
 
 README.workinprog
 file
-106
-
-
-
-2009-01-13T16:40:51.000000Z
-6d8173525884d7861d8bdf4a1539a00a
-2009-01-13T18:04:51.533078Z
-106
-orbfit_amc
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-2191
-
-tex
-dir
+2008-11-12T09:01:24.000000Z
+1072e6ccd6ff201a8775825e4b01138e
+2007-12-24T17:00:34.975856Z
+1
+orbfit
 
 dellist
 file
@@ -161,10 +114,10 @@ d41d8cd98f00b204e9800998ecf8427e
 1
 orbfit
 
-tests
+tex
 dir
 
-doc
+tests
 dir
 
 config
@@ -180,7 +133,7 @@ file
 orbfit_amc
 has-props
 
-lib
+doc
 dir
 
 GNUPUB.LIC
@@ -195,25 +148,23 @@ file
 1
 orbfit
 
+lib
+dir
+
 bin
 dir
 
 Makefile
 file
+100
 
 
 
-
-2009-01-09T12:09:07.000000Z
-d62bb1913c3f4619f0683c0421359dd7
-2009-01-07T16:44:38.300955Z
-102
-orbfit_mes
-
-
-
-
-
+2008-12-25T20:13:34.000000Z
+f8d6e6ae825df39b4ddd342f7bf860b1
+2008-12-25T20:13:58.709035Z
+100
+orbfit_amc
 
 
 
@@ -230,5 +181,10 @@ orbfit_mes
 
 
 
-1322
+
+
+
+
+
+1319
 

@@ -1,0 +1,577 @@
+! SUBROUTINES: rvfft, irvfft, choosedeg, code_input, decode_out
+
+!------------------------------------------------------------c          
+!  A real-valued, in-place, split-radix FFT program          c          
+! Real input and output data in array x                      c          
+! Length is N=2**M                                           c          
+! Decimation-in-time                                         c          
+! Output in order                                            c          
+!   [Re(0),Re(1),...,Re(N/2),Im(N/2-1),...,Im(1)]            c          
+! H.V. Sorensen, Rice University, 1985                       c          
+! Modified by D. Bini 1993                                   c          
+!------------------------------------------------------------c          
+!------------------------------------------------------------c          
+! For convolution (polynomial multiplication)                c          
+! X must contain the coefficients of the first polynomial    c          
+! Y the coefficients of the second polynomial                c          
+! Then compute u=irvfft(x), v=irfft(y) and set               c          
+!     w(0)=u(0)*v(0), w(i)=u(i)*v(i)-u(n-i+1)*v(n-i+1)       c          
+!     w(n-i+1)=u(i)*v(n-i+1)+u(n-i+1)*v(i)                   c          
+! Finally output rvfft(w)/n                                  c          
+!------------------------------------------------------------c          
+                                                                        
+                                                                        
+subroutine rvfft_QP(x,n,m)
+  IMPLICIT NONE
+  INTEGER, PARAMETER :: qkind=kind(1.q0) !for quadruple precision
+  REAL(KIND=qkind), INTENT(INOUT) :: x(n)
+  INTEGER, INTENT(IN):: n,m
+!      implicit double precision (a-h,o-z)
+!      dimension x(n) 
+
+  INTEGER :: j,n1,k,is,id,i0,i1,n2,n4,n8,i,i2,i3,i4,i5,i6,i7,i8
+  REAL(KIND=qkind) :: xt,r1,e,t1,t2,a,a3,cc1,ss1,cc3,ss3,t3,t4,t5,t6
+
+!----DIGIT REVERSE COUNTER NOT REMOVED -----------------c               
+  100  j=1 
+       n1=n-1 
+       do 104 i=1,n1 
+           if(i.ge.j)goto 101 
+           xt=x(j) 
+           x(j)=x(i) 
+           x(i)=xt 
+  101      k=n/2 
+  102      if (k.ge.j)goto 103 
+               j=j-k 
+               k=k/2 
+               goto 102 
+  103      j=j+k 
+  104  continue 
+!----LENGTH TWO BUTTERFLIES-------------------------c                   
+      is=1 
+      id=4 
+   70 do 60 i0=is,n,id 
+        i1=i0+1 
+        r1=x(i0) 
+        x(i0)=r1+x(i1) 
+        x(i1)=r1-x(i1) 
+   60 continue 
+      is=2*id-1 
+      id=4*id 
+      if(is.lt.n) goto 70 
+!-----L SHAPED BUTTERFLIES--------------------------c                   
+      n2=2 
+      do 10 k=2,m 
+        n2=n2*2 
+        n4=n2/4 
+        n8=n2/8
+! *********************************
+!        e=6.283185307179586D0/n2 
+        e=8.q0*qatan(1.q0)/n2
+! *********************************
+        is=0 
+        id=n2*2 
+   40   do 38 i=is,n-1,id 
+          i1=i+1 
+          i2=i1+n4 
+          i3=i2+n4 
+          i4=i3+n4 
+          t1=x(i4)+x(i3) 
+          x(i4)=x(i4)-x(i3) 
+          x(i3)=x(i1)-t1 
+          x(i1)=x(i1)+t1 
+          if(n4.eq.1)goto 38 
+          i1=i1+n8 
+          i2=i2+n8 
+          i3=i3+n8 
+          i4=i4+n8 
+          t1=(x(i3)+x(i4))/qsqrt(2.q0) 
+          t2=(x(i3)-x(i4))/qsqrt(2.q0) 
+          x(i4)=x(i2)-t1 
+          x(i3)=-x(i2)-t1 
+          x(i2)=x(i1)-t2 
+          x(i1)=x(i1)+t2 
+   38 continue 
+         is=2*id-n2 
+         id=4*id 
+      if(is.lt.n)goto 40 
+      a=e 
+      do 32 j=2,n8 
+         a3=3*a 
+         cc1=qcos(a) 
+         ss1=qsin(a) 
+         cc3=qcos(a3) 
+         ss3=qsin(a3) 
+         a=j*e 
+         is=0 
+         id=2*n2 
+   36    do 30 i=is,n-1,id 
+            i1=i+j 
+            i2=i1+n4 
+            i3=i2+n4 
+            i4=i3+n4 
+            i5=i+n4-j+2 
+            i6=i5+n4 
+            i7=i6+n4 
+            i8=i7+n4 
+            t1=x(i3)*cc1+x(i7)*ss1 
+            t2=x(i7)*cc1-x(i3)*ss1 
+            t3=x(i4)*cc3+x(i8)*ss3 
+            t4=x(i8)*cc3-x(i4)*ss3 
+            t5=t1+t3 
+            t6=t2+t4 
+            t3=t1-t3 
+            t4=t2-t4 
+            t2=x(i6)+t6 
+            x(i3)=t6-x(i6) 
+            x(i8)=t2 
+            t2=x(i2)-t3 
+            x(i7)=-x(i2)-t3 
+            x(i4)=t2 
+            t1=x(i1)+t5 
+            x(i6)=x(i1)-t5 
+            x(i1)=t1 
+            t1=x(i5)+t4 
+            x(i5)=x(i5)-t4 
+            x(i2)=t1 
+   30    continue 
+            is=2*id-n2 
+            id=4*id 
+         if(is.lt.n)goto 36 
+   32    continue 
+   10 continue 
+      return 
+    END SUBROUTINE rvfft_QP
+
+!-------------------------------------------------------c               
+!  A real-valued, in-place, split-radix IFFT program    c               
+! Hermitian symmetric input and real output in array X  c               
+! Length is N=2**M                                      c               
+! Decimation-in-frequency                               c               
+! Input  order                                          c               
+!     [Re(0),Re(1),...,Re(N/2),Im(N/2-1),...,Im(1)]     c               
+! H.V. Sorensen, Rice University, 1985                  c               
+! Modified by D. Bini 1993                              c               
+!-------------------------------------------------------c               
+      subroutine irvfft_QP(x,n,m) 
+        IMPLICIT NONE
+        INTEGER, PARAMETER :: qkind=kind(1.q0) !for quadruple precision
+        REAL(KIND=qkind), INTENT(INOUT) :: x(n)
+        INTEGER, INTENT(IN):: n,m
+!      implicit double precision (a-h,o-z) 
+!      dimension x(n) 
+        INTEGER :: n2,k,is,id,n4,n8,i,i1,i2,i3,i4,j,i5,i6,i7,i8,i0,n1
+        real(KIND=qkind) :: e,t1,t2,a,a3,cc1,ss1,cc3,ss3,t3,t4,t5,r1,xt
+!----L SHAPED BUTTERFLIES-------------------------------c               
+      n2=2*n 
+      do 10 k=1,m-1 
+         is=0 
+         id=n2 
+         n2=n2/2 
+         n4=n2/4 
+         n8=n4/2 
+! *********************************
+!        e=6.283185307179586D0/n2 
+        e=8.q0*qatan(1.q0)/n2
+! *********************************
+   17    do 15 i=is,n-1,id 
+            i1=i+1 
+            i2=i1+n4 
+            i3=i2+n4 
+            i4=i3+n4 
+            t1=x(i1)-x(i3) 
+            x(i1)=x(i1)+x(i3) 
+            x(i2)=2*x(i2) 
+            x(i3)=t1-2*x(i4) 
+            x(i4)=t1+2*x(i4) 
+            if (n4.eq.1)goto 15 
+            i1=i1+n8 
+            i2=i2+n8 
+            i3=i3+n8 
+            i4=i4+n8 
+            t1=(x(i2)-x(i1))/qsqrt(2.q0) 
+            t2=(x(i4)+x(i3))/qsqrt(2.q0) 
+            x(i1)=x(i1)+x(i2) 
+            x(i2)=x(i4)-x(i3) 
+            x(i3)=2*(-t2-t1) 
+            x(i4)=2*(-t2+t1) 
+   15    continue 
+            is=2*id-n2 
+            id=4*id 
+         if(is.lt.n-1)goto 17 
+         a=e 
+         do 20 j=2,n8 
+            a3=3*a 
+            cc1=qcos(a) 
+            ss1=qsin(a) 
+            cc3=qcos(a3) 
+            ss3=qsin(a3) 
+            a=j*e 
+            is=0 
+            id=2*n2 
+   40       do 30 i=is,n-1,id 
+               i1=i+j 
+               i2=i1+n4 
+               i3=i2+n4 
+               i4=i3+n4 
+               i5=i+n4-j+2 
+               i6=i5+n4 
+               i7=i6+n4 
+               i8=i7+n4 
+               t1=x(i1)-x(i6) 
+               x(i1)=x(i1)+x(i6) 
+               t2=x(i5)-x(i2) 
+               x(i5)=x(i2)+x(i5) 
+               t3=x(i8)+x(i3) 
+               x(i6)=x(i8)-x(i3) 
+               t4=x(i4)+x(i7) 
+               x(i2)=x(i4)-x(i7) 
+               t5=t1-t4 
+               t1=t1+t4 
+               t4=t2-t3 
+               t2=t2+t3 
+               x(i3)=t5*cc1+t4*ss1 
+               x(i7)=-t4*cc1+t5*ss1 
+               x(i4)=t1*cc3-t2*ss3 
+               x(i8)=t2*cc3+t1*ss3 
+   30      continue 
+               is=2*id-n2 
+               id=4*id 
+           if(is.lt.n-1)goto 40 
+   20    continue 
+   10 continue 
+!-----LENGTH TWO BUTTERFLIES--------------------------------c           
+      is=1 
+      id=4 
+   70 do 60 i0=is,n,id 
+      i1=i0+1 
+      r1=x(i0) 
+      x(i0)=r1+x(i1) 
+      x(i1)=r1-x(i1) 
+   60 continue 
+      is=2*id-1 
+      id=4*id 
+      if(is.lt.n)goto 70 
+!----DIGIT REVERSE COUNTER NOT REMOVED -----------------c               
+  100  j=1 
+       n1=n-1 
+       do 104 i=1,n1 
+           if(i.ge.j)goto 101 
+           xt=x(j) 
+           x(j)=x(i) 
+           x(i)=xt 
+  101      k=n/2 
+  102      if (k.ge.j)goto 103 
+               j=j-k 
+               k=k/2 
+               goto 102 
+  103      j=j+k 
+  104  continue 
+                                                                        
+!-----DIVISION BY N REMOVED---------------------------------c           
+       do 99 i=1,n 
+          x(i)=x(i)/n 
+   99  continue 
+       return 
+      END SUBROUTINE irvfft_QP
+
+ 
+! ============================================================
+! ******* CODING of the n evaluations of a polynomial ********
+! ********* p: p(om(1)), p(om(n)) to apply irvfft ************
+! ******** written by GIOVANNI F. GRONCHI (2004) *************
+! ============================================================
+ SUBROUTINE code_input_QP(N,eval,codeval)
+   IMPLICIT NONE
+   INTEGER,INTENT(IN) :: N
+   INTEGER, PARAMETER :: qkind=kind(1.q0) !for quadruple precision
+! evaluation of poly p(x) in the N-th roots of unity
+   COMPLEX(KIND=qkind),DIMENSION(N),INTENT(IN) :: eval
+! -----------------------------------------------------------
+! if omega is a primitive complex root of unity then we have
+! Re(p(omega^s)) = Re(p(omeg^{-s}))
+! Im(p(omega^s)) = -Im(p(omeg^{-s}))   for s=1,..,N/2
+! -----------------------------------------------------------
+   REAL(KIND=qkind),DIMENSION(N),INTENT(OUT) :: codeval ! coded evaluations
+! ------ end interface ----------------
+   INTEGER :: i ! loop indexes
+! ============================================================
+
+   DO i = 1,N/2+1
+      codeval(i) = QREAL(eval(i)) ! from 1 to N/2+1 take the real part
+   ENDDO
+! (roots of unity are taken clockwise)
+   DO i = 1,N/2-1 
+      codeval(N/2+1+i) = AIMAG(eval(N/2-i+1))
+   ENDDO
+ END SUBROUTINE code_input_QP
+
+!     ******************************************************************
+!     OUTPUT CONVERSION FROM THE STANDARD FORM of DTF TO THE USUAL ONE  
+!     ******************************************************************
+!     *********** written by GIOVANNI F. GRONCHI (2001) ****************
+!     ********** Department of Mathematics, UNIVERSITY of PISA *********
+!     ==================================================================
+ SUBROUTINE decode_out_QP(N,dftout1,dftout2,dfteval) 
+   IMPLICIT NONE 
+   INTEGER, PARAMETER :: qkind=kind(1.q0) !for quadruple precision
+   INTEGER N 
+   REAL(KIND=qkind) :: dftout1( * ),dftout2( * ) 
+   COMPLEX(KIND=qkind) :: dfteval( * ) 
+!     ----------------------------------- end interface ----------------
+!     loop indexes                                                      
+   INTEGER j 
+!     ==================================================================
+   dfteval(1) = DCMPLX(dftout1(1),0.d0) 
+   DO j = 2,N/2 
+      dfteval(j) = DCMPLX(dftout1(j),dftout1(N+2-j)) 
+      dfteval(N/2+j) = DCMPLX(dftout2(N/2+j),dftout2(N/2+2-j)) 
+   ENDDO
+   dfteval(N/2+1) = DCMPLX(dftout1(N/2+1),0.d0) 
+   
+ END SUBROUTINE decode_out_QP
+ 
+! *********************************************************
+! ***** COMPUTE COEFFICIENTS OF SYLVESTER MATRIX **********
+! *********************************************************
+  SUBROUTINE compsylv48(AA,BB,SYLV) 
+    IMPLICIT NONE 
+  INTEGER, PARAMETER :: qkind=kind(1.q0) !for quadruple precision
+! Sylvester matrix elements                                         
+    COMPLEX(KIND=qkind),INTENT(IN) :: AA(0:20)
+    COMPLEX(KIND=qkind),INTENT(IN) :: BB(0:2)
+    COMPLEX(KIND=qkind),INTENT(OUT) :: SYLV(1:22,1:22) 
+! ======== end interface ==================================
+    INTEGER :: i,j
+    SYLV=QCMPLX(0.q0,0.q0)
+    DO i = 1,21
+       SYLV(i,1) = AA(21-i)
+       SYLV(i+1,2) = AA(21-i)
+    ENDDO
+    DO j = 3,22
+       SYLV(j-2,j) = BB(2)
+       SYLV(j-1,j) = BB(1)
+       SYLV(j,j) = BB(0)
+    ENDDO
+  END SUBROUTINE compsylv48
+
+! ******************************************************************
+! ******** computes the determinant of matrix A(22,22) employing *****
+! ******** LU factorization (A(22,22) has complex coefficients) ******
+! ==================================================================
+  SUBROUTINE cdetcomp22(A,detA) 
+    IMPLICIT NONE 
+    INTEGER, PARAMETER :: qkind=kind(1.q0) !for quadruple precision
+! A is a matrix 22x22
+    COMPLEX(KIND=qkind),INTENT(IN) :: A(22,22)
+    COMPLEX(KIND=qkind),INTENT(OUT) :: detA 
+! ============== end interface =================
+    INTEGER :: INFO, LDA, M, N 
+! IPIV must have the same dimension of N
+    INTEGER :: IPIV(22)
+    INTEGER :: signdetA 
+! loop indexes                                                      
+    INTEGER :: i,j 
+! ==================================================================
+    LDA= 22 
+! number of columns of A                                            
+    N=22
+! number of rows of A                                               
+    M=22
+! initialization                                                    
+    detA=1.q0 
+    signdetA=1 
+! compute LU factorization                                          
+    CALL ZGETF2( M, N, A, LDA, IPIV, INFO ) 
+    DO i=1,N 
+       IF (IPIV(i).ne.i) THEN 
+          signdetA = -signdetA 
+       ENDIF
+    ENDDO
+! compute determinant of A                                          
+    DO i=1,N 
+       detA=detA*A(i,i) 
+    ENDDO   
+    detA = signdetA*detA 
+  END SUBROUTINE cdetcomp22
+
+! ==================================================================
+! GIVEN rho2 COMPUTE rho1 SUCH THAT (rho1,rho2) 
+! SATISFIES THE SYSTEM p = q = 0
+! ==================================================================
+  SUBROUTINE solvesys_QP(pmod,qmod,ncoe_p,ncoe_q,nroots,roots, &
+       & rho1,rho2,nposroots)
+    USE output_control, ONLY: verb_2body
+    IMPLICIT NONE
+    INTEGER, PARAMETER :: qkind=kind(1.q0) !for quadruple precision
+    INTEGER,INTENT(IN) :: pmod,qmod
+    REAL(KIND=qkind),INTENT(IN) :: ncoe_p(0:24,0:24),ncoe_q(0:2,0:2)
+    INTEGER,INTENT(IN) :: nroots 
+    REAL(KIND=qkind),INTENT(IN) :: roots(nroots)
+    REAL(KIND=qkind),INTENT(OUT) :: rho1(nroots),rho2(nroots)
+    INTEGER,INTENT(OUT) :: nposroots 
+! ======== end interface ===============================    
+    REAL(KIND=qkind) :: rho1sol(2,nroots),rho2sol(nroots),peval(2),qeval(2) ! auxiliary 
+    REAL(KIND=qkind) :: bb(0:2)
+    REAL(KIND=qkind) :: discrim
+    INTEGER :: h,j
+
+    nposroots=0
+
+    DO h=1,nroots
+       rho2sol(h)=roots(h)
+!       rho2(1)= 3.0340706822328d0
+!       DO j=0,2
+!          bb(j) = ncoe_q(j,2)*rho2(h)**2 + ncoe_q(j,1)*rho2(h) + ncoe_q(j,0)
+!       ENDDO
+       bb(0)= ncoe_q(0,2)*rho2sol(h)**2 + ncoe_q(0,1)*rho2sol(h) + ncoe_q(0,0)
+       bb(1)= ncoe_q(1,0)
+       bb(2)= ncoe_q(2,0)
+
+! 2nd degree polynomial equation
+!    bb(2)*rho1**2 + bb(1)*rho1 + bb(0) = 0
+       discrim=bb(1)**2-4.d0*bb(0)*bb(2)
+       IF(discrim.gt.0.q0)THEN
+          rho1sol(1,h) = (-bb(1) + sqrt(bb(1)**2-4.d0*bb(0)*bb(2)))/ &
+               & (2.d0*bb(2))
+          rho1sol(2,h) = (-bb(1) - sqrt(bb(1)**2-4.d0*bb(0)*bb(2)))/ &
+               & (2.d0*bb(2))
+!       write(*,*)'rho1, rho2',rho1sol(1,h),rho2(h)
+!       write(*,*)'rho1, rho2',rho1sol(2,h),rho2(h)
+          CALL poly_eval_QP(pmod,ncoe_p,rho1sol(1,h),rho2sol(h),peval(1))  
+          CALL poly_eval_QP(pmod,ncoe_p,rho1sol(2,h),rho2sol(h),peval(2))  
+!          write(*,*)'p(rho1_1,rho2)',peval(1)
+!          write(*,*)'p(rho1_2,rho2)',peval(2)
+          CALL poly_eval_QP(qmod,ncoe_q,rho1sol(1,h),rho2sol(h),qeval(1))  
+          CALL poly_eval_QP(qmod,ncoe_q,rho1sol(2,h),rho2sol(h),qeval(2))  
+
+113 FORMAT(A19,2X,3(F14.9,2X))
+!          select only positive rho1
+          IF(rho1sol(1,h).gt.0.q0.OR.rho1sol(2,h).gt.0.q0)THEN
+             nposroots=nposroots+1
+             rho2(nposroots) = rho2sol(h)
+!             write(*,113)'almeno una positiva',rho2sol(h),rho1sol(1,h),rho1sol(2,h)
+             
+             IF(rho1sol(1,h).gt.0.q0)THEN
+                rho1(nposroots) = rho1sol(1,h)
+                IF(abs(peval(2)).lt.abs(peval(1)).AND. &
+                     & rho1sol(2,h).gt.0.q0)THEN
+                   rho1(nposroots)= rho1sol(2,h)
+                ENDIF
+             ELSE 
+ !            ELSEIF(rho1sol(2,h).gt.0.q0)THEN
+                rho1(nposroots) = rho1sol(2,h)
+ !               IF(abs(peval(1)).lt.abs(peval(2)).AND. &
+ !                    & rho1sol(1,h).gt.0.q0)THEN
+ !                  rho1(nposroots)= rho1sol(1,h)
+ !               ENDIF
+             ENDIF
+             
+          ELSE
+             IF(verb_2body.gt.10)THEN
+                WRITE(*,*)'both negative solutions! rho1,rho2', &
+                  & rho1sol(1,h),rho1sol(2,h)
+             ENDIF
+          ENDIF
+          
+       ELSE
+          IF(verb_2body.gt.10)THEN
+             write(*,*)'negative discriminant',discrim
+          ENDIF
+!          rho1sol(1,h) = 0.d0 
+!          rho1sol(2,h) = 0.d0 
+       ENDIF
+    ENDDO
+
+  END SUBROUTINE solvesys_QP
+
+
+! ==================================================================
+! GIVEN rho2 COMPUTE rho1 SUCH THAT (rho1,rho2) 
+! SATISFIES THE SYSTEM p = q = 0  (DOUBLE PRECISION)
+! ==================================================================
+  SUBROUTINE solvesys(pmod,qmod,ncoe_p,ncoe_q,nroots,roots, &
+       & rho1,rho2,nposroots)
+    USE fund_const, ONLY: dkind
+    USE output_control, ONLY: verb_2body
+    IMPLICIT NONE
+    INTEGER,INTENT(IN) :: pmod,qmod
+    REAL(KIND=dkind),INTENT(IN) :: ncoe_p(0:24,0:24),ncoe_q(0:2,0:2)
+    INTEGER,INTENT(IN) :: nroots 
+    REAL(KIND=dkind),INTENT(IN) :: roots(nroots)
+    REAL(KIND=dkind),INTENT(OUT) :: rho1(nroots),rho2(nroots)
+    INTEGER,INTENT(OUT) :: nposroots 
+! ======== end interface ===============================    
+    REAL(KIND=dkind) :: rho1sol(2,nroots),rho2sol(nroots),peval(2),qeval(2) ! auxiliary 
+    REAL(KIND=dkind) :: bb(0:2)
+    REAL(KIND=dkind) :: discrim
+    INTEGER :: h,j
+
+    nposroots=0
+
+    DO h=1,nroots
+       rho2sol(h)=roots(h)
+!       rho2(1)= 3.0340706822328d0
+!       DO j=0,2
+!          bb(j) = ncoe_q(j,2)*rho2(h)**2 + ncoe_q(j,1)*rho2(h) + ncoe_q(j,0)
+!       ENDDO
+       bb(0)= ncoe_q(0,2)*rho2sol(h)**2 + ncoe_q(0,1)*rho2sol(h) + ncoe_q(0,0)
+       bb(1)= ncoe_q(1,0)
+       bb(2)= ncoe_q(2,0)
+
+! 2nd degree polynomial equation
+!    bb(2)*rho1**2 + bb(1)*rho1 + bb(0) = 0
+       discrim=bb(1)**2-4.d0*bb(0)*bb(2)
+       IF(discrim.gt.0.d0)THEN
+          rho1sol(1,h) = (-bb(1) + sqrt(bb(1)**2-4.d0*bb(0)*bb(2)))/ &
+               & (2.d0*bb(2))
+          rho1sol(2,h) = (-bb(1) - sqrt(bb(1)**2-4.d0*bb(0)*bb(2)))/ &
+               & (2.d0*bb(2))
+!       write(*,*)'rho1, rho2',rho1sol(1,h),rho2(h)
+!       write(*,*)'rho1, rho2',rho1sol(2,h),rho2(h)
+          CALL poly_eval(pmod,ncoe_p,rho1sol(1,h),rho2sol(h),peval(1))  
+          CALL poly_eval(pmod,ncoe_p,rho1sol(2,h),rho2sol(h),peval(2))  
+!          write(*,*)'p(rho1_1,rho2)',peval(1)
+!          write(*,*)'p(rho1_2,rho2)',peval(2)
+          CALL poly_eval(qmod,ncoe_q,rho1sol(1,h),rho2sol(h),qeval(1))  
+          CALL poly_eval(qmod,ncoe_q,rho1sol(2,h),rho2sol(h),qeval(2))  
+
+113 FORMAT(A19,2X,3(F14.9,2X))
+!          select only positive rho1
+          IF(rho1sol(1,h).gt.0.d0.OR.rho1sol(2,h).gt.0.d0)THEN
+             nposroots=nposroots+1
+             rho2(nposroots) = rho2sol(h)
+!             write(*,113)'almeno una positiva',rho2sol(h),rho1sol(1,h),rho1sol(2,h)
+             
+             IF(rho1sol(1,h).gt.0.d0)THEN
+                rho1(nposroots) = rho1sol(1,h)
+                IF(abs(peval(2)).lt.abs(peval(1)).AND. &
+                     & rho1sol(2,h).gt.0.d0)THEN
+                   rho1(nposroots)= rho1sol(2,h)
+                ENDIF
+             ELSE 
+ !            ELSEIF(rho1sol(2,h).gt.0.d0)THEN
+                rho1(nposroots) = rho1sol(2,h)
+ !               IF(abs(peval(1)).lt.abs(peval(2)).AND. &
+ !                    & rho1sol(1,h).gt.0.d0)THEN
+ !                  rho1(nposroots)= rho1sol(1,h)
+ !               ENDIF
+             ENDIF
+             
+          ELSE
+             IF(verb_2body.gt.10)THEN
+                WRITE(*,*)'both negative solutions! rho1,rho2', &
+                  & rho1sol(1,h),rho1sol(2,h)
+             ENDIF
+          ENDIF
+          
+       ELSE
+          IF(verb_2body.gt.10)THEN
+             write(*,*)'negative discriminant',discrim
+          ENDIF
+!          rho1sol(1,h) = 0.d0 
+!          rho1sol(2,h) = 0.d0 
+       ENDIF
+    ENDDO
+
+  END SUBROUTINE solvesys

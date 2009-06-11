@@ -263,8 +263,10 @@ SUBROUTINE fsteph(name,dir,defele,ok,el0,                &
            CALL coo_cha(elsav(i),cooy,elem1,fail_flag)
            CALL write_elems(elem1,name(1:lnnam),'1L',file,unit)
         ENDIF
-        if(moidfl.and.avail(n)) write(munit,199)tsav(i),msav(i),ndsav(i,1),ndsav(i,2)
-199     format(f13.4,1x,f8.5,1x,f8.5,1x,f8.5) 
+        IF(moidfl.and.avail(i))THEN
+           write(munit,199)tsav(i),msav(i),ndsav(i,1),ndsav(i,2)
+199        format(f13.4,1x,f8.5,1x,f8.5,1x,f8.5)
+        ENDIF 
      enddo
   endif
 ! ===================================================================== 

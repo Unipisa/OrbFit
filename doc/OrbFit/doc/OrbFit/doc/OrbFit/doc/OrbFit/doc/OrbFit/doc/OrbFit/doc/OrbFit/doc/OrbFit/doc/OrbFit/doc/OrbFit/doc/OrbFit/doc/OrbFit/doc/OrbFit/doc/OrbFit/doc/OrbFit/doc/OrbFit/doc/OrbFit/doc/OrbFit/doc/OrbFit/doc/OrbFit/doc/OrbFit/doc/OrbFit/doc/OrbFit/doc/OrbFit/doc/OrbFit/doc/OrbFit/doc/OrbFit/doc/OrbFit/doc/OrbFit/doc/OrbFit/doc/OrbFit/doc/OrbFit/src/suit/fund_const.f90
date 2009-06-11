@@ -30,7 +30,7 @@ DOUBLE PRECISION, PARAMETER :: hrad=24.0d0/dpig              ! Hours from radian
 DOUBLE PRECISION, PARAMETER :: r_sun=6.96d5                  ! Radius of Sun in Km
 !the ones below need to be initialised from JPL ephemerides
 !  parameters initialized in read_ephem/trange
-      double precision vlight,ckm !speed of light in current units, in AU/s and in km/s 
+      double precision vlight,ckm !speed of light in current units, in AU/day and in km/s 
 ! part of JPL ephemerides header common; name needs to be changed, initialization
 ! also to be performed in trange aukm=au, emratio=emrat
       double precision aukm,emratio,reau ! au in km, Earth-Moon mass ratio, Earth radius in current units

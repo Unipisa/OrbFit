@@ -1,14 +1,14 @@
 9
 
 dir
-105
+92
 file:///home/orbfit/orbfit_subv/trunk/tests
 file:///home/orbfit/orbfit_subv
 
 
 
-2009-01-09T12:08:59.413030Z
-105
+2008-11-28T17:41:11.523820Z
+87
 orbfit_amc
 
 
@@ -55,7 +55,7 @@ dir
 
 Makefile
 file
-
+99
 
 
 
@@ -89,7 +89,7 @@ orbfit_amc
 
 README.tests
 file
-
+98
 
 
 

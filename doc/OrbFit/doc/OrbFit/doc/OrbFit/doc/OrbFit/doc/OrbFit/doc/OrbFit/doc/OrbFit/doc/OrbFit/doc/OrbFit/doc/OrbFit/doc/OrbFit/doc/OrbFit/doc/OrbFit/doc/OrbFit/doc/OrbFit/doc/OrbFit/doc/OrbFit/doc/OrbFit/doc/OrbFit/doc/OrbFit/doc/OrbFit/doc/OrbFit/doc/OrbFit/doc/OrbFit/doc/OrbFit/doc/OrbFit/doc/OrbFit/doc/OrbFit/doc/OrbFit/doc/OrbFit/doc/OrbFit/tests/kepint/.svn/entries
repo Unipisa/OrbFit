@@ -1,0 +1,286 @@
+9
+
+dir
+0
+file:///home/orbfit/orbfit_subv/trunk/tests/angmom
+file:///home/orbfit/orbfit_subv
+add
+
+
+
+
+
+
+
+svn:special svn:externals svn:needs-lock
+
+tmp1
+file
+
+
+
+add
+
+Attributables.txt
+file
+
+
+
+add
+
+p_coeff_DP
+file
+
+
+
+add
+
+433.txt
+file
+
+
+
+add
+
+admis_reg
+file
+
+
+
+add
+
+am_curve.m
+file
+
+
+
+add
+
+radar_obs
+file
+
+
+
+add
+
+p_coeff
+file
+
+
+
+add
+
+q_coeff
+file
+
+
+
+add
+
+angmom_curve.ps
+file
+
+
+
+add
+
+AR_coeff
+file
+
+
+
+add
+
+attributables
+file
+
+
+
+add
+
+gmon.out
+file
+
+
+
+add
+
+
+
+
+
+has-props
+has-prop-mods
+
+used_data.txt
+file
+
+
+
+add
+
+2007M24
+dir
+
+
+
+add
+
+1220T-2.fel
+file
+
+
+
+add
+
+1220T-2.dat
+file
+
+
+
+add
+
+test_det.x
+file
+
+
+
+add
+
+
+
+
+
+has-props
+has-prop-mods
+
+svn:special
+
+coeff
+file
+
+
+
+add
+
+q_coeff_DP
+file
+
+
+
+add
+
+1220T-2.txt
+file
+
+
+
+add
+
+AR_coeff_DP
+file
+
+
+
+add
+
+orbital_elements
+file
+
+
+
+add
+
+attributables_1220T-2
+file
+
+
+
+add
+
+96217.fel
+file
+
+
+
+add
+
+mlabfiles
+dir
+
+
+
+add
+
+96217.dat
+file
+
+
+
+add
+
+tmp
+file
+
+
+
+add
+
+96217_angmom.ps
+file
+
+
+
+add
+
+ang_mom.mop
+file
+
+
+
+add
+
+ang_mom.mou
+file
+
+
+
+add
+
+attributables_96217
+file
+
+
+
+add
+
+old
+dir
+
+
+
+add
+
+orbprelim_AM.x
+file
+
+
+
+add
+
+
+
+
+
+has-props
+has-prop-mods
+
+svn:special
+
+99942.txt
+file
+
+
+
+add
+

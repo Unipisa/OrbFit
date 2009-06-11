@@ -1,5 +1,5 @@
 ! Max number of massive bodies (asteroids)
-      INTEGER, PARAMETER :: nbmx=5
+      INTEGER, PARAMETER :: nbmx=500
 ! Max number of massless asteroids
       INTEGER, PARAMETER :: nbax=1
 ! Max number of planets from JPL ephemerides

@@ -28,6 +28,7 @@ DOUBLE PRECISION,               PARAMETER :: t2000 = 51544.5d0
 ! LIST OF PUBLIC ENTITIES
 ! SUBROUTINEs
 PUBLIC :: observer_position, pvobs, pvobs3, rotpn, posobs, ch2ref, obs2ecl
+PUBLIC :: omega_earth
 
 
 ! pvobs2,pvobs4 to be removed
@@ -58,11 +59,16 @@ DOUBLE PRECISION, DIMENSION(3,3) :: rot
 IF(PRESENT(precision)) THEN
    prec=precision
 ELSE
-   prec=1
-END IF
+   IF(rhs.EQ.1)THEN
+      prec=1
+   ELSEIF(rhs.EQ.2)THEN
+      prec=2
+   ELSE
+      prec=1
+   ENDIF
+ENDIF
 
 IF(PRESENT(obscode) .AND. PRESENT(bfpos)) STOP '**** observer_position1: internal error (01) ****'
-
 ! Station position in the body fixed (equatorial) frame
 IF(PRESENT(obscode)) THEN
    CALL obscoo(obscode,dxbf,name)
@@ -71,7 +77,6 @@ ELSEIF(PRESENT(bfpos)) THEN
 ELSE
    STOP '**** observer_position1: internal error (02) ****'
 END IF
-
 ! ET decomposed in days plus seconds; no trick (every day is 86400 sec)
 mjd1=tdt
 sec1=(tdt-mjd1)*86400
@@ -79,31 +84,38 @@ sec1=(tdt-mjd1)*86400
 SELECT CASE (prec)
    CASE (1)
 
-      ! Station velocity in the body fixed (equatorial) frame
+! Station velocity in the body fixed (equatorial) frame
       CALL prvec(omega_earth,dxbf,dvbf)
-
-      ! Computation of UT1
+! Computation of UT1
       CALL cnvtim(mjd1,sec1,'ET ',mjd2,sec2,'UT1')
       tut=sec2/86400+mjd2
-
-      ! Greenwich Apparent Sidereal Time = Greenwich Mean Sidereal Time + Equation of the Equinoxes
+! Greenwich Apparent Sidereal Time = Greenwich Mean Sidereal Time + Equation of the Equinoxes
       gast=gmst(tut)+equequ(tdt)
-
-      ! Diurnal rotation matrix (transformation from body-fixed to true-of-date frames), neglecting polar motion
+! Diurnal rotation matrix (transformation from body-fixed to true-of-date frames), neglecting polar motion
       CALL rotmt(-gast,rot,3)
       dxtod=MATMUL(rot,dxbf)
       dvtod=MATMUL(rot,dvbf)
-
-      ! Station position and velocity in the J2000 (ecliptic) frame
+! Station position and velocity in the J2000 (ecliptic) frame
       CALL rotpn(rot,'EQUT','OFDATE',tdt,'ECLM','J2000',0.d0)
       position=MATMUL(rot,dxtod)
       velocity=MATMUL(rot,dvtod)
-
+!  modification 12/1/2009
+      IF(rhs.eq.2)THEN
+! transformation to equatorial
+         STOP '*** observer_position: rhs=2 and precision=1 not allowed ******'
+      ENDIF 
    CASE (2)
       dvbf=0.d0
+!      modification 12/1/2009
       CALL rotpv('BF  ',.true.,mjd1,sec1,dxbf,dvbf,'ECLM',.true.,51544,43200.d0,position,velocity)
-      ! Transformation of velocity from AU/s to AU/d
+! Transformation of velocity from AU/s to AU/d
       velocity=velocity*86400.d0
+!      modification 12/1/2009
+      IF(rhs.eq.2)THEN
+! transformation to equatorial
+         CALL prodmv(position,roteceq,position)
+         CALL prodmv(velocity,roteceq,velocity)         
+      ENDIF 
 
    CASE DEFAULT
       STOP '**** observer_position1: internal error (03) ****'

@@ -12,7 +12,7 @@ FIDENT=identsub.o
 
 FINOUT=fitobs_interfaces.o finopt.o  
 
-FITOBS= fitobs.o  $(COPYING) $(FIDENT) $(FINOUT)
+FITOBS= fitobs.o  $(COPYING) $(FIDENT) $(FINOUT) twotes.o
 
 LIBDEPS= ../lib/libprop.a ../lib/libmoid.a ../lib/libgauss.a ../lib/libsuit.a
 

@@ -15,7 +15,7 @@ CONTAINS
 ! FORCESAT : accelerations acting on a satellite of Earth                   
 ! ===========================================================           
 ! version 3.6.1; 29 October 2008     
-  SUBROUTINE forcesat(x,v,t0,f,nd,idc,xxpla,ips,imem)
+  SUBROUTINE forcesat(x,v,t0,f,nd,idc,xxpla,ips,imem, derf0)
     USE perturbations
     USE spher_harm
     USE iers_ser
@@ -34,6 +34,7 @@ CONTAINS
 ! stored only if idc.ne.0                                               
     INTEGER, INTENT(OUT) :: idc 
     REAL(KIND=dkind), INTENT(OUT) :: xxpla(6) 
+    REAL(KIND=dkind), INTENT(OUT), OPTIONAL :: derf0(3,3)
 ! ======END INTERFACE============== 
 ! to store data; not used yet
 !    INTEGER, PARAMETER:: memx=30 ! stored planets/rotations array 
@@ -43,10 +44,11 @@ CONTAINS
 
     REAL(KIND=dkind) rot(3,3),rot1(3,3),rot2(3,3) ! rotation matrices to BF
     REAL(KIND=dkind) rott(3,3) ! ! rotation matrix from BF
+    REAL(KIND=dkind) derf(3,3),dfb(3,3),dfc(3,3) ! jacobian, d2B/dt2, d2C/dt2
     LOGICAL partials ! need for partial derivatives
 ! temporaries to store harmonics                                       
     REAL(KIND=dkind) :: army(3,4,narmx),arm(3,4,narmx), tmp3(3,3), plmi
-    REAL(KIND=dkind) :: armacc(3,4), de, e, g
+    REAL(KIND=dkind) :: armacc(3,4), de, e, g, armaccy(3,4)
 ! conversion of times 
     REAL(KIND=dkind) :: sec1
     INTEGER mjd1
@@ -61,9 +63,10 @@ CONTAINS
 ! partial derivatives of the acceleration w.r.t. to the Love number $k_2$  
     REAL(KIND=dkind), DIMENSION(3) :: dlove
 ! non gravitational perturbations
-    REAL(KIND=dkind), DIMENSION(3) :: accrad
+    REAL(KIND=dkind), DIMENSION(3) :: accrad, accradsec
+    REAL(KIND=dkind) :: vsize
 ! loop indexes
-    INTEGER i,j 
+    INTEGER i,j,k
 ! initialization
     idc=0  ! close approach flag
     xxpla=0.d0
@@ -78,8 +81,8 @@ CONTAINS
 ! two-body term
     r2=x(1)**2+x(2)**2+x(3)**2 
     r3=r2*dsqrt(r2) 
-    de=gmearth/r3
-    f(1:3)=-de*x(1:3) 
+    de=-gmearth/r3
+    f(1:3)=de*x(1:3) 
     IF(partials)THEN
 !  partials of the two body acceleration                                
        e=-3.d0*de/r2 
@@ -87,11 +90,14 @@ CONTAINS
           DO j=1,i 
              g=e*x(i)*x(j) 
              IF(i.eq.j) g=g+de 
-             f(3*i+j)=g
-             f(3*j+i)=g
+             derf(i,j)=g
+             derf(j,i)=g
           ENDDO
        ENDDO
-    ENDIF  
+!       f(13)=1.d0
+!       f(17)=1.d0
+!       f(21)=1.d0            
+    ENDIF
 ! luni-solar perturbations
     IF(ipla.eq.2)THEN
        equ=.TRUE.
@@ -103,9 +109,7 @@ CONTAINS
        CALL sunmoon_pert(x,ef,dplan,dlove,pk2cur,partials)
        f(1:3)=f(1:3)+dplan(1:3,1)
        IF(partials)THEN
-          DO j=1,3
-             f(3*j+1:3*j+3)= f(3*j+1:3*j+3)+dplan(1:3,j+1)
-          ENDDO
+          derf(1:3,1:3)=derf(1:3,1:3)+ dplan(1:3,2:4)  
        ENDIF
     ELSEIF(ipla.gt.0)THEN
        WRITE(*,*)' force_sat: unknown option ipla=', ipla
@@ -117,8 +121,15 @@ CONTAINS
           equ=.TRUE.
           CALL sunmoon_car(t0,equ,xsun,xmoon) 
        ENDIF 
-      CALL radp(x,xsun(1:3),accrad) 
-      f(1:3)=f(1:3)+accrad
+      IF(irad.eq.1.or.irad.eq.3)THEN
+         CALL radp(x(1:3),xsun(1:3),accrad) 
+         f(1:3)=f(1:3)+accrad*amrat
+      ENDIF
+      IF(irad.eq.2.or.irad.eq.3)THEN
+         CALL secacc(x(1:3),v(1:3),xsun(1:3),accradsec) 
+         f(1:3)=f(1:3)+accradsec*amratsec
+      ENDIF
+! WARNING: no partial derivatives from these (possible problem in penumbra)
 ! no contributions to variational equation
     ENDIF
 ! spherical harmonics 
@@ -134,22 +145,57 @@ CONTAINS
 ! spherical harmonics
        CALL parm10(y,ites,army,partials)
        lmax=numcoe(ites)
- ! rotation of acceleration
-       armacc=0.d0
-       DO lmi=5,lmax 
-          arm(1:3,1,lmi)=matmul(rott,army(1:3,1,lmi)) 
-          armacc(1:3,1)=armacc(1:3,1)+plmi*arm(1:3,1,lmi)
-          IF(partials)THEN 
-! rotation of second derivatives
-             tmp3=matmul(army(1:3,2:4,lmi),rot) 
-             arm(1:3,2:4,lmi)=matmul(rott,tmp3) 
-! harmonic coefficient
-             plmi=harmco(lmi) 
-! update of jacobian
-             DO j=1,3
-                f(3*j+1:3*j+3)=f(3*j+1:3*j+3)+plmi*arm(1:3,j+1,lmi)
-             ENDDO
+! adding up spherical harmonics
+       armaccy=0.d0
+       DO lmi=5,lmax
+          plmi=harmco(lmi) 
+          armaccy(1:3,1)=armaccy(1:3,1)+plmi*army(1:3,1,lmi)
+          IF(partials)THEN
+             armaccy(1:3,2:4)=armaccy(1:3,2:4)+plmi*army(1:3,2:4,lmi)
           ENDIF
+       ENDDO
+ ! rotation of acceleration
+       CALL prodmv(armacc(1:3,1),rott,armaccy(1:3,1))
+       f(1:3)=f(1:3)+armacc(1:3,1)
+       IF(partials)THEN
+           tmp3=matmul(armaccy(1:3,2:4),rot) 
+           derf(1:3,1:3)=derf(1:3,1:3)+ matmul(rott,tmp3)
+       ENDIF
+!       WRITE(25,100)t0,y(1:3),armaccy(1:3,1)
+!       WRITE(26,100)t0,x(1:3),armacc(1:3,1)
+!100    FORMAT(F12.6,1P,3(1X,D15.8),3(1X,D15.8))
+! rotation of acceleration
+!       armacc=0.d0
+!       DO lmi=5,lmax 
+! harmonic coefficient
+!          plmi=harmco(lmi) 
+!          arm(1:3,1,lmi)=matmul(rott,army(1:3,1,lmi)) 
+!          armacc(1:3,1)=armacc(1:3,1)+plmi*arm(1:3,1,lmi)
+!          f(1:3)=f(1:3)+armacc(1:3,1)
+!          IF(partials)THEN 
+! rotation of second derivatives
+!             tmp3=matmul(army(1:3,2:4,lmi),rot) 
+!             arm(1:3,2:4,lmi)=matmul(rott,tmp3) 
+! update of jacobian
+!             derf(1:3,1:3)=derf(1:3,1:3)+ plmi* arm(1:3,2:4,lmi)
+!          ENDIF
+!       ENDDO
+
+    ENDIF
+
+! right hand side of variational equation
+    IF(partials)THEN
+       IF(PRESENT(derf0))THEN
+! output matrix of partials
+          derf0=derf
+       ENDIF
+       DO k=1,3 ! k=column index
+          CALL prodmv(dfb(1:3,k), derf,x(3*k+1:3*k+3))
+! right hand side of equation for B=dx/dx0
+          f(k*3+1:k*3+3)=dfb(1:3,k)
+          CALL prodmv(dfc(1:3,k), derf,x(3*k+10:3*k+12))
+! right hand side of equation for C=dv/dx0
+          f(k*3+10:k*3+12)=dfc(1:3,k)
        ENDDO
     ENDIF
   END SUBROUTINE forcesat

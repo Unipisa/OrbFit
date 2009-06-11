@@ -719,6 +719,9 @@ SUBROUTINE mult_input(catname,ok)
      j=imul(i) 
 ! copy in output arrays
      elm(j)=undefined_orbit_elem
+     IF(rhs.EQ.2)THEN
+        elm(j)%center=3
+     END IF
      elm(j)%coord= eq
      elm(j)%t=t
      elm(j)%coo=eltype 

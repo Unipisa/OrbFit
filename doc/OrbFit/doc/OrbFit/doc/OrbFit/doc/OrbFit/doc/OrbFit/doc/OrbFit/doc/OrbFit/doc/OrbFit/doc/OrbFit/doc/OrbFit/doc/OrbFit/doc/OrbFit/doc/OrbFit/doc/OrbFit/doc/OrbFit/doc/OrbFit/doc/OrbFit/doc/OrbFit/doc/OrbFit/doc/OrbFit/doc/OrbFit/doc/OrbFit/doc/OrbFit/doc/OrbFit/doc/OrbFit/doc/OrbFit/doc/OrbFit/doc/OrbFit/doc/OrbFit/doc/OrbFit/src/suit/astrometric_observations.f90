@@ -64,6 +64,11 @@ PUBLIC :: input_obs,mpc_obs_input, addobs_rwo, addobs_mpc, aster_radius,jpl_rada
 PUBLIC :: read_rwo,write_rwo,read_rwo_rec,read_rwo_header, write_rwo_opt,write_rwo_header
 ! OPERATOR OVERLOADING
 PUBLIC drop_geopos, add_geopos
+! CHANGE OF RWO FORMAT
+
+
+!CHARACTER*(6), PUBLIC :: change_format=' ' ! INPUT,OUTPUT, ' ' 
+CHARACTER*(6), PUBLIC :: change_format ! INPUT,OUTPUT, ' ' 
 
 
 !INTEGER, PARAMETER :: len_objdes = 9   ! length of the object designation
@@ -89,6 +94,34 @@ TYPE ast_obs
                                                  !    1 = km
                                                  !    2 = AU
    CHARACTER(LEN=1)                :: note       ! note on observation circumstances (column 14 of MPC record)
+   CHARACTER(LEN=2)                :: catcodmpc  ! MPC catalog flag:
+                                                 ! a = USNO-A1.0
+                                                 ! b = USNO-SA1.0
+                                                 ! c = USNO-A2.0
+                                                 ! d = USNO-SA2.0
+                                                 ! e = UCAC-1
+                                                 ! f = Tycho-1
+                                                 ! g = Tycho-2
+                                                 ! h = GSC-1.0
+                                                 ! i = GSC-1.1
+                                                 ! j = GSC-1.2
+                                                 ! k = GSC-2.2
+                                                 ! l = ACT
+                                                 ! m = GSC-ACT
+                                                 ! n = TRC
+                                                 ! o = USNO-B1.0
+                                                 ! p = PPM
+                                                 ! q = UCAC-2-beta
+                                                 ! r = UCAC-2
+                                                 ! s = USNO-B2.0
+                                                 ! t = UCAC-3-beta
+                                                 ! u = UCAC-3
+                                                 ! v = NOMAD
+                                                 ! w = CMC
+                                                 ! x = Hip-2
+                                                 ! z = GSC (unspecified version)
+                                                 ! ' ' = unknown
+ 
    CHARACTER(LEN=7)                :: obscod_s   ! observer's MPC code (string, official); for radar, TX(A3)//' '//RX(A3)
    INTEGER                         :: obscod_i   ! observer's MPC code (integer, internal representation); for radar,
                                                  !  encoding of both transmitter ans receiver (see jplradar_transform)
@@ -137,6 +170,33 @@ TYPE ast_obs_direct
                                                  !    1 = km
                                                  !    2 = AU
    CHARACTER(LEN=1)                :: note       ! note on observation circumstances (column 14 of MPC record)
+   CHARACTER(LEN=2)                :: catcodmpc  ! MPC catalog flag:
+                                                 ! a = USNO-A1.0
+                                                 ! b = USNO-SA1.0
+                                                 ! c = USNO-A2.0
+                                                 ! d = USNO-SA2.0
+                                                 ! e = UCAC-1
+                                                 ! f = Tycho-1
+                                                 ! g = Tycho-2
+                                                 ! h = GSC-1.0
+                                                 ! i = GSC-1.1
+                                                 ! j = GSC-1.2
+                                                 ! k = GSC-2.2
+                                                 ! l = ACT
+                                                 ! m = GSC-ACT
+                                                 ! n = TRC
+                                                 ! o = USNO-B1.0
+                                                 ! p = PPM
+                                                 ! q = UCAC-2-beta
+                                                 ! r = UCAC-2
+                                                 ! s = USNO-B2.0
+                                                 ! t = UCAC-3-beta
+                                                 ! u = UCAC-3
+                                                 ! v = NOMAD
+                                                 ! w = CMC
+                                                 ! x = Hip-2
+                                                 ! z = GSC (unspecified version)
+                                                 ! ' ' = unknown
    CHARACTER(LEN=7)                :: obscod_s   ! observer's MPC code (string, official); for radar, TX(A3)//' '//RX(A3)
    INTEGER                         :: obscod_i   ! observer's MPC code (integer, internal representation); for radar,
                                                  !  encoding of both transmitter ans receiver (see jplradar_transform)
@@ -173,6 +233,7 @@ TYPE(ast_obs), PARAMETER :: undefined_ast_obs = AST_OBS( &
 &   '?' ,                &  ! observation technology
 &   ' ' ,                &  ! parallax unit (only for satellite observations)
 &   ' ' ,                &  ! note on observation circumstances (column 14 of MPC record)
+&   '  ',                &  ! astrometric catalog code
 &   '       ' ,          &  ! observer's MPC code (official)
 &   -999999 ,            &  ! observer's MPC code (internal)
 &   1.d99 ,              &  ! observation UTC time
@@ -224,7 +285,7 @@ TYPE(ast_wbsr), PARAMETER :: undefined_ast_wbsr = AST_WBSR( &
    0.d0 ,                   &  ! residual of magnitude
    .false.                  )  ! TRUE if residual of magnitude is define
 
-INTEGER, PARAMETER :: rwo_version = 1           !  current version of RWO file format
+INTEGER, PARAMETER :: rwo_version = 2           !  current version of RWO file format
 
 INTEGER, PARAMETER, PUBLIC :: nradobsx=10000 ! max total number of radar observations
 CHARACTER*100, PUBLIC, DIMENSION(nradobsx) :: radar_rec  ! JPL formatted records 
@@ -317,8 +378,7 @@ DATA nrec /0/
 ! check operating mode
 IF(PRESENT(unit0))THEN
    unit=unit0
-ELSE
-! open output file
+ELSE! open output file
    CALL filopn(unit,file,'UNKNOWN')
    nrec=0
    IF(PRESENT(rms)) THEN
@@ -520,6 +580,7 @@ SUBROUTINE write_rwo_opt(unit,obs,obsw,error,nrec)
   IF(ra_sec_str(1:1) == ' ') ra_sec_str(1:1)='0'
   WRITE(rmsa_str,125)  obsw%rms_coord(1)*secrad
   WRITE(biasa_str,125) obsw%bias_coord(1)*secrad
+!  WRITE(biasa_str,125) obsw%bias_coord(1)*secrad*COS(obs%coord(2)) wrong correction for cos(dec)
 125 FORMAT(F8.3)
   IF(obsw%resc_def) THEN
      resnor=obsw%res_coord(1)*secrad*COS(obs%coord(2))
@@ -582,11 +643,11 @@ SUBROUTINE write_rwo_opt(unit,obs,obsw,error,nrec)
 &               rmsa_str,obsw%force_w(1),biasa_str,resida_str,            &
 &               dec_sign,dec_deg,dec_min,dec_sec_str,obs%acc_coord(2)*secrad, &
 &               rmsd_str,obsw%force_w(2),biasd_str,residd_str,            &
-&               mag_str,obs%obscod_s,chi_str,obsw%sel_coord,obsw%sel_mag
+&               mag_str,obs%catcodmpc,obs%obscod_s,chi_str,obsw%sel_coord,obsw%sel_mag
 
 201 FORMAT(A,1X,I2.2,1X,I2.2,1X,A6,1X,1P,E10.3,0P,1X,A8,1X,L1,1X,A8,A9, &
           1X,A1,I2.2,1X,I2.2,1X,A5,1X,1P,E10.3,0P,1X,A8,1X,L1,1X,A8,A9, &
-          1X,A,1X,A3,1X,A,1X,I1,1X,I1)
+          1X,A,2X,A2,1X,A3,1X,A,1X,I1,1X,I1)
   nrec=nrec+1
 END SUBROUTINE write_rwo_opt
 
@@ -698,9 +759,9 @@ WRITE(unit,105)
 WRITE(unit,106) comcha,comcha
 nrec=nrec+3
 106 FORMAT(A1,' Object   Obser ============= Date ============= ================== Right Ascension =================', &
-         '  ================= Declination ===================== ==== Magnitude ==== Obs  Residual SEL'/  &
+         '  ================= Declination ===================== ==== Magnitude ==== Ast Obs  Residual SEL'/  &
       A1,' Design   K T N YYYY MM DD.dddddddddd   Accuracy HH MM SS.sss  Accuracy      RMS  F     Bias    Resid sDD MM SS.ss', &
-         '  Accuracy      RMS  F     Bias    Resid Val  B   RMS  Resid Cod       Chi A M')
+         '  Accuracy      RMS  F     Bias    Resid Val  B   RMS  Resid Cat Cod       Chi A M')
 
 END SUBROUTINE write_rwo_header
 
@@ -861,15 +922,28 @@ USE reference_systems
      CALL cnvtim(mjd,sec,scale,mjdt,sect,'TDT')
      obs1%time_utc=mjd+sec/86400.d0
      obs1%time_tdt=mjdt+sect/86400.d0
+! change_format='INPUT'
+     IF(change_format.ne.'INPUT')THEN
 ! read alpha, delta with weights, bias, residuals... also magnitude, chi, selection flags
-     READ(record(51:),121,ERR=1) ra_h,ra_min,ra_sec,obs1%acc_coord(1),rmsa_str,obsw1%force_w(1),&
+        READ(record(51:),521,ERR=1) ra_h,ra_min,ra_sec,obs1%acc_coord(1),rmsa_str,obsw1%force_w(1),&
+&              obsw1%bias_coord(1),resida_str,                                              &
+&              dec_sign,dec_deg,dec_min,dec_sec,obs1%acc_coord(2),rmsd_str,obsw1%force_w(2),&
+&              obsw1%bias_coord(2),residd_str,                                              &
+&              mag_str,obs1%catcodmpc,obs1%obscod_s,chi_str,obsw1%sel_coord,obsw1%sel_mag
+521     FORMAT(I2,1X,I2,1X,F6.6,1X,E10.3,1X,A8,1X,L1,1X,F8.3,A9, &
+&           1X,A1,I2,1X,I2,1X,F5.2,1X,E10.3,1X,A8,1X,L1,1X,F8.3,A9, &
+&           1X,A19,2X,A2,1X,A3,1X,A9,1X,I1,1X,I1)
+     ELSE
+! read alpha, delta with weights, bias, residuals... also magnitude, chi, selection flags, no catcodmpc
+        READ(record(51:),121,ERR=1) ra_h,ra_min,ra_sec,obs1%acc_coord(1),rmsa_str,obsw1%force_w(1),&
 &              obsw1%bias_coord(1),resida_str,                                              &
 &              dec_sign,dec_deg,dec_min,dec_sec,obs1%acc_coord(2),rmsd_str,obsw1%force_w(2),&
 &              obsw1%bias_coord(2),residd_str,                                              &
 &              mag_str,obs1%obscod_s,chi_str,obsw1%sel_coord,obsw1%sel_mag
-121  FORMAT(I2,1X,I2,1X,F6.6,1X,E10.3,1X,A8,1X,L1,1X,F8.3,A9, &
+121     FORMAT(I2,1X,I2,1X,F6.6,1X,E10.3,1X,A8,1X,L1,1X,F8.3,A9, &
 &           1X,A1,I2,1X,I2,1X,F5.2,1X,E10.3,1X,A8,1X,L1,1X,F8.3,A9, &
 &           1X,A19,1X,A3,1X,A9,1X,I1,1X,I1)
+     ENDIF
      obs1%acc_coord=obs1%acc_coord/secrad
      IF(rmsa_str == ' ') THEN
         obsw1%rms_coord(1)=-1.d0
@@ -884,6 +958,7 @@ USE reference_systems
         obsw1%rms_coord(2)=obsw1%rms_coord(2)/secrad
      END IF
      obsw1%bias_coord=obsw1%bias_coord/secrad
+     obsw1%bias_coord(2)=obsw1%bias_coord(2)/COS(obs1%coord(2))
      obs1%coord(1)=15.d0*(ra_h*3600.d0+ra_min*60.d0+ra_sec)/secrad
      obs1%coord(2)=(dec_deg*3600.d0+dec_min*60.d0+dec_sec)/secrad
      IF(dec_sign == '-') obs1%coord(2)=-obs1%coord(2)
@@ -952,9 +1027,9 @@ USE reference_systems
            obs1%geopos=geopos
            CALL geodetic_to_cartesian(geopos(1),geopos(2),geopos(3),bfpos0)
            bfpos0=bfpos0/(aukm*1d3)
-           CALL observer_position(obs1%time_tdt,obs1%obspos,obs1%obsvel,BFPOS=bfpos0,PRECISION=1)
+           CALL observer_position(obs1%time_tdt,obs1%obspos,obs1%obsvel,BFPOS=bfpos0)
         CASE DEFAULT
-           CALL observer_position(obs1%time_tdt,obs1%obspos,obs1%obsvel,OBSCODE=obs1%obscod_i,PRECISION=1)
+           CALL observer_position(obs1%time_tdt,obs1%obspos,obs1%obsvel,OBSCODE=obs1%obscod_i)
         END SELECT
      CASE ('S')
         READ(unit,205,ERR=1) tmp3,obs1%par_unit,equpos,obscod_s1
@@ -1071,7 +1146,11 @@ SUBROUTINE  read_rwo_header(unit, error_model, error, nr, rms, rmsmag)
   CALL rdfint(unit,'version',.false.,version,found,kr)
   IF(found) THEN
      nr=nr+1
-     IF(version /= rwo_version) THEN
+     IF(version == 1) THEN
+        change_format='INPUT'
+     ELSEIF(version == rwo_version) THEN
+        change_format=' '
+     ELSE
         WRITE(*,200) version
 200     FORMAT('Unknown version ',I2)
         WRITE(ierrou,200) version
@@ -1430,6 +1509,9 @@ IF(len_mag_field>0) THEN
       obs%acc_mag=10.0d0**(-n_dec_mag)
    END IF
 END IF
+! Astrometric catalog code from MPC
+obs%catcodmpc(2:2)=mpcrec(72:72)
+
 ! discovery records to be removed
 !IF (obs%tech.eq.'X') THEN
 !   error_code=' corrected discovery obs. removed'
@@ -1537,10 +1619,10 @@ SELECT CASE (obs%type)
          obs%geopos(3)=altitude
          CALL geodetic_to_cartesian(longitude,latitude,altitude,bfpos0)
          bfpos0=bfpos0/(aukm*1d3)
-         CALL observer_position(obs%time_tdt,obs%obspos,obs%obsvel,BFPOS=bfpos0,PRECISION=1)
+         CALL observer_position(obs%time_tdt,obs%obspos,obs%obsvel,BFPOS=bfpos0)
       ELSE
 ! Fixed astronomical observatory
-         CALL observer_position(obs%time_tdt,obs%obspos,obs%obsvel,OBSCODE=obs%obscod_i,PRECISION=1)
+         CALL observer_position(obs%time_tdt,obs%obspos,obs%obsvel,OBSCODE=obs%obscod_i)
       END IF
 
    CASE ('S')
@@ -1959,6 +2041,8 @@ ELSEIF(precob)THEN
    CALL observ_rms(obs,error_model,init,obsw,m)
 ! give default selection flag of 1
    obsw(1:m)%sel_coord=1
+! format transition:
+!  CALL read_rwo_trans(file(1:lfile)//'.rwo',obst,obswt,mt,error_modelt,rms,rmsmag)
 ! read .rwo  anyway, but store in temporary array the data
    CALL read_rwo(file(1:lfile)//'.rwo',obst,obswt,mt,error_modelt,rms,rmsmag)
    IF(error_model.ne.error_modelt)THEN
@@ -2004,6 +2088,9 @@ ELSE
    IF(mpc)THEN
 ! Input of astrometric observations into temporary from a file (MPC form
       CALL mpc_obs_input(mpc,obst,mt,FILNAM=file(1:lfile)//'.obs')
+!      IF(error_model.EQ.'cbm09') THEN
+!         obs%catcodmpc=obst%catcodmpc
+!      ENDIF
       IF(.not.mpc)THEN
          WRITE(*,*) file(1:lfile)//'.obs is possibly corrupt. Not using any data from this file.'
       ELSE
@@ -2080,7 +2167,7 @@ SUBROUTINE addobs_mpc(obs,obsw,m,obst,obswt,mt,mnew,change)
 ! ===== observational data: temporary copy===========
   INTEGER mt ! observation number
   TYPE(ast_obs), INTENT(IN), DIMENSION(:) :: obst ! observations
-  TYPE(ast_wbsr), INTENT(IN), DIMENSION(:) :: obswt ! weights and possibly residuals
+  TYPE(ast_wbsr), INTENT(INOUT), DIMENSION(:) :: obswt ! weights and possibly residuals
 ! ===========================================
   INTEGER nlef ! length of obs,obsw vectors
   INTEGER j,mj,double
@@ -2103,6 +2190,20 @@ SUBROUTINE addobs_mpc(obs,obsw,m,obst,obswt,mt,mnew,change)
            change=.true.
            obs(mj)=obst(j)
            obsw(mj)=obswt(j)
+        ELSEIF(change_format.EQ.'INPUT') THEN
+           change=.true.
+           obs(mj)%catcodmpc=obst(j)%catcodmpc
+           obsw(mj)%bias_coord=obswt(j)%bias_coord
+           IF(.not.obsw(mj)%force_w(1)) THEN
+              obsw(mj)%rms_coord(1)=obswt(j)%rms_coord(1)
+           ENDIF
+           IF(.not.obsw(mj)%force_w(2)) THEN
+              obsw(mj)%rms_coord(2)=obswt(j)%rms_coord(2)
+           ENDIF
+        ELSEIF(obs(mj)%catcodmpc.NE.obst(j)%catcodmpc) THEN
+           change=.true.
+           obs(mj)%catcodmpc=obst(j)%catcodmpc
+           obsw(mj)%bias_coord=obswt(j)%bias_coord
         ENDIF
      ELSEIF(mj.ne.0.and.double.ne.0)THEN
 ! the observation was already there, in double copy!
@@ -2148,8 +2249,8 @@ INTEGER FUNCTION find_obs(obst,obs,m,double)
   double=0
   DO 1 j=1,m
      IF(abs(obst%time_utc-obs(j)%time_utc).lt.epst.and.                                &
-&      obst%obscod_i.eq.obs(j)%obscod_i.and.obst%type.eq.obs(j)%type)THEN
-! observation found; is it a double?
+          &      obst%obscod_i.eq.obs(j)%obscod_i.and.obst%type.eq.obs(j)%type)THEN
+        ! observation found; is it a double?
         IF(find_obs.ne.0)THEN
            IF(double.eq.0)THEN
               double=j
@@ -2164,12 +2265,12 @@ INTEGER FUNCTION find_obs(obst,obs,m,double)
            ELSE
               IF(ierrou.gt.0)THEN ! disaster case: triple observation!!!
                  WRITE(ierrou,*)'findob: three same time', &
-     &                     find_obs,double, j,obst%time_utc, obst%obscod_s, obst%tech 
+                      &                     find_obs,double, j,obst%time_utc, obst%obscod_s, obst%tech 
               ELSE
                  WRITE(*,*)'findob: three same time',                &
- &                     find_obs,double, j,obst%time_utc, obst%obscod_s, obst%tech 
+                      &                     find_obs,double, j,obst%time_utc, obst%obscod_s, obst%tech 
               ENDIF
-!             STOP
+              !             STOP
            ENDIF
         ELSE
            find_obs=j !normal case, no double

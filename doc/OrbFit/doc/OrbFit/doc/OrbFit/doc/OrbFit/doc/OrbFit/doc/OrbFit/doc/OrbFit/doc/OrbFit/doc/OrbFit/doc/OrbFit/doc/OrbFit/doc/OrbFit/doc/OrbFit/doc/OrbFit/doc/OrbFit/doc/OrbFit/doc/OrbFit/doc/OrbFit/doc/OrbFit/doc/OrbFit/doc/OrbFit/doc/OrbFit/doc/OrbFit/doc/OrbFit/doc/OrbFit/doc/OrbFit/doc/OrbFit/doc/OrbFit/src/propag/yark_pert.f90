@@ -36,7 +36,7 @@ PUBLIC yarkdi, yarkse, yarkinit, secular_nongrav
 CONTAINS 
 
 ! =========================================================
-! SECACC   added 17/9/2008
+! SECULAR_NONGRAV   added 17/9/2008
 ! secular perturbation on semimajor axis, presumably due to
 ! non gravitational perturbations (including Yarkovsky)
 ! implemented as acceleration along the velocity

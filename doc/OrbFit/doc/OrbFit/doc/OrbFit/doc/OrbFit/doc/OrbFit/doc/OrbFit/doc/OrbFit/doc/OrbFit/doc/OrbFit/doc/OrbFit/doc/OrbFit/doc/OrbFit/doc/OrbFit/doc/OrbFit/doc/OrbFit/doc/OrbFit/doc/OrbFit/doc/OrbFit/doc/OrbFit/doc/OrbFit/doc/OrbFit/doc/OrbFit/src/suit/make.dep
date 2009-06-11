@@ -1,6 +1,7 @@
 
 admis_reg.o: \
 	fund_const.o \
+	planet_masses.o \
 	reference_systems.o \
 	station_coordinates.o 
 
@@ -27,6 +28,9 @@ attributable.o: \
 
 bin_search.o: \
 	name_rules.o 
+
+cat_debias.o: \
+	healpix_types.o 
 
 char_str.o: \
 	char_str.o 
@@ -91,6 +95,7 @@ obs_simul.o: \
 
 observ_rms.o: \
 	astrometric_observations.o \
+	cat_debias.o \
 	fund_const.o \
 	parobc.h90 \
 	parrms.h90 \

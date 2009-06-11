@@ -23,6 +23,8 @@ testprop:
 	-(diff v9.adi testout/v9.adi)
 	-(diff v9.res testout/v9.res)
 
+
+
 testo9:
 	mv orb9.opt orb9.opt.tmp
 	cp -p testout/orb9.opt .
@@ -33,11 +35,6 @@ testo9:
 	-(diff vpla.fil testout)
 	-(diff orb9.out testout)
 	mv orb9.opt.tmp orb9.opt
-
-testo9t:
-	time inbaric.x
-	time orbit9t.x
-	echo 'v' | time propert3.x
 
 clean:
 	-(rm orb9.dma orb9.dmp orb9.num orb9.out v*.fil v*.dat orb9.clo)

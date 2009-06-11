@@ -13,7 +13,7 @@ MODULE option_input
 ! Length of the "key" field
   INTEGER, PARAMETER :: lckx=30
 ! Length of the "value" field
-  INTEGER, PARAMETER :: lcvx=150
+  INTEGER, PARAMETER :: lcvx=2048
 ! Length of the "filename" field
   INTEGER, PARAMETER :: lcfx=300
   PUBLIC nnex,nfnex,nklsx,ns2itx,lckx,lcvx,lcfx

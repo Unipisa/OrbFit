@@ -1,14 +1,14 @@
 9
 
 dir
-105
+92
 file:///home/orbfit/orbfit_subv/trunk/src/orb9
 file:///home/orbfit/orbfit_subv
 
 
 
-2009-01-09T12:08:59.413030Z
-105
+2008-11-29T16:46:18.523964Z
+92
 orbfit_amc
 
 
@@ -208,7 +208,7 @@ orbfit_amc
 
 Makefile
 file
-
+94
 
 
 
@@ -268,7 +268,7 @@ orbfit_amc
 
 input9.f90
 file
-
+98
 
 
 
@@ -328,7 +328,7 @@ orbfit_amc
 
 propert.f90
 file
-
+98
 
 
 
@@ -388,7 +388,7 @@ orbfit
 
 inbaric.f90
 file
-
+98
 
 
 
@@ -412,7 +412,7 @@ orbfit_amc
 
 input9t.f90
 file
-
+98
 
 
 
@@ -524,33 +524,11 @@ file
 
 
 
-2008-12-31T16:37:57.000000Z
-6e6eb69545b19b36bbd27c15cae30d8e
-2009-01-09T12:08:59.413030Z
-105
+2008-11-29T16:43:20.000000Z
+66b37ad4ade8caaa845445e767baf0c0
+2008-11-29T16:46:18.523964Z
+92
 orbfit_amc
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-8753
 
 secre9.f90
 file
@@ -590,7 +568,7 @@ orbfit_amc
 
 inbarmerc.f90
 file
-
+99
 
 
 
@@ -784,7 +762,7 @@ file
 
 
 
-2009-01-23T19:07:38.000000Z
+2008-12-24T17:24:38.000000Z
 65af2e8c7c9b69525c02a3cebedb6347
 2008-11-28T17:34:18.071855Z
 84
@@ -958,11 +936,11 @@ orbfit_amc
 
 modules.flags
 file
+94
 
 
 
-
-2009-01-23T19:07:38.000000Z
+2008-12-24T17:24:38.000000Z
 914c26d748b5166e256b40926389e089
 2008-12-09T16:51:54.451946Z
 94

@@ -83,8 +83,9 @@ PUBLIC scaling_lov
 LOGICAL :: second_lov ! for weakdir, selecting the second eigenvalue
 PUBLIC second_lov
 
-LOGICAL :: output_old_rwo ! to use wrirwo in output from fdiff_cor
-PUBLIC  output_old_rwo
+
+LOGICAL :: output_des ! to use DES in output from fdiff_cor
+PUBLIC  output_des
 
 ! LIST OF PRIVATE ENTITIES, COMMON TO THE MODULE
 ! =============================================
@@ -252,13 +253,8 @@ SUBROUTINE fdiff_cor(batch,iarc,obs0,ini0,ok,cov0,el0,m,obs,obsw,nobs,    &
 ! iteration one.                                                        
 ! when the divergence is mild (e.g. target function continues to increase or
 ! too many iterations) should be (TO BE FIXED)
-     IF(output_old_rwo)THEN
-        CALL  wrirwo(rwofi0,obs(1:m)%objdes,obs(1:m)%type,obs(1:m)%tech,  &
-     &        obs(1:m)%time_utc,obs(1:m)%obscod_i,                            &
-     &        obs(1:m)%coord(1),obsw(1:m)%rms_coord(1),obsw(1:m)%res_coord(1),&
-     &        obs(1:m)%coord(2),obsw(1:m)%rms_coord(2),obsw(1:m)%res_coord(2),&
-     &        obs(1:m)%mag_str,obsw(1:m)%rms_mag,obsw(1:m)%res_mag,rmsh,     &
-     &        obsw(1:m)%sel_coord,obsw(1:m)%chi,m,csino0)
+     IF(output_des)THEN
+!        CALL tra_res_out(iuntra,m,obs,s2n,iunres,obsw)
      ELSE
         CALL write_rwo(rwofi0,obs,obsw,m,error_model_priv,csino0,rmsh)
      ENDIF
@@ -1631,6 +1627,7 @@ SUBROUTINE sin_cor(m,obs_s,obsw_s,elc,icor,  &
 ! assign ider 
   ider=1 
   twobo=.false. 
+!  twobo=.true.
 ! Compute observations and derivatives                                  
   CALL set_restart(.true.) 
   DO 61 j=1,m 
@@ -1740,7 +1737,7 @@ SUBROUTINE blockset(m,obs,obsw)
   DOUBLE PRECISION cov_small(nxinbl,nxinbl) !workspace normal blocks
   DOUBLE PRECISION cov_large(nxinbl_large,nxinbl_large) ! id. large blocks
 ! definition of blocks while observations are still sorted by time
-  IF(error_model_priv.ne.' ') THEN
+  IF(error_model_priv.ne.' '.and.error_model_priv.ne.'cbm09') THEN
      CALL blockdef(obs,m)
      large_blk(1:nblk)=0
      nolarge=0
@@ -2013,7 +2010,7 @@ END SUBROUTINE blockdef
             iposs3(iposs(ii))=kk
          ENDIF 
       ENDDO 
-      IF(error_model_priv.ne.' ') THEN
+      IF(error_model_priv.ne.' '.and.error_model_priv.ne.'cbm09') THEN
 ! now reordering of the indirect address tables for blocks
          DO ibk=1,nblk
             DO j=1,noblk(ibk)
@@ -2150,7 +2147,7 @@ SUBROUTINE min_sol(obs_s,obsw_s,m,g,icor,iunf,gtwg,dx0,gamma,csinor,indp,cond)
      RETURN
   ENDIF
 ! ===========================================================           
-  IF(error_model_priv.eq.' ')THEN
+  IF(error_model_priv.eq.' '.or.error_model_priv.eq.'cbm09')THEN
 ! normal matrix GtWG of the pseudo-Newton method                        
      DO 1 j=1,nd                                                       
         DO 2 k=1,nd                                                     
@@ -2171,7 +2168,7 @@ SUBROUTINE min_sol(obs_s,obsw_s,m,g,icor,iunf,gtwg,dx0,gamma,csinor,indp,cond)
      gtwcsi=0.d0                                      
      csinor=0.d0 
      DO  i=1,m                                
-        CALL fit_weight(obs_s(i),obsw_s(i),.true.,w)      
+        CALL fit_weight(obs_s(i),obsw_s(i),.true.,w)
         gtwcsi=gtwcsi+g(2*i-1,1:nd)*w(1)*obsw_s(i)%res_coord(1)   &
              &         +g(2*i,1:nd)*w(2)*obsw_s(i)%res_coord(2)
         csinor=csinor+ w(1)*obsw_s(i)%res_coord(1)**2 +           &
@@ -2179,7 +2176,7 @@ SUBROUTINE min_sol(obs_s,obsw_s,m,g,icor,iunf,gtwg,dx0,gamma,csinor,indp,cond)
      ENDDO
 ! ===========================================================           
 ! with off-diagonal weights (if error_model is given)
-  ELSEIF(error_model_priv.ne.' ')THEN
+  ELSEIF(error_model_priv.ne.' '.and.error_model_priv.ne.'cbm09')THEN
 ! start from scratch
      gtwcsi=0.d0                                      
      csinor=0.d0 
@@ -3228,8 +3225,8 @@ SUBROUTINE difini
   CALL rdnlog('difcor.','second_lov',second_lov,.false.,found,fail1,fail)
   IF(fail) STOP '**** difini: abnormal end ****'
   iicdif=36         
-! default not in key/def file
-  output_old_rwo=.false.
+! default not in key/def file  ???? there is output_des
+  output_des=.false.
   output_failrwo=.true.                                                
 ! ==== large arrays allocated==================
 ! total allocatable size:

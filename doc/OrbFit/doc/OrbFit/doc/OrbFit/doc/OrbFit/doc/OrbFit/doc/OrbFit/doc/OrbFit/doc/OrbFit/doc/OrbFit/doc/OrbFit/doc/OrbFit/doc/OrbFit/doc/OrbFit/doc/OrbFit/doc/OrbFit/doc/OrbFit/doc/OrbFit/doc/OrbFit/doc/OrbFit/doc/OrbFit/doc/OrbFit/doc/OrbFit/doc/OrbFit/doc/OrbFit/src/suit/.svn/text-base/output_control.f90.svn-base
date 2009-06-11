@@ -35,8 +35,6 @@ INTEGER verb_prelim
 INTEGER verb_covariance
 ! for matrix inversion, conditioning
 INTEGER verb_matrix
-! for keplerien integrals
-INTEGER verb_2body
 ! general rules: verb_x=10 in fitobs; verb_x=1 (default) in batch
 ! programs running many orbits; verb_x=5 to have more error messages
 ! on the consolle; verb_x>20 to produce huge output, for debugging only

@@ -541,9 +541,17 @@ SUBROUTINE attri_comp(m,obs,obsw,att,error,qobs,qpobs,qppobs)
         qppobs=0.d0
      ELSE
 ! geocentric position of the observer, equator and equinox J2000
-        DO j=1,m        
+        DO j=1,m 
+           IF(rhs.ne.1.and.rhs.ne.2)THEN
+              WRITE(*,*)'attri_comp: rhs=', rhs
+              STOP
+           END IF
            CALL observer_position(obs(j)%time_tdt,position,velocity,obs(j)%obscod_i)
-           dx(1:3,j)=MATMUL(roteceq,position)
+           IF(rhs.eq.1)THEN
+              CALL prodmv(dx(1:3,j),roteceq,position)                
+           ELSEIF(rhs.eq.2)THEN
+              dx(1:3,j)=position                
+           END IF
         ENDDO
 ! Poincare' interpolation on geocentric position of observer
         DO j=1,3

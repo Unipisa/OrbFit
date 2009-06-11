@@ -46,35 +46,33 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
 ! end interface
   DOUBLE PRECISION elem(6,8),t0(8) 
   INTEGER i,j,k,ising,ir! ,it 
-  DOUBLE PRECISION xt(3,3),sinv0(3,3),a(3),b(3),c(3) 
+  DOUBLE PRECISION xt(3,3),sinv0(3,3),a(3),b(3),c(3), xea(6)
   DOUBLE PRECISION ra(3),rb(3),coef(0:8),a2star,b2star,r22,s2r2 
   DOUBLE PRECISION esse0(3,3),cosd,det,tau1,tau3,tau13 
   DOUBLE PRECISION roots(8),r2m3 
   DOUBLE PRECISION gcap(3),crhom(3),rho(3),xp(3,3),vp(3),xv(6) ,tis2
   DOUBLE PRECISION l0,h0,coseps,sineps,vvv(3),vsize,r0
-  DOUBLE PRECISION rootgm
+  DOUBLE PRECISION rootgm, rootgm2
   INTEGER fail_flag ! for coordinate change
   TYPE(orbit_elem) elk 
-  DOUBLE PRECISION ecc,q,energy
+  DOUBLE PRECISION ecc,q,energy, spurious_dist, rho_scal, r_scal
   LOGICAL accept8, ecc_cont
-  DOUBLE PRECISION vt(3,3) ! auxiliary for pvobs
+  DOUBLE PRECISION vt(3,3) ! auxiliary for observer_position
 ! ===============================================================
   fail=.true. 
   msg=' ' 
   nroots=0 
   nsol=0 
-
 ! assignement of rootgm
   IF(rhs.eq.1)THEN
      rootgm=gk
   ELSEIF(rhs.EQ.2)THEN
      CALL eamoon_mass
-     rootgm=gmearth**0.5d0
+     rootgm=sqrt(gmearth)
   ELSE
      WRITE(*,*) ' gaussdeg8: wrong rhs=', rhs
      STOP
-  END IF
-                                                                        
+  END IF                                                                        
 ! COMPUTATION OF PRELIMINARY ORBIT                                      
 !                                                                       
 ! ESSE = unit vector pointing in the direction of observations          
@@ -87,13 +85,14 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
      DO i=1,3 
         IF(rhs.EQ.1)THEN
 ! heliocentric ecliptic observer position 
-           CALL posobs(tobs(i),obscod(i),1,xt(1:3,i))
-        ELSEIF(rhs.EQ.2)THEN
-! geocentric ecliptic observer position
-           CALL observer_position(tobs(i),xt(1:3,i),vt(1:3,i),obscod(i),PRECISION=2) 
-! conversion to equatorial
-           xt(1:3,i)=MATMUL(roteceq,xt(1:3,i))
-           vt(1:3,i)=MATMUL(roteceq,vt(1:3,i))
+           CALL earcar(tobs(i),xea,1)
+           CALL observer_position(tobs(i),xt(1:3,i),vt(1:3,i),OBSCODE=obscod(i)) 
+           xt(1:3,i)=xt(1:3,i)+xea(1:3) 
+           CALL prodmv(xt(1:3,i),roteceq,xt(1:3,i))
+       ELSEIF(rhs.EQ.2)THEN
+! geocentric equatorial observer position
+           CALL observer_position(tobs(i),xt(1:3,i),vt(1:3,i),OBSCODE=obscod(i)) 
+! conversion to equatorial: done in observer_position
         ELSE
            STOP
         END IF
@@ -118,8 +117,8 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
   b(2)=0.d0 
   b(3)=a(3)*(tau13**2-tau1**2)/6.d0 
 ! Coefficients of 8th degree equation for r2                            
-  ra=MATMUL(xt,a) 
-  rb=MATMUL(xt,b) 
+  CALL prodmv(ra,xt,a) 
+  CALL prodmv(rb,xt,b) 
   a2star=sinv0(2,1)*ra(1)+sinv0(2,2)*ra(2)+sinv0(2,3)*ra(3) 
   b2star=sinv0(2,1)*rb(1)+sinv0(2,2)*rb(2)+sinv0(2,3)*rb(3) 
   r22=xt(1,2)**2+xt(2,2)**2+xt(3,2)**2 ! q_2^2 
@@ -178,8 +177,8 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
      c(1)=a(1)+b(1)*r2m3 
      c(2)=-1.d0 
      c(3)=a(3)+b(3)*r2m3 
-     gcap=MATMUL(xt,c) ! CALL prodmv(gcap,xt,c) 
-     crhom=MATMUL(sinv0,gcap) ! CALL prodmv(crhom,sinv,gcap) 
+     CALL prodmv(gcap,xt,c) 
+     CALL prodmv(crhom,sinv0,gcap) 
      DO 13 k=1,3 
         rho(k)=-(crhom(k)/c(k)) 
 13   END DO                                         
@@ -188,21 +187,32 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
         xp(1:3,k)=xt(1:3,k)+rho(k)*esse0(1:3,k) 
 14   ENDDO
 ! remove spurious root
-     IF(rho(2).lt.0.01d0)THEN
-        IF(debug)WRITE(*,*) ' spurious root ',ir,' , r, rho ',roots(ir),rho(2)
-        WRITE(iun_log,*) ' spurious root ',ir,', r, rho ',roots(ir),rho(2)
+     IF(rhs.eq.1)THEN
+        spurious_dist=0.01D0 ! Hill's sphere of the Earth
+        r_scal=roots(ir) ! output message in AU
+        rho_scal=rho(2) ! output message in AU
+     ELSEIF(rhs.eq.2)THEN
+        spurious_dist=1.D-6 ! 150 km, Earth atmosphere
+        r_scal=roots(ir)*aukm ! output message in km
+        rho_scal=rho(2)*aukm ! output message in km
+     ELSE
+        STOP
+     ENDIF
+     IF(rho(2).lt.spurious_dist)THEN
+        IF(debug)WRITE(*,*) ' spurious root ',ir,' , r, rho ',r_scal,rho_scal
+        WRITE(iun_log,*) ' spurious root ',ir,', r, rho ',r_scal,rho_scal
         CYCLE
      ELSE
-        IF(debug)WRITE(*,*) ' accepted root ',ir,' , r, rho ',roots(ir),rho(2)
-        WRITE(iun_log,*) ' accepted root ',ir,' , r, rho ',roots(ir),rho(2)
+        IF(debug)WRITE(*,*) ' accepted root ',ir,' , r, rho ',r_scal,rho_scal
+        WRITE(iun_log,*) ' accepted root ',ir,' , r, rho ',r_scal,rho_scal
      ENDIF
 ! Gibbs' transformation, giving the velocity of the planet at the       
 ! time of second observation
      CALL gibbs(xp,tau1,tau3,vp,rootgm) 
      IF(rhs.EQ.1)THEN
 ! conversion to ecliptic coordinates
-        xv(1:3)=MATMUL(roteqec,xp(1:3,2))
-        xv(4:6)=MATMUL(roteqec,vp)
+        CALL prodmv(xv(1:3),roteqec,xp(1:3,2))
+        CALL prodmv(xv(4:6),roteqec,vp)
      ELSEIF(rhs.eq.2)THEN
 ! no need of conversion
         xv(1:3)=xp(1:3,2)
@@ -211,7 +221,8 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
         STOP
      END IF
 ! hyperbolic control
-     accept8=ecc_cont(xp(1:3,2),vp,gms,ecc_max,q_max,ecc,q,energy)
+     rootgm2=rootgm**2
+     accept8=ecc_cont(xp(1:3,2),vp,rootgm2,ecc_max,q_max,ecc,q,energy)
      IF(accept8)THEN
         nsol=nsol+1
         rr(nsol)=rho(2)

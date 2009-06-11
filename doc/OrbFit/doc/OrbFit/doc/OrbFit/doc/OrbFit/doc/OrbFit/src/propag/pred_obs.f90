@@ -246,6 +246,9 @@ SUBROUTINE predic_obs(el,idsta,tobs,type,       &
   elseif(type.eq.'R'.or.type.eq.'V')then 
      tech='c'  ! center of mass correction assumed
      CALL obscoo(idsta,posr,stname) ! transmitter and receiver assumed both idsta
+     IF(rhs.eq.2)THEN
+        STOP '***** rhs=2 with radar *****'
+     ENDIF
      idstarad=idsta*10000+idsta
      CALL r_rdot (el,tobs,idstarad,tech,posr,posr,alpha,delta,       &
      &       daddet(1,1), daddet(1,2),ider) 
@@ -555,7 +558,7 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
 ! ======optional input =================================================
   logical,intent(in), optional :: twobo ! two-body approx: if .false, full n-body  
 ! ============OUTPUT==============================                      
-  double precision obs4(4) ! observations: alpha, delta in RAD  
+  DOUBLE PRECISION obs4(4) ! observations: alpha, delta in RAD  
 ! alphadot, deltadot in RAD/day
   double precision, intent(OUT), OPTIONAL :: dobde(4,6) ! partial derivatives 
 ! of obs, w.r. to asteroid elements
@@ -564,12 +567,12 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
   DOUBLE PRECISION,INTENT(OUT),OPTIONAl :: pha0,dis0,dsun0,rdot0,elo0,gallat0,gallon0,eclat0, elev0, elsun0,elomoon0
 ! =============END INTERFACE=========================================   
   LOGICAL twobo1 ! control of 2-body approximation
-  double precision xast(6) ! asteroid cartesian coordinates 
-  double precision xea(6) ! cartesian coordinates of the Earth 
-  double precision dobdx(4,6) ! partial derivatives of alpha, delta, 
+  DOUBLE PRECISION xast(6) ! asteroid cartesian coordinates 
+  DOUBLE PRECISION xea(6) ! cartesian coordinates of the Earth 
+  DOUBLE PRECISION dobdx(4,6) ! partial derivatives of alpha, delta, 
                         !  adot, ddot  w.r. elements
 ! derivatives of cart. coord. w. r. elements 
-  double precision dxde(6,6),ddxde(3,6,6) 
+  DOUBLE PRECISION dxde(6,6),ddxde(3,6,6) 
 ! elongation,distance to Earth, distance to Sun (to compute magnitude)  
   DOUBLE PRECISION pha,dis,rdot,dsun,elo,gallat,eclat,elev,elsun, elomoon,gallon
 ! **********************************************************************
@@ -585,7 +588,7 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
 ! propagation to time t2
   CALL propag(el,tobs,xast,xea,ider,dxde,twobo1) 
 ! Computation of observations                                           
-  call oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
+  CALL oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
      &   pha,dis,rdot,dsun,elo,gallat,eclat,elev,elsun,elomoon,gallon) 
  ! store true phase, etc.  
   IF(PRESENT(pha0))pha0=pha 
@@ -599,7 +602,7 @@ SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
   IF(PRESENT(elev0))elev0=elev
   IF(PRESENT(elsun0))elsun0=elsun
   IF(PRESENT(elomoon0))elomoon0=elomoon
-  if(ider.lt.1) return 
+  IF(ider.lt.1) RETURN 
 ! derivatives with respect to equinoctal elements                       
   IF(PRESENT(dobde))THEN
      dobde=MATMUL(dobdx,dxde)
@@ -631,7 +634,7 @@ END SUBROUTINE alph_del2
 ! ===================================================================== 
 SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
      &   pha0,dis0,rdot0,dsun0,elo0,gallat0,eclat0,elev,elsun,elomoon,gallon0) 
-  USE reference_systems, ONLY: pvobs,obs2ecl,rotpn  
+  USE reference_systems, ONLY: observer_position,obs2ecl 
   USE force_model
   USE station_coordinates
 ! INPUT
@@ -651,7 +654,7 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
 
   DOUBLE PRECISION dcor(6) ! after aberration correction
   DOUBLE PRECISION xo(3),vo(3),xobsea(6) ! topocentric position of the observatory, helyocentric 
-  DOUBLE PRECISION xo2(3),vo2(3)
+  DOUBLE PRECISION xo2(3),vo2(3),xast1(6),xea1(6),d1(6),xo1(3),vo1(3),xobsea1(6)
   DOUBLE PRECISION cospha,coselo ! phase and elongation cosine
   DOUBLE PRECISION xmoon(6),xobmoon(3),coselomoon,sinelomoon(3) ! heliocentric, obs-centric of Moon,cos and sin of Moon elongation
   DOUBLE PRECISION sinelo,vvv(3)
@@ -669,20 +672,27 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
   DOUBLE PRECISION xolon,xolat,xoalt,xovert(3),xovert2(3),xoequ(3)
   CHARACTER(LEN=16)  :: stname 
 ! ===================================================================== 
-! Difference vector
-  d=xast-xea  ! difference in ecliptic coordinates gives a geocentric vector
+! Difference vector in ecliptic/equatorial 
+! coordinates gives a geocentric vector
+  d=xast-xea
 ! ===================================================================== 
 ! Displacement of the station with respect to the center of the Earth   
   IF(istat.gt.0.and.iobscod.ne.500)THEN 
-     call pvobs(tobs,iobscod,xo,vo) 
-     d(1:3)=d(1:3)-xo  !   topocentric correction in ecliptic coordinates
-     d(4:6)=d(4:6)-vo  
+     IF(rhs.ne.1.and.rhs.ne.2)THEN
+        WRITE(*,*)'oss_dif2: rhs=', rhs
+        STOP
+     ENDIF
+     CALL observer_position(tobs,xo,vo,OBSCODE=iobscod)
+!     call pvobs(tobs,iobscod,xo,vo) 
+! topocentric correction in ecliptic(rhs=1)/equatorial(rhs=2) coordinates
+     d(1:3)=d(1:3)-xo  
+     d(4:6)=d(4:6)-vo
 ! Elevation over horizon 
-     call obscoo(iobscod,xoequ,stname)
+     CALL obscoo(iobscod,xoequ,stname)
      xoequ=xoequ*149597870691.d0
-     call cartesian_to_geodetic(xoequ,xolon,xolat,xoalt,xovert)
-     call obs2ecl(tobs,iobscod,xovert,xovert2)
-     coscoelev=prscal(xovert2,d)/(vsize(d)*vsize(xovert2))
+     CALL cartesian_to_geodetic(xoequ,xolon,xolat,xoalt,xovert)
+     CALL obs2ecl(tobs,iobscod,xovert,xovert2)
+     coscoelev=prscal(xovert2,d1)/(vsize(d1)*vsize(xovert2))
      IF(coscoelev.ge.-1.d0.and.coscoelev.le.1.d0)THEN
         elev=pig/2.d0-acos(coscoelev)
      ELSEIF(coscoelev.gt.1.d0)THEN
@@ -703,12 +713,11 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
   ELSE
      xo=0.d0
      vo=0.d0
-     elev=0.d0
   ENDIF
   xobsea(1:3)=xo+xea(1:3)
   xobsea(4:6)=vo+xea(4:6)
 ! ===================================================================== 
-! Aberration (only time delay)                                          
+! Aberration (only time delay)                                    
   IF(iaber.eq.1)THEN 
      CALL aber1(d,xast(4:6),dcor)
      dcor(4:6)=d(4:6)
@@ -716,30 +725,52 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
      CALL aber2(d,xast,xobsea,dcor) 
   ENDIF
   d=dcor
+  dis0=vsize(d) 
 ! ===================================================================== 
 ! Computation of solar distance, earth distance, phase, solar elongation, moon elongation
-  dsun0=vsize(xast) 
-  xobsea(1:3)=xea(1:3)+xo
-  dis0=vsize(d) 
-  rdot0=prscal(d(1:3),d(4:6))/dis0
-  cospha=prscal(d,xast)/(dis0*dsun0) 
+! heliocentric/ecliptic position of asteroid/debris and earth, topocentric 
+! ecliptic position of asteroid/debris and
+! geocentric/ecliptic position of observer
+  IF(rhs.eq.1)THEN
+     xast1=xast ! xast1 is the distance from the sun
+     xea1=xea
+     d1=d
+     xo1=xo
+     vo1=vo
+  ELSEIF(rhs.eq.2)THEN
+     xast1(1:3)=MATMUL(roteqec,xast(1:3))
+     xast1(4:6)=MATMUL(roteqec,xast(4:6))
+     CALL earcar(tobs,xea1,1)
+     xast1=xast1+xea1
+     d1(1:3)=MATMUL(roteqec,d(1:3))
+     d1(4:6)=MATMUL(roteqec,d(4:6))
+     xo1=MATMUL(roteqec,xo)
+     vo1=MATMUL(roteqec,vo)
+  ELSE
+     STOP
+  END IF
+  dsun0=vsize(xast1) 
+  xobsea1(1:3)=xea1(1:3)+xo1
+  xobsea1(4:6)=xea1(4:6)+vo1
+  rdot0=prscal(d1(1:3),d1(4:6))/dis0
+  cospha=prscal(d1,xast1)/(dis0*dsun0) 
   pha0=acos(cospha) 
-  coselo=-prscal(d,xobsea(1:3))/(dis0*vsize(xobsea)) 
-  CALL prvec(d,xobsea(1:3),vvv)
+  coselo=-prscal(d1,xobsea1(1:3))/(dis0*vsize(xobsea1)) 
+  CALL prvec(d1,xobsea1(1:3),vvv)
   sinelo=-vvv(3)
   elo0=acos(coselo)
   IF(sinelo.lt.0.d0)elo0=-elo0
-  eclat0=asin(d(3)/dis0)
+  eclat0=asin(d1(3)/dis0)
   CALL mooncar(tobs,xmoon,1)
-  xobmoon=xmoon(1:3)-xobsea(1:3)
-  coselomoon=prscal(d,xobmoon)/(dis0*vsize(xobmoon))
-  CALL prvec(d,xobmoon,vvv)
+  xobmoon=xmoon(1:3)-xobsea1(1:3)
+  coselomoon=prscal(d1,xobmoon)/(dis0*vsize(xobmoon))
+  CALL prvec(d1,xobmoon,vvv)
   sinelomoon=MATMUL(roteceq,vvv)
   elomoon=acos(coselomoon)
   IF(sinelomoon(3).lt.0.d0)elomoon=-elomoon
 ! =====================================================================
 ! illumination angle at the station
-  coscoelsun=prscal(d,-xea(1:3))/(dis0*dsun0)
+  coscoelsun=prscal(d1,-xea1(1:3))/(dis0*dsun0)
   IF(coscoelsun.ge.1.d0)THEN
      elsun=pig/2.d0
   ELSEIF(coscoelsun.le.-1.d0)THEN
@@ -749,21 +780,23 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
   ENDIF
 ! ===================================================================== 
 ! rotation to the equatorial reference system   
-  deq(1:3)=MATMUL(roteceq,d(1:3)) 
-  deq(4:6)=MATMUL(roteceq,d(4:6)) 
-  d=deq                          
+  IF(rhs.eq.1)THEN
+     deq(1:3)=MATMUL(roteceq,d(1:3)) 
+     deq(4:6)=MATMUL(roteceq,d(4:6)) 
+     d=deq                 
+  END IF
 ! ===================================================================== 
 ! Computation of observation: right ascension (radians)                 
   dz=d(1)**2+d(2)**2 
-  if (dz.le.100.d0*epsilon(1.d0)) then
+  IF (dz.le.100.d0*epsilon(1.d0)) THEN
 ! remove singularity at poles 
      alpha=0.d0 
-  else 
+  ELSE 
      alpha=atan2(d(2),d(1)) 
-     if (alpha.lt.0.d0) then 
+     IF (alpha.lt.0.d0) THEN 
         alpha=alpha+dpig 
-     endif
-  endif
+     ENDIF
+  ENDIF
 ! Computation of observation: declination (radians)                     
   delta=asin(d(3)/dis0) 
 ! ===================================================================== 
@@ -806,12 +839,25 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
 ! ===================================================================== 
 ! partials of alpha, delta have already been computed                   
 ! partials of adot,ddot with respect to velocities are the same         
-! rotation to the equatorial reference system                           
-  tmp=MATMUL(roteqec,dadx) 
+! rotation to the ecliptic reference system
+! dobdx is the derivatives of observations w.r.t. cartesian ecliptic     
+  IF(rhs.eq.1)THEN                      
+     tmp=MATMUL(roteqec,dadx)
+  ELSEIF(rhs.eq.2)THEN
+     tmp=dadx
+  ELSE
+     STOP
+  END IF
   dobdx(1,1:3)=tmp 
   dobdx(1,4:6)=0.d0 
-  dobdx(3,4:6)=tmp 
-  tmp=MATMUL(roteqec,dddx)
+  dobdx(3,4:6)=tmp
+  IF(rhs.eq.1)THEN
+     tmp=MATMUL(roteqec,dddx)
+  ELSEIF(rhs.eq.2)THEN
+     tmp=dddx
+  ELSE
+     STOP
+  END IF
   dobdx(2,1:3)=tmp 
   dobdx(2,4:6)=0.d0 
   dobdx(4,4:6)=tmp
@@ -860,13 +906,17 @@ SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
   ddd=MATMUL(ddadx,d(4:6))
 ! =======================================================               
 ! rotation to the equatorial reference system                           
-  dobdx(3,1:3)=MATMUL(roteqec,ddd)
+  IF(rhs.ne.2)THEN
+     dobdx(3,1:3)=MATMUL(roteqec,ddd)
+  END IF
 ! =======================================================               
 ! chain rule for derivatives of adot                                    
   ddd=MATMUL(ddddx,d(4:6))
 ! =======================================================               
 ! rotation to the equatorial reference system                           
-  dobdx(4,1:3)=MATMUL(roteqec,ddd)
+  IF(rhs.ne.2)THEN
+     dobdx(4,1:3)=MATMUL(roteqec,ddd)
+  END IF
 END SUBROUTINE oss_dif2
 ! ===================================================================== 
 ! PRE_OBS_ATT   fortran90 version, A. Milani, May 2003
@@ -906,6 +956,9 @@ SUBROUTINE pre_obs_att(el,tobs,alpha,delta,adot,ddot,twobo)
   double precision rot(3,3),rotinv(3,3) ! rotation matr,inverse
   LOGICAL twobo1
 ! ===================================================================== 
+  IF(rhs.gt.1)THEN
+     STOP '****** pre_obs_att: rhs =2 not allowed *****' 
+  ENDIF
 ! Orbit propagation:                                                    
   IF(PRESENT(twobo))then
      twobo1=twobo
@@ -1024,7 +1077,7 @@ SUBROUTINE alph_del (el,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
 !  IF(kill_propag) STOP '**** alph_del: kill propag *****'
   IF(kill_propag) RETURN
 ! Computation of observations                                           
-  call oss_dif(xast,xea,tauj,iocj,pos,vel,alj,dej,ider,dadx,dddx,&
+  CALL oss_dif(xast,xea,tauj,iocj,pos,vel,alj,dej,ider,dadx,dddx,&
      &       adot,ddot,pha,dis,dsun,elo,gallat,elomoon,gallon)
 ! store true phase, etc.
   IF(PRESENT(adot0))adot0=adot
@@ -1037,7 +1090,7 @@ SUBROUTINE alph_del (el,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
   IF(PRESENT(gallon0))gallon0=gallon 
   IF(PRESENT(elomoon0))elomoon0=elomoon 
   if(ider.lt.1)return                                               
-! derivatives with respect to equinoctal elements                       
+! derivatives with respect to equinoctal elements
   DO  j=1,6
      dade(j)=prscal(dadx,dxde(1,j)) 
      ddde(j)=prscal(dddx,dxde(1,j)) 
@@ -1069,7 +1122,7 @@ END SUBROUTINE alph_del
  SUBROUTINE oss_dif(xast,xea,tauj,idst,pos,vel,alj,dej,ider,dadx,dddx, &
      &       adot,ddot,pha,dis,dsun,elo,gallat,elomoon,gallon)
    USE fund_const
-   USE force_model 
+   USE force_model
 ! ===================================================================== 
 ! INPUT
 ! control derivatives                        
@@ -1086,7 +1139,8 @@ END SUBROUTINE alph_del
 ! OUTPUT
 ! observations alpha, delta (equatorial, radians)              
    DOUBLE PRECISION, INTENT(OUT) :: alj,dej
-! partials of equatorial alpha, delta w.r. to cartesian ecliptic coord. 
+! partials of equatorial alpha, delta w.r. to cartesian ecliptic heliocentric coord. (rhs=1)
+!                                                 "     equatorial geocentric cood. (rhs=2) 
    DOUBLE PRECISION, INTENT(OUT) :: dadx(3),dddx(3)
 ! proper motion, data to compute magnitude
    DOUBLE PRECISION, INTENT(OUT) :: adot,ddot,pha,dis,dsun,elo,gallat,gallon,elomoon
@@ -1095,7 +1149,7 @@ END SUBROUTINE alph_del
    DOUBLE PRECISION d(6)
    double precision dcor(6) ! after aberration correction
 ! topocentric position of the observatory ***** temporary for check
-   double precision xo(3),vo(3),xobsea(6)
+   double precision xo(3),vo(3),xobsea(6),xast1(6),xea1(6),d1(6),pos1(3),vel1(3),xobsea1(6)
 ! phase and solar elongation cosine                                           
    double precision cospha,coselo,sinelo,vvv(3)
 ! heliocentric, obs-centric of Moon,cos and sin of Moon elongation,sin and cos galact.longitude
@@ -1110,7 +1164,8 @@ END SUBROUTINE alph_del
    double precision deq(6),tmp(3) 
 ! ===================================================================== 
 ! Difference vector 
-   d=xast-xea ! difference in ecliptic coordinates gives a geocentric vector
+! difference in ecliptic(rhs=1)/equatorial(rhs=2) coordinates gives a geocentric vector
+   d=xast-xea 
 ! ===================================================================== 
 ! Displacement of the station with respect to the center of the Earth   
    if(istat.gt.0)then 
@@ -1121,11 +1176,15 @@ END SUBROUTINE alph_del
 !           write(*,*)'vel -vo ', vel-vo
 ! end check *********************
 !            call vdiff(d,xo,d) 
-!            call vdiff(d(4),vo,d(4)) 
+!            call vdiff(d(4),vo,d(4))
+         IF(rhs.ne.1.and.rhs.ne.2)THEN
+            WRITE(*,*)'oss_dif2: rhs=', rhs
+            STOP
+         ENDIF
          d(1:3)=d(1:3)-pos
          d(4:6)=d(4:6)-vel
       ENDIF
-   endif
+   ENDIF
 ! ===================================================================== 
 ! Aberration (only time delay)                                          
    xobsea(1:3)=xea(1:3)+pos
@@ -1137,30 +1196,58 @@ END SUBROUTINE alph_del
       CALL aber2(d,xast,xobsea,dcor) 
    ENDIF
    d=dcor
-! ===================================================================== 
-! Computation of solar distance, earth distance, phase, elongation      
-   dsun=vsize(xast) 
    dis=vsize(d) 
-   cospha=prscal(d,xast)/(dis*dsun) 
+! ===================================================================== 
+! Computation of solar distance, earth distance, phase, elongation  
+! heliocentric/ecliptic position of asteroid/debris and earth, topocentric 
+! ecliptic position of asteroid/debris and
+! geocentric/ecliptic position of observer
+   IF(rhs.eq.1)THEN
+      xast1=xast ! xast1 is the distance from the sun
+      xea1=xea
+      d1=d
+      pos1=pos
+      vel1=vel
+   ELSEIF(rhs.eq.2)THEN
+      xast1(1:3)=MATMUL(roteqec,xast(1:3))
+      xast1(4:6)=MATMUL(roteqec,xast(4:6))
+      CALL earcar(tauj,xea1,1)
+      xast1=xast1+xea1
+      d1(1:3)=MATMUL(roteqec,d(1:3))
+      d1(4:6)=MATMUL(roteqec,d(4:6))
+      pos1=MATMUL(roteqec,pos)
+      vel1=MATMUL(roteqec,vel)
+   ELSE
+      STOP
+   END IF    
+   dsun=vsize(xast1) 
+   xobsea1(1:3)=xea1(1:3)+pos1
+   xobsea1(4:6)=xea1(4:6)+vel1
+   cospha=prscal(d1,xast1)/(dis*dsun) 
    pha=acos(cospha) 
-   coselo=-prscal(d,xobsea)/(dis*vsize(xobsea)) 
+   coselo=-prscal(d1,xobsea1)/(dis*vsize(xobsea1)) 
    elo=acos(coselo) 
-   CALL prvec(d,xobsea,vvv)
+   CALL prvec(d1,xobsea1,vvv)
    sinelo=-vvv(3)
    If(sinelo.lt.0.d0)elo=-elo
    CALL mooncar(tauj,xmoon,1)
-   xobmoon=xmoon(1:3)-xobsea(1:3)
-   coselomoon=prscal(d,xobmoon)/(dis*vsize(xobmoon))
-   CALL prvec(d,xobmoon,vvv)
+   xobmoon=xmoon(1:3)-xobsea1(1:3)
+   coselomoon=prscal(d1,xobmoon)/(dis*vsize(xobmoon))
+   CALL prvec(d1,xobmoon,vvv)
    sinelomoon=MATMUL(roteceq,vvv)
    elomoon=acos(coselomoon)
    IF(sinelomoon(3).lt.0.d0)elomoon=-elomoon
 ! ===================================================================== 
-! rotation to the equatorial reference system                           
-   call prodmv(deq,roteceq,d) 
-   call prodmv(deq(4),roteceq,d(4)) 
+! rotation to the equatorial reference system
+   IF(rhs.eq.1)THEN                           
+      call prodmv(deq,roteceq,d) 
+      call prodmv(deq(4),roteceq,d(4))
 ! trick to change as little as possible from vers. 1.2 to 1.3           
-   d(1:6)=deq(1:6) 
+      d(1:6)=deq(1:6)
+   ELSEIF(rhs.eq.3)THEN
+      WRITE(*,*)'oss_dif: rhs= ', rhs
+      STOP 
+   ENDIF
 ! ===================================================================== 
 ! Computation of observation: right ascension (radians)                 
    dz=d(1)**2+d(2)**2 
@@ -1194,7 +1281,7 @@ END SUBROUTINE alph_del
    dadx(3)=0.d0 
    dddx(1)=-d(3)*(d(1)/(sqrt(dz)*dis**2)) 
    dddx(2)=-d(3)*(d(2)/(sqrt(dz)*dis**2)) 
-   dddx(3)=sqrt(dz)/dis**2 
+   dddx(3)=sqrt(dz)/dis**2
 ! ===================================================================== 
 ! Apparent motion:                                                      
    adot=prscal(dadx,d(4)) 
@@ -1202,8 +1289,10 @@ END SUBROUTINE alph_del
    if(ider.eq.0)return 
 ! ===================================================================== 
 ! rotation to the equatorial reference system 
-   dadx=matmul(roteqec,dadx)
-   dddx=matmul(roteqec,dddx) 
+   IF(rhs.eq.1)THEN  
+      dadx=matmul(roteqec,dadx)
+      dddx=matmul(roteqec,dddx) 
+   ENDIF
  END SUBROUTINE oss_dif
 ! ==================================
 !
@@ -1211,7 +1300,7 @@ END SUBROUTINE alph_del
 !
 ! radar observations
 SUBROUTINE r_rdot (el,tr,ioc,tech,posr,post,r,v,drde,dvde,ider) 
-  USE reference_systems 
+  USE reference_systems, ONLY: observer_position 
   USE propag_state
   USE astrometric_observations, ONLY: radius ! to set default value
   USE orbit_elements
@@ -1306,10 +1395,9 @@ SUBROUTINE r_rdot (el,tr,ioc,tech,posr,post,r,v,drde,dvde,ider)
   iotr=ioc/10000 
   iore=ioc-iotr*10000 
   ifla=1 
-! compute position of receiver at time tr                               
-  call pvobs3(tr,posr,xre,yre)
-!     WRITE(*,*)' rec pos ',xre-xre1
-!     WRITE(*,*)' rec vel ',yre-yre1
+! compute position of receiver at time tr   
+  CALL observer_position(tr,xre,yre,BFPOS=posr,PRECISION=2)
+!  call pvobs3(tr,posr,xre,yre)
 ! =======================================                               
 ! get receive time in TDB                                               
   call times(tr+2400000.5,temp,tdiffr) 
@@ -1373,14 +1461,13 @@ SUBROUTINE r_rdot (el,tr,ioc,tech,posr,post,r,v,drde,dvde,ider)
   DO i=1,itmax 
 ! compute transmitter position at estimated transmit time tt            
 ! call the Earth-rotation model in TDT                                  
-     call times(tt+2400000.5,temp,tdifft) 
+     CALL times(tt+2400000.5,temp,tdifft) 
      CALL earcar(tt-(tdifft/86400.d0),xea,ifla) 
-     CALL pvobs3(tt,post,xtr,ytr)
-!        WRITE(*,*) ' tra pos ',xtr-xtr1
-!        WRITE(*,*) ' tra vel ',ytr-ytr1
-     rtr=xea(1:3) + xtr   !         CALL vsumg(3,xea,xtr,rtr) 
+     CALL observer_position(tt,xtr,ytr,BFPOS=post,PRECISION=2)
+!     CALL pvobs3(tt,post,xtr,ytr)
+     rtr=xea(1:3) + xtr   
 ! upleg time                                                            
-     rhotv=xast(1:3)-rtr ! CALL vdiff(xast,rtr,rhotv) 
+     rhotv=xast(1:3)-rtr 
      rhot=vsize(rhotv) 
      dtauu=deltau(xast,xtr,rhotv,rtr) 
      tauuold=tauu 
@@ -1397,8 +1484,8 @@ SUBROUTINE r_rdot (el,tr,ioc,tech,posr,post,r,v,drde,dvde,ider)
 !      WRITE(*,*)' tauu at convergence ', tauu
 !      WRITE(*,*)' rtr ', rtr
 ! compute relative velocity between asteroid and transmitter            
-  vtr=xea(4:6)+ytr    ! CALL vsumg(3,xea(4),ytr,vtr) 
-  rhotdv=xast(4:6)-vtr   !  CALL vdiff(xast(4),vtr,rhotdv) 
+  vtr=xea(4:6)+ytr    
+  rhotdv=xast(4:6)-vtr   
   rhotd=prscal(rhotv,rhotdv)/rhot 
 ! ==========================================================            
 ! compute distance                                                      
@@ -1408,7 +1495,7 @@ SUBROUTINE r_rdot (el,tr,ioc,tech,posr,post,r,v,drde,dvde,ider)
 ! velocity (vastssb)                                                    
   ifla=2 
   CALL earcar(tt,xsun,ifla) 
-  vtrssb=xsun(4:6) + vtr  ! CALL vsumg(3,vtr,xsun(4),vtrssb) 
+  vtrssb=xsun(4:6) + vtr 
   vtrssb2=vtrssb(1)*vtrssb(1)+vtrssb(2)*vtrssb(2)+ vtrssb(3)*vtrssb(3)
   levelc=rhotd+rhord 
   scal1=prscal(rhotv,vtrssb)/rhot/vlight 
@@ -1460,8 +1547,8 @@ SUBROUTINE r_rdot (el,tr,ioc,tech,posr,post,r,v,drde,dvde,ider)
   enddo
 ! derivs of cartesian with respect to elements               
   do i=1,6 
-     drde(i)=DOT_PRODUCT(drdx,dxde(1:6,i))   ! drde(i)=prscag(6,drdx,dxde(1,i)) 
-     dvde(i)=DOT_PRODUCT(dvdx,dxde(1:6,i))   ! dvde(i)=prscag(6,dvdx,dxde(1,i)) 
+     drde(i)=DOT_PRODUCT(drdx,dxde(1:6,i))  
+     dvde(i)=DOT_PRODUCT(dvdx,dxde(1:6,i))  
   enddo
   RETURN 
 CONTAINS

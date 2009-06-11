@@ -16,55 +16,105 @@
 !
 ! OUTPUT:   OBSW         - observation weights
 !
-      SUBROUTINE observ_rms(obs,error_model,init,obsw,n)
-      USE astrometric_observations
-      USe fund_const
-      IMPLICIT NONE
+SUBROUTINE observ_rms(obs,error_model,init,obsw,n)
+  USE astrometric_observations
+  USe fund_const
+  IMPLICIT NONE
 
-      INTEGER,                      INTENT(IN)    ::  n
-      LOGICAL,                      INTENT(IN)    :: init
-      TYPE(ast_obs), DIMENSION(n),  INTENT(IN)    :: obs
-      CHARACTER*(*),                INTENT(IN)    :: error_model
-      TYPE(ast_wbsr), DIMENSION(n), INTENT(INOUT) :: obsw ! when init=.false.,
+  INTEGER,                      INTENT(IN)    ::  n
+  LOGICAL,                      INTENT(IN)    :: init
+  TYPE(ast_obs), DIMENSION(n),  INTENT(INOUT) :: obs
+  CHARACTER*(*),                INTENT(IN)    :: error_model
+  TYPE(ast_wbsr), DIMENSION(n), INTENT(INOUT) :: obsw ! when init=.false.,
                    ! information different from weight/bias is preserved
 
-      INTEGER i,decstep(2)
-      DOUBLE PRECISION rmsrmi,rmsvmi
+  INTEGER i,decstep(2)
+  DOUBLE PRECISION rmsrmi,rmsvmi
 ! Get default magnitude weights from a function
-      DOUBLE PRECISION magrms
+  DOUBLE PRECISION magrms
 
-      DO 1 i=1,n
-         IF(init) obsw(i)=undefined_ast_wbsr
-         IF(obs(i)%type.eq.'O'.or.obs(i)%type.eq.'S')THEN
+  DO 1 i=1,n
+     IF(init) obsw(i)=undefined_ast_wbsr
+     IF(obs(i)%type.eq.'O'.and.error_model.eq.'cbm09')THEN
+        CALL astrow_bias(error_model,obs(i),obsw(i))
+! magnitude weigthing
+        obsw(i)%rms_mag=magrms(obs(i)%mag_str,obs(i)%time_tdt,obs(i)%obscod_i,obs(i)%tech)
+     ELSEIF(obs(i)%type.eq.'O'.or.obs(i)%type.eq.'S')THEN
 ! astrometric (telescope) observations; get weight
-            CALL astrow(error_model,obs(i)%tech,obs(i)%time_tdt,obs(i)%obscod_i,      &
+        CALL astrow(error_model,obs(i)%tech,obs(i)%time_tdt,obs(i)%obscod_i,      &
      &               obs(i)%acc_coord(1),obs(i)%acc_coord(2),            &
      &               obsw(i)%rms_coord(1),obsw(i)%rms_coord(2),          &
      &               obsw(i)%bias_coord(1),obsw(i)%bias_coord(2),decstep)
 ! magnitude weigthing
-            obsw(i)%rms_mag=magrms(obs(i)%mag_str,obs(i)%time_tdt,obs(i)%obscod_i,obs(i)%tech)
-         ELSEIF(obs(i)%type.eq.'R')THEN
+        obsw(i)%rms_mag=magrms(obs(i)%mag_str,obs(i)%time_tdt,obs(i)%obscod_i,obs(i)%tech)
+     ELSEIF(obs(i)%type.eq.'R')THEN
 ! weighting of radar data is given with observations, but there is
 ! minimum credible (for a given acccuracy of the models)
-            rmsrmi=1.d-3/aukm
-            obsw(i)%rms_coord(1)=MAX(obs(i)%acc_coord(1),rmsrmi)
-            obsw(i)%rms_coord(2)=9.d9
-            obsw(i)%rms_mag=9.d9
-            obsw(i)%bias_coord(2)=0.d0
-         ELSEIF(obs(i)%type.eq.'V')THEN
-            rmsvmi=1.d-3/aukm
-            obsw(i)%rms_coord(2)=MAX(obs(i)%acc_coord(2),rmsvmi)
-            obsw(i)%rms_coord(1)=9.d9
-            obsw(i)%rms_mag=9.d9
-            obsw(i)%bias_coord(1)=0.d0
-         ELSE
-            WRITE(*,*)'observ_rms: obs. type', obs(i)%type,' not known ', &
+        rmsrmi=1.d-3/aukm
+        obsw(i)%rms_coord(1)=MAX(obs(i)%acc_coord(1),rmsrmi)
+        obsw(i)%rms_coord(2)=9.d9
+        obsw(i)%rms_mag=9.d9
+        obsw(i)%bias_coord(2)=0.d0
+     ELSEIF(obs(i)%type.eq.'V')THEN
+        rmsvmi=1.d-3/aukm
+        obsw(i)%rms_coord(2)=MAX(obs(i)%acc_coord(2),rmsvmi)
+        obsw(i)%rms_coord(1)=9.d9
+        obsw(i)%rms_mag=9.d9
+        obsw(i)%bias_coord(1)=0.d0
+     ELSE
+        WRITE(*,*)'observ_rms: obs. type', obs(i)%type,' not known ', &
      &           'at time ',obs(i)%time_tdt,' number ',i
-            STOP
-        ENDIF
+        STOP
+     ENDIF
     1 END DO
-      END SUBROUTINE observ_rms
 
+END SUBROUTINE observ_rms
+! ====================================================================
+! ASTROW_BIAS
+! Computation of bias from catalogs, possibly RMS
+! ====================================================================
+SUBROUTINE astrow_bias(error_model,obs,obsw)
+  USE fund_const
+  USE astrometric_observations
+  USE cat_debias
+  IMPLICIT NONE
+  TYPE(ast_obs),INTENT(INOUT)    :: obs
+  CHARACTER*(*),INTENT(IN)    :: error_model
+  TYPE(ast_wbsr), INTENT(INOUT) :: obsw ! when init=.false.,
+                   ! information different from weight/bias is preserved
+! end interface
+  CHARACTER*2 catcode
+  LOGICAL biasflag
+  DOUBLE PRECISION bias_ra,bias_dec, rmsmin,tdt
+  IF(error_model.ne.'cbm09') STOP
+  tdt=obs%time_utc
+  CALL cat_find(obs%catcodmpc,tdt,obs%obscod_s,catcode)
+  CALL cat_bias(obs%coord(1),obs%coord(2),catcode,bias_ra,bias_dec,biasflag)
+  IF(biasflag)THEN
+     obsw%bias_coord(1)=bias_ra*radsec/cos(obs%coord(2)) !!!Checked with Steve
+     obsw%bias_coord(2)=bias_dec*radsec
+! change rms value only if it is not forced
+     IF(.not.obsw%force_w(1)) obsw%rms_coord(1)=MAX(obs%acc_coord(1),0.7d0)*radsec
+     IF(.not.obsw%force_w(2)) obsw%rms_coord(2)=MAX(obs%acc_coord(2),0.7d0)*radsec
+   ELSE
+! default if no error model data available
+     obsw%bias_coord(:)=0.d0
+! Deafault value of RMS (time dependent)
+! Before 1890
+     IF(tdt.LT.11368.d0) THEN
+        rmsmin=3.d0
+! From 1890 to 1950
+     ELSE IF(tdt.LT.33282.d0) THEN
+        rmsmin=2.d0
+! After 1950
+     ELSE
+        rmsmin=1.d0
+     END IF
+     rmsmin=rmsmin*radsec
+     IF(.not.obsw%force_w(1)) obsw%rms_coord(1)=MAX(rmsmin,obs%acc_coord(1))
+     IF(.not.obsw%force_w(2)) obsw%rms_coord(2)=MAX(rmsmin,obs%acc_coord(2))
+  ENDIF
+END SUBROUTINE astrow_bias
 ! Copyright (C) 1997-1999 by Mario Carpino (carpino@brera.mi.astro.it)
 ! Version: November 26, 1999
 ! ---------------------------------------------------------------------
@@ -133,7 +183,7 @@
       DATA first/.true./
       SAVE first
 ! decide on use of error model file
-      ermuse=(error_model.ne.' ')
+      ermuse=(error_model.ne.' '.AND.error_model.ne.'cbm09')
 ! Input of RMS class definitions
       IF(first.and.ermuse) THEN
          le=lench(error_model)

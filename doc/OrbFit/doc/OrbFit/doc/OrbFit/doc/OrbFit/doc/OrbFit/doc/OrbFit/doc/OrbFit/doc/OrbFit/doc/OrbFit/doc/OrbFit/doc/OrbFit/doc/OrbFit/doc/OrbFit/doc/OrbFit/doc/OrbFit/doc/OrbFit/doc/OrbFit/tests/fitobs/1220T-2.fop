@@ -4,6 +4,7 @@ fitobs.
         .astna0='1220 T-2'    ! full name, first arc
         .obsdir0='obsdata'    ! directory of observs. file, first arc 
 !        .elefi0='astorb.cut' ! first arc elements file
+        .error_model='cbm09' 
 
 ! second arc
         .astnap='1996 RO13'    ! full name, second arc
@@ -13,4 +14,3 @@ fitobs.
 
 propag.
         .imet=0 !numerical method automatic choice
-

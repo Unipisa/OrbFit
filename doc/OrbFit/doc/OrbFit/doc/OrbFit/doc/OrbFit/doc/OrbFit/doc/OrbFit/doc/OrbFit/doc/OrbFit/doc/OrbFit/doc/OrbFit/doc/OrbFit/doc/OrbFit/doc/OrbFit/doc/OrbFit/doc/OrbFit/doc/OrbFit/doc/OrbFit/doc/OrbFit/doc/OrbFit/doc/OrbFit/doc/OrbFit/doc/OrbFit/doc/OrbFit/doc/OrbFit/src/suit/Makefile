@@ -6,7 +6,8 @@ all: ../lib/libsuit.a
 
 # Observations & Statistics
 OBS_OBJ=station_coordinates.o astrometric_observations.o observ_rms.o \
-     obsvarie.o iorwo_old.o attributable.o very_short_arc.o obs_simul.o
+     obsvarie.o iorwo_old.o attributable.o very_short_arc.o obs_simul.o\
+      cat_debias.o healpix_types.o
 
 ATTR_OBJ=attributable.o very_short_arc.o obs_simul.o \
      delaunay_triang.o admis_reg.o
@@ -55,6 +56,10 @@ clean:
 
 distclean: clean
 	../lib/deinst_src
+
+LISTS: 
+	grep -E 'PROGRAM|MODULE|SUBROUTINE|FUNCTION|CONTAINS' *.f90 >LIST.sub
+	grep -i ' CALL ' *.f90  >LIST.call 
 
 # Dependencies
 include make.dep

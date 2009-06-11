@@ -1,7 +1,7 @@
 include ../make.flags
 include modules.flags
 
-all: giffv.x conv9.x prop_tax.x propsynt3big.x propsyntwoway.x prop9.x  inbaric.x inbarmerc.x orbit9.x propert3.x orbselect.x 
+all: giffv.x conv9.x prop_tax.x propsynt3big.x propsyntwoway.x prop9.x  inbaric.x inbarmerc.x orbit9.x propert3.x orbselect.x secre9.x
 
 test: merg.x magn.x mergt.x selext.x selextt.x purge.x orbit9t.x secre9.x
 

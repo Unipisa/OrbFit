@@ -18,7 +18,7 @@ distclean:
 	(cd src; make distclean)
 	(cd lib; make distclean)
 	(cd tests; make distclean)
-	-(cd src/lib; rm -f *.a)
+	-(cd src/lib; rm *.a)
 	(rm -f .conf.status)
 
 .conf.status:
@@ -26,8 +26,8 @@ distclean:
 	@ exit 1
 
 distribution: distclean notar
-	tar -cf ../OrbFit4.0.tar -X notar . ; \
-	gzip ../OrbFit4.0.tar
+	tar -cf ../OrbFit4.2.tar -X notar . ; \
+	gzip ../OrbFit4.2.tar
 
 doctar:
 	tar -cf ../doc.tar --exclude-from notar ./doc; gzip ../doc.tar
@@ -37,15 +37,15 @@ doctar:
 
 nondistribute: 
 	cd src; make nondistclean; cd .. 
-	tar -T notar -cf ../OrbFitwork40.tar ; gzip ../OrbFitwork40.tar
+	tar -T notar -cf ../OrbFitwork42.tar ; gzip ../OrbFitwork42.tar
 
 panst: 
 	cd src/panst; make clean; cd ../../tests/panst; make distclean
-	tar -czf ../panst4.0.tgz src/panst tests/panst lib/orbsrv.key
+	tar -czf ../panst4.1.tgz src/panst tests/panst lib/orbsrv.key
 
 debris:
 	cd src/debris; make clean; cd ../../tests/debris; make distclean
-	tar -czf ../debris4.0.tgz src/debris tests/debris
+	tar -czf ../debris4.1.tgz src/debris tests/debris src/kepint tests/kepint
 
 #starcat:
 #	cd ../starcat; make clean; cd ../skymap; make clean; cd ../..;

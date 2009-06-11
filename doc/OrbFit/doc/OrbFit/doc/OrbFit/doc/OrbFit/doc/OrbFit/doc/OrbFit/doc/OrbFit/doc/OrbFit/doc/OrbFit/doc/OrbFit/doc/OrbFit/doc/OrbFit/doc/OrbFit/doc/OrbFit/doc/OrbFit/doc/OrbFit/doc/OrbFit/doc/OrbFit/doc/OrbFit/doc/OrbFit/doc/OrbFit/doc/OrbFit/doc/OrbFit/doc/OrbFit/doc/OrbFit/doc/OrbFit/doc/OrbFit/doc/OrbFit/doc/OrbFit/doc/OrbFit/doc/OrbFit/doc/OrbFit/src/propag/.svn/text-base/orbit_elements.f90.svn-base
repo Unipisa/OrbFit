@@ -576,7 +576,7 @@ IF(iplanet.eq.0)THEN
    centerbody_mass=gms
 ELSEIF(iplanet.eq.3)THEN
    centerbody_mass=gmearth
-ELSEIF(iplanet.le.npla+iatrue.and.iplanet.ne.3)THEN
+ELSEIF(iplanet.le.npla.and.iplanet.ne.3)THEN
    centerbody_mass=gm(iplanet)
 ELSE
    WRITE(*,*)' centerbody_mass: center not available ', iplanet

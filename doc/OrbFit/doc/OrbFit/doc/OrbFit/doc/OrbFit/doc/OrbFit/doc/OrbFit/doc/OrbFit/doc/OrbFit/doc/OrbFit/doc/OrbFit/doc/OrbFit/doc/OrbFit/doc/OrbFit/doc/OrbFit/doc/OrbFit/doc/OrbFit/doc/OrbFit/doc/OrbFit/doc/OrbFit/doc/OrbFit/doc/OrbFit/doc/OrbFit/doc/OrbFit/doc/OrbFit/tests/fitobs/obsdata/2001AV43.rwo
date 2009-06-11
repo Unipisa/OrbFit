@@ -1,5 +1,5 @@
 version =   1
-errmod  = ' '
+errmod  = 'cbm09'
 RMSast  =   5.52484E-01
 RMSmag  =   5.53196E-01
 END_OF_HEADER

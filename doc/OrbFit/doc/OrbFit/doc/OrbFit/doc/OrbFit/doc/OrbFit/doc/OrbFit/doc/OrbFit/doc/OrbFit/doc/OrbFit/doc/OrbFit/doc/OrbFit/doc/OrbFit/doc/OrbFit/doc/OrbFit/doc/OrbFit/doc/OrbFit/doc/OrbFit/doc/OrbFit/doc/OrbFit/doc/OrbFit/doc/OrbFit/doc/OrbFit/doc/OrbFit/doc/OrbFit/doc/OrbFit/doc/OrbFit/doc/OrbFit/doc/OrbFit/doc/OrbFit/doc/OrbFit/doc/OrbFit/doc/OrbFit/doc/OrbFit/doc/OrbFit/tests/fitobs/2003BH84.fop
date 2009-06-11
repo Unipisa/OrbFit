@@ -3,6 +3,7 @@ fitobs.
 ! first arc
         .astna0='2003 BH84'    ! full name, first arc
         .obsdir0='obsdata'    ! directory of observs. file, first arc 
+        .error_model='cbm09' 
 
 ! second arc
         .astnap='2003 BH384'    ! full name, second arc

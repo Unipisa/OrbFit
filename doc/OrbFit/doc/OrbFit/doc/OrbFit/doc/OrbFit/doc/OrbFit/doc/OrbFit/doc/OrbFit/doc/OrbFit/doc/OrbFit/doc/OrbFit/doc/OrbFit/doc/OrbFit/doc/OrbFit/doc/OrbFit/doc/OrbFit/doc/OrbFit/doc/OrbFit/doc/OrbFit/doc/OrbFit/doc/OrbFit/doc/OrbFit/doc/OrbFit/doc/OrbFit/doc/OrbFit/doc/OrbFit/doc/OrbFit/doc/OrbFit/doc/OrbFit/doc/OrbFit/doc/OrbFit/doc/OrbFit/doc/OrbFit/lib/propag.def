@@ -1,7 +1,7 @@
 ! input options for propagator library, including force model
 !   and numerical integrator options
 propag.
-.output_old_rwo=.false. ! to output old format, new format if false
+.output_des=.false. ! to output DES format, .rwo format if false
 ! input options for phisical model! version 1.2 of propagator
 .ilun=0!  0=no moon 1= yes 
 .imerc=1! 0=no mercury 1=yes (recommended =1 for asteroids)
@@ -59,7 +59,10 @@ propag.
 .dmast=0.05d0! min. distance for control of close-app. to massive asteroids
 .dter=0.1d0  ! min. distance for control close-app. to Mercury,Venus and Mars 
 ! options applicable only to satellite case
-.ites=2      ! max harmonic degree
-.irad=0      ! radiation pressure 1=spher.sat
-.itide=0     ! tidal perturbation 1=k2 no lag
-.ipla=2      ! 0=2-body 2=Sun+Moon
+.ites=4        ! max harmonic degree
+.irad=0        ! radiation pressure 1=spher.sat 2=sec. accel 3=both
+.amrat=0.d0    ! A/M x C_R coefficient of radiation pressure (m^2/kg) 
+.amratsec=0.d0 ! A/M x C_R coefficient of secular acceleration (m^2/kg) 
+.itide=0       ! tidal perturbation 1=k2 no lag
+.ipla=2        ! 0=2-body 2=Sun+Moon
+

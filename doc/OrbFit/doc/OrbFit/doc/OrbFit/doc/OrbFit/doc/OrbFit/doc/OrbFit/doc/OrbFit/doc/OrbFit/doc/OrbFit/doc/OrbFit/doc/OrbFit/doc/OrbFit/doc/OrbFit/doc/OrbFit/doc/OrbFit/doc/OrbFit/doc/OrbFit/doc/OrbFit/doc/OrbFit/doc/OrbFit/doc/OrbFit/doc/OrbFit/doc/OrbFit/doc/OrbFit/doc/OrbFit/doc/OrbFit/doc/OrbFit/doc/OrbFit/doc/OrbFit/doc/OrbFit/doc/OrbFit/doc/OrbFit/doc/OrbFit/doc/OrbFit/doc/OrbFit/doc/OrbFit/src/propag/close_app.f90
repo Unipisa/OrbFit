@@ -271,6 +271,9 @@ CONTAINS
          x6(1:3)=xa(1:3) 
          x6(4:6)=va(1:3)      
          el2=undefined_orbit_elem
+         IF(rhs.EQ.2)THEN
+            el2%center=3
+         END IF
          el2%t=t
          el2%coo='CAR'
          el1=el2

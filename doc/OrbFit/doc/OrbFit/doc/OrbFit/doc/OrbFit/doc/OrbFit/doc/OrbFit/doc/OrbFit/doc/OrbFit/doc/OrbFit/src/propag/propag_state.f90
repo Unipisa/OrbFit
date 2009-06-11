@@ -197,7 +197,9 @@ END SUBROUTINE pro_ele
 ! ================INTERFACE===========================================  
 SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
   USE force_model
+  USE yark_pert, ONLY: iyark
   USE force_sat
+  USE perturbations, ONLY: irad
   USE orbit_elements
   USE fund_const
   USE ever_pitkin, ONLY: fser_propag,fser_propag_der
@@ -248,15 +250,15 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
   DOUBLE PRECISION gmcur ! current central body mass (depends upon rhs)
 ! =============       
 ! integers for dimensions       
-  integer nv,nv1,nvar,nvar2 
+  INTEGER nv,nv1,nvar,nvar2 
 ! time step for attributables file is fixed submultiple  
   INTEGER nn 
 ! store previous time for Earth coordinates
   DOUBLE PRECISION t2old,xea1(6)
 ! initialisation control (to have dummy initial conditions), old ider
-  integer lflag,ider0 
+  INTEGER lflag,ider0 
   LOGICAl twobo1
-  double precision ddxde(3,6,6) ! 2nd derivatives of cart. w. r. elements
+  DOUBLE PRECISION ddxde(3,6,6) ! 2nd derivatives of cart. w. r. elements
 ! **************************************  
 ! static memory allocation      
   save 
@@ -264,11 +266,14 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
   data lflag/0/ 
 ! **************************************  
 !  dummy initial conditions to force restart the first time   
-  if(lflag.eq.0)then 
+  IF(lflag.eq.0)THEN 
      lflag=1 
 ! Store fictitious epoch time and elements for the asteroid   
 ! (to be sure they are different the first time)    
      elsave=undefined_orbit_elem
+     IF(rhs.EQ.2)THEN ! maybe not necessary
+        elsave%center=3
+     END IF
      t2old=-1d+55 
      t1=el%t
      ider0=-1
@@ -280,7 +285,7 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
      ELSEIF(rhs.eq.3)THEN
 ! should have been done by input9
      END IF
-  endif
+  ENDIF
 ! ===================================================================== 
 ! JPL Earth vector at observation time   
   IF(t2.ne.t2old)THEN 
@@ -302,16 +307,19 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
   ENDIF
   IF(twobo1)THEN
      IF(rhs.eq.1)THEN
+!        CALL masjpl
         gmcur=gms
      ELSEIF(rhs.eq.2)THEN
+!        CALL eamoon_mass
         gmcur=gmearth
      ELSEIF(rhs.eq.3)THEN
+!        CALL masjpl
         gmcur=gms ! not used
      ENDIF
 ! two body propagation  
      IF(el%coo.eq.'EQU')THEN
 ! use old style 2-body propagator with Kepler's equation
-        call prop2b(el%t,el%coord,t2,xast,gmcur,ider,dxde,ddxde) 
+        CALL prop2b(el%t,el%coord,t2,xast,gmcur,ider,dxde,ddxde) 
         RETURN
      ELSEIF(el%coo.eq.'CAR')THEN
 ! ready for f-g series propagation
@@ -403,6 +411,8 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
      if(icmet.eq.3.and.iclap.eq.1) then 
         velo_req=.true. 
      elseif(icrel.ge.1)then 
+        velo_req=.true.
+     elseif(irad.ge.2.or.iyark.ge.3)THEN
         velo_req=.true.
      else 
         velo_req=.false.
@@ -1202,52 +1212,57 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
         lit=lit1 
      else 
 !  passo non iniziale : interpolazione dei ck   
-         ck1(1:isrk,1:nvar)=ck(1:isrk,1:nvar) 
-         call kintrp(ck1,ck,isrk,nvar) 
-         lit=lit2 
-      endif
+        ck1(1:isrk,1:nvar)=ck(1:isrk,1:nvar) 
+        call kintrp(ck1,ck,isrk,nvar) 
+        lit=lit2 
+     endif
 !  un passo del rk      
-22    call rkimp(t1,h,y1,dery,ck,isrk,y2,lit,nvar,eprk,ep,lf,ndim)
+22   call rkimp(t1,h,y1,dery,ck,isrk,y2,lit,nvar,eprk,ep,lf,ndim)
 !     WRITE(*,*)t1,h,npas,nrk,m
 !  controllo di avvenuta convergenza
-      if(lf.le.0)then 
+     if(lf.le.0)then 
 !  caso di non convergenza          
-!           call camrk(ep,npas,nrk,lf)          
-         CALL rkstep(ep,npas,nrk,lf,h) 
-         h2=h*h 
-         if(lf.eq.2)goto 24 
-         goto 22 
-      endif
+!           call camrk(ep,npas,nrk,lf) 
+! WARNING: quick fix for strange orbits resulting in RKG divergence  
+        IF(rhs.eq.2)THEN      
+           kill_propag=.true.
+           RETURN
+        ENDIF
+        CALL rkstep(ep,npas,nrk,lf,h) 
+        h2=h*h 
+        if(lf.eq.2)goto 24 
+        goto 22 
+     endif
 !  passo del rk adottato
-      npas=npas+1 
-      nrk=nrk+1 
-      t1=t0+h*npas 
-      y1(1:nvar)=y2(1:nvar) 
-      if(iusci.gt.0)then 
-         it=iabs(lf) 
-         if(npas.eq.iusci*(npas/iusci))write(ipirip,1000)npas,       &
-     &    (ep(i),i=1,it)
-1000     format(' npas',i6,' ep ',5d12.3/(5d12.3)) 
-      endif
-      if(icmet.lt.2)then 
+     npas=npas+1 
+     nrk=nrk+1 
+     t1=t0+h*npas 
+     y1(1:nvar)=y2(1:nvar) 
+     if(iusci.gt.0)then 
+        it=iabs(lf) 
+        if(npas.eq.iusci*(npas/iusci))write(ipirip,1000)npas,       &
+             &    (ep(i),i=1,it)
+1000    format(' npas',i6,' ep ',5d12.3/(5d12.3)) 
+     endif
+     if(icmet.lt.2)then 
 !  preparazione per il multistep   
-         IF(rhs.eq.1)THEN       
-            CALL force(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,idc,xxpla,0,1)
+        IF(rhs.eq.1)THEN       
+           CALL force(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,idc,xxpla,0,1)
 ! close approach control
-            CALL clocms(idc,t1,y1(1:3),y1(nvar2+1:nvar2+3),xxpla) 
-         ELSEIF(rhs.eq.2)THEN
-            CALL forcesat(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,idc,xxpla,0,1)
-         ELSEIF(rhs.eq.3)THEN
-            CALL force9(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,idc,xxpla,0,1) 
-            CALL clocms9(idc,t1)
-         ENDIF
+           CALL clocms(idc,t1,y1(1:3),y1(nvar2+1:nvar2+3),xxpla) 
+        ELSEIF(rhs.eq.2)THEN
+           CALL forcesat(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,idc,xxpla,0,1)
+        ELSEIF(rhs.eq.3)THEN
+           CALL force9(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,idc,xxpla,0,1) 
+           CALL clocms9(idc,t1)
+        ENDIF
 ! store in differences array        
-         if(npas.eq.m)call catst(m,m+1,nvar2,nvar2x,nvar,delta,dd,y1,h,h2)
-      endif
-      goto 5 
+        if(npas.eq.m)call catst(m,m+1,nvar2,nvar2x,nvar,delta,dd,y1,h,h2)
+     endif
+     goto 5 
 ! ***************************************************************       
 !  propagatore multistep fa nstep passi, l'ultimo con la velocita'      
-   else 
+  else 
 !  occorrono altri passi; quanti?   
       sdelto=deltos*dabs(h)/h 
       din=(t2-t1+sdelto)/h 

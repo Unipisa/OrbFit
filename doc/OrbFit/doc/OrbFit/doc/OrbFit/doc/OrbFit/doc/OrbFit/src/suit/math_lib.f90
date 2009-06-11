@@ -99,13 +99,15 @@ END FUNCTION vsize
 !                                                                       
 SUBROUTINE prodmv(y,a,x) 
   IMPLICIT NONE 
-  DOUBLE PRECISION x(3),y(3),a(3,3),s 
+  DOUBLE PRECISION, INTENT(IN) :: a(3,3)
+  DOUBLE PRECISION, INTENT(INOUT) :: x(3),y(3)
+  DOUBLE PRECISION s, z(3)
   INTEGER j,l 
-                                                                        
+  z=x                                                                     
   DO  j=1,3 
      s=0.d0 
      DO  l=1,3 
-        s=s+a(j,l)*x(l) 
+        s=s+a(j,l)*z(l) 
      ENDDO
      y(j)=s 
    ENDDO
@@ -161,16 +163,23 @@ END subroutine rotmt
 !  *                           A = BC                            *      
 !  *                                                             *      
 !  ***************************************************************      
-subroutine prodmm(a,b,c) 
-  implicit none 
-  double precision a(3,3),b(3,3),c(3,3),s 
-  integer j,k,l 
-  do 2 j=1,3 
-     do 2 k=1,3 
+SUBROUTINE prodmm(a,b,c) 
+  IMPLICIT NONE 
+  DOUBLE PRECISION, INTENT(INOUT) :: b(3,3),c(3,3)
+  DOUBLE PRECISION, INTENT(INOUT) :: a(3,3)
+  DOUBLE PRECISION w(3,3),z(3,3),s 
+  INTEGER j,k,l
+  z=c
+  w=b 
+  DO j=1,3 
+     DO  k=1,3 
         s=0.d0 
-        do 1 l=1,3 
-1          s=s+b(j,l)*c(l,k) 
-2       a(j,k)=s 
+        DO l=1,3 
+          s=s+w(j,l)*z(l,k)
+        ENDDO 
+        a(j,k)=s 
+     ENDDO
+   ENDDO
 END SUBROUTINE prodmm
 ! Copyright (C) 1999 by Mario Carpino (carpino@brera.mi.astro.it)       
 ! Version: November 10, 1999                                            

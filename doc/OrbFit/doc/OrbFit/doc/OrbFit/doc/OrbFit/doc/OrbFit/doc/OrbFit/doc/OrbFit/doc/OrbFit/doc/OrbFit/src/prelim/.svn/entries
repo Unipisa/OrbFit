@@ -1,15 +1,15 @@
 9
 
 dir
-105
+92
 file:///home/orbfit/orbfit_subv/trunk/src/prelim
 file:///home/orbfit/orbfit_subv
 
 
 
-2008-12-18T18:02:36.575954Z
-98
-orbfit_amc
+2007-12-24T17:00:34.975856Z
+1
+orbfit
 
 
 svn:special svn:externals svn:needs-lock
@@ -236,7 +236,7 @@ file
 
 
 
-2009-01-23T19:07:16.000000Z
+2008-12-24T17:29:56.000000Z
 99c2729cd4bafc83145e66e9558c96bc
 2007-12-24T17:00:34.975856Z
 1
@@ -314,7 +314,7 @@ orbfit
 
 io_det.f90
 file
-
+98
 
 
 
@@ -354,7 +354,7 @@ file
 
 
 
-2009-01-23T19:16:40.000000Z
+2008-12-25T20:14:03.000000Z
 0b450f9596b80ea68dddd3ea6d409614
 2007-12-24T17:00:34.975856Z
 1
@@ -396,7 +396,7 @@ orbfit
 
 iodini.f90
 file
-
+98
 
 
 

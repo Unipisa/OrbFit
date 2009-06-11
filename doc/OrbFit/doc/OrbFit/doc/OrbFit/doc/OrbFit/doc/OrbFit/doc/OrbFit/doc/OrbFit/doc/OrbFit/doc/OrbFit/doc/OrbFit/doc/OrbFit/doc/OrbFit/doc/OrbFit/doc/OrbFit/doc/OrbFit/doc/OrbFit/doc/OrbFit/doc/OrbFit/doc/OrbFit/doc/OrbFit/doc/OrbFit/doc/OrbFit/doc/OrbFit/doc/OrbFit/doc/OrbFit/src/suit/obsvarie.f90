@@ -465,7 +465,7 @@ SUBROUTINE mpcpds(iauco,mpccod,error)
      read(iauco,103) head 
 103  format(6x,i2) 
      IF(head.gt.35)THEN
-        mpccod(1:1)=char(head+61)
+        mpccod(5:5)=char(head+61)
      ELSE
         mpccod(5:5)=char(head+55)
      ENDIF 
