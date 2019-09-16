@@ -1,6 +1,4 @@
-# SW_NAME Workbench
-
-Any [SWHAPPE](https://github.com/Unipisa/SWHAPPE) workbench comes with a few predefined folders, to support the users in the process. 
+# OrbitFit Workbench
 
 Folder [raw materials](./raw_materials) is for the original materials, as they have been found or submitted.
 
