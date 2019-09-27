@@ -44,39 +44,42 @@ SUBROUTINE splinam(name0,name1,m)
 ! find separator                                                        
   i=index(name0,'_') 
   IF(i.le.0)THEN 
-!        WRITE(*,*)' name splitting problem for ', name0                
+!     WRITE(*,*)' name splitting problem for ', name0                
      name1=name0(1:9) 
      m=1 
      RETURN 
   ENDIF
   name1=' ' 
   name1=name0(1:i-1) 
-  READ(name0(i+1:i+4),101)m 
+  READ(name0(i+1:9),*)m 
   !     WRITE(*,*)name1,m                                                 
-101 FORMAT(i4) 
 END SUBROUTINE splinam
 ! =======================================                               
 ! FIDINAM vers. 4
 !                                                                       
 ! computes  file name in assigned directory, including ONS  
 ! ========================================                              
-SUBROUTINE fidinam(eledir,astnam,suffix,file,le) 
+SUBROUTINE fidinam(eledir0,astnam0,suffix,file,le) 
+  USE name_rules
   IMPLICIT NONE 
   INTEGER, PARAMETER :: ldir=100 
-  CHARACTER*(60), INTENT(IN) :: eledir 
-  CHARACTER*(*), INTENT(IN) :: astnam 
+  CHARACTER*(60), INTENT(IN) :: eledir0 
+  CHARACTER*(name_len), INTENT(IN) :: astnam0 
   CHARACTER*3, INTENT(IN) ::  suffix 
   CHARACTER*(*), INTENT(OUT) ::  file
   INTEGER, INTENT(OUT) :: le 
 ! END INTERFACE
-  CHARACTER*9 nam0
+  CHARACTER(name_len) nam0, astnam
   CHARACTER*60 fulldir
+  CHARACTER*200 eledir
   INTEGER ld,ll,ld1 
   INCLUDE 'sysdep.h90' 
   INTEGER j 
   CHARACTER*10 dircom4,direct 
+  eledir=eledir0
   CALL rmsp(eledir,le) 
-! convert name in case it is of the form nam0=namp                      
+! convert name in case it is of the form nam0=namp
+  astnam=astnam0                      
   call rmsp(astnam,ld1) 
   ll=index(astnam,'=') 
   IF(ll.eq.0)THEN 

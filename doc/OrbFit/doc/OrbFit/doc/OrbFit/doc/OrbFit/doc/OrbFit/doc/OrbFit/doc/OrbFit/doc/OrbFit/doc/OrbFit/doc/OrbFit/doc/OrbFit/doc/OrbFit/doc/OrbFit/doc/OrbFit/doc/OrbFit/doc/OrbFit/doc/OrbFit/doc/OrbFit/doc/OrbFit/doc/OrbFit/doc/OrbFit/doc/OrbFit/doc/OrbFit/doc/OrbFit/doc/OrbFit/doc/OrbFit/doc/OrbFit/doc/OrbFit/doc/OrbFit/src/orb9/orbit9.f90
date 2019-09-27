@@ -175,7 +175,7 @@ PROGRAM orbit9
 !  propagation to next filter input time                                
   DO 10 iout=iout0+1,nin 
      t2=dinf*iout 
-     CALL propin(nfl,y1,t1,t2,y2,hms,nvar)
+     CALL propin(nfl,y1,t1,t2,y2,hms,nvar,6)
      nfl=1 
      t=t2 
 ! *********************************************************             

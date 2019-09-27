@@ -2,21 +2,29 @@
 ! ====================================================                  
 ! FCLOMON2 impact monitoring from FITOBS
 ! ====================================================  
-SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
+SUBROUTINE fclomon2(progna,astname,m,obs,obsw,mm1,mm2,tmcla,sigma,nd,limit_stretch,sigma0)
+  USE dyn_param
+  USE fund_const
   USE propag_state
+  USE ephem_prop
   USE tp_trace
+  USE cla_store
   USE output_control
   USE orbit_elements
   USE ret_analysistp
   USE multiple_sol
+  USE multi_store
   USE obssto
+  USE name_rules, ONLY: name_len
   USE force_model, ONLY: masjpl
   USE planet_masses, ONLY: dmea
-  USE close_app, ONLY: fix_mole
+  USE close_app, ONLY: fix_mole, kill_propag
   USE eval_risk, ONLY: massgiven,givenmass
+  USE offlov_checktp, ONLY: bsdmin, bsdmax, header_risk,shrinkea, header_esa_risk
   IMPLICIT NONE
 ! =================INPUT=========================================
   character*(6), INTENT(IN) :: progna ! program name
+  CHARACTER*(*), INTENT(IN) :: astname ! asteroid name 
   integer, INTENT(IN) :: m ! observation number
 ! new data types
   TYPE(ast_obs),DIMENSION(m), INTENT(IN) :: obs
@@ -26,30 +34,41 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
   INTEGER, INTENT(IN) :: mm2
 ! search until time (MJD)
   DOUBLE PRECISION, INTENT(IN) :: tmcla 
-  DOUBLE PRECISION, INTENT(IN) :: sigma
+  DOUBLE PRECISION, INTENT(IN) :: sigma  ! max excursion in sigma
+  INTEGER, INTENT(IN) :: nd ! dimension of the parameter space
+  DOUBLE PRECISION, INTENT(IN) :: limit_stretch ! Limit in the stretching
+  DOUBLE PRECISION, INTENT(IN), OPTIONAL :: sigma0 ! LOV parameter of center
 ! workspace por pro_ele 
   TYPE(orbit_elem) el1
   TYPE(orb_uncert) unm1
-  CHARACTER*10 mulname
+  CHARACTER*9 astna0
   INTEGER nm,j,le  ! number of virtual objects, index, string length
   INTEGER no                                    ! number of close 
                                                 ! approaches found
-  INTEGER, PARAMETER :: nox=10000               ! max no close app
-  TYPE(tp_point), DIMENSION(nox) :: vas_tr      ! array of tp_traces(global)
-  TYPE(tp_point), DIMENSION(nox) :: vas_trl     ! array of tp_traces(of return)
-  DOUBLE PRECISION :: dist(nox)
-  DOUBLE PRECISION :: dminpos(nox) 
+!  INTEGER, PARAMETER :: nox=10000               ! max no close app
+!  TYPE(tp_point), DIMENSION(nox) :: vas_trace      ! array of tp_traces(global)
+!  TYPE(tp_point), DIMENSION(nox) :: vas_traceloc     ! array of tp_traces(of return)
+!  DOUBLE PRECISION :: dist(nox)
+!  DOUBLE PRECISION :: dminpos(nox) 
   LOGICAL :: is_min, newflag                    ! local minimum, low  MOID
   INTEGER :: no_risk                   ! number of Virtual impactors found
-  INTEGER, PARAMETER :: nshx=10000              ! maximum number of showers
-  INTEGER, PARAMETER :: nretx=50000             ! maximum number of returns 
+!  INTEGER, PARAMETER :: nshx=10000              ! maximum number of showers
+!  INTEGER, PARAMETER :: nretx=50000             ! maximum number of returns 
   INTEGER            :: nsho                    ! showers number
-  INTEGER            :: isho(nshx)              ! showers index
-  INTEGER            :: iret(nretx)             ! returns (trails) index
+ ! INTEGER            :: isho(nshx)              ! showers index
+ ! INTEGER            :: iret(nretx)             ! returns (trails) index
   INTEGER            :: nret                    ! returns (trails) number
   INTEGER            :: lre,ire,nr,ns
   DOUBLE PRECISION   :: tcat                    ! time of initial conditions
   CHARACTER(LEN=15)  :: despla  ! desired planet 
+  DOUBLE PRECISION :: stretchmin
+  INTEGER            :: nmin            ! Minimum counter
+!=======================IN/OUT FILES===================================
+  CHARACTER(LEN=80) :: clodir,repdir,catname,obsdir,mulsodir,eledir,elefil
+  CHARACTER(LEN=100):: riskfile,riskesafile,repfile,newfile,outfile,warfile, clo2file
+  CHARACTER(LEN=100) :: wfile             ! for vvv_tp
+! ============================UNITS FOR IN/OUT======================================
+  INTEGER iunnew,iunwarn,iunout, iunrisk,iunrep, nrisk, nnew, iwdir
 !=============================OPTIONS=====================================  
   DOUBLE PRECISION :: dt             ! length of showers 
   DOUBLE PRECISION :: tgap           ! time gap desired
@@ -58,12 +77,22 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
   LOGICAL ireq,found
   INTEGER vdifold, vmultold
   CHARACTER*60 comment 
+  DOUBLE PRECISION sigma00 ! for sigma0 optional
+! Scatter plane
+  REAL(KIND=qkind) :: vvv_q(ndimx)  ! weak direction (quadruple precision)
 ! =======================================================================
 ! modification August 16, 2005 to input mass from physical observations
   INCLUDE 'parlib.h90' 
   CHARACTER*200 filmass
   LOGICAL ok
   INTEGER iunmass
+! memory management
+  nox=30000
+  nshx=1000
+  nretx=5000
+  ALLOCATE(vas_trace(nox),vas_trasrt(nox),isho(nshx),iret(nretx),tclo(nox),tclos(nox))
+  noxloc=nox/10
+  ALLOCATE(vas_traceloc(noxloc),vas_trlocsrt(noxloc),dist(noxloc),dminpos(noxloc),stretch(noxloc))
 ! ===============================================================
 ! input options
 ! ================shower length time============================  
@@ -95,11 +124,18 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
   fix_mole=.true.            ! default for fix_mole     
   comment='fix mole by using 2-body inside Earth'
   CALL input_log_opt(progna,'fix_mole',fix_mole,ireq,found,comment,iun_log)
+! verbosity control: lower than for the rest of fitobs
   vdifold=verb_dif
   verb_dif=1
   vmultold=verb_mul
   verb_mul=1
-! ============get mass known from other sources, if available=====================
+! realignement of sigma0
+  IF(PRESENT(sigma0))THEN
+     sigma00=sigma0
+  ELSE
+     sigma00=0.d0
+  ENDIF
+! ============get mass known from other sources, if available==================
   filmass=dlibd//'/'//name_obj//'.mass'
   CALL rmsp(filmass,le)
   INQUIRE(file=filmass,exist=ok)
@@ -112,10 +148,69 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
      massgiven=.false.
   ENDIF
 ! END modification August 16, 2005 to input mass from physical observations
+! ================OUTPUT ALSO ON FILES===============================
+! open .out, .rep, .new, .warn, .risk
+!----------------------------FILE .out-----------------------------------------
+  iunout=0
+! OPEN FILE .out
+  outfile=astname//'.out' 
+  CALL rmsp(outfile,le) 
+  CALL filopn(iunout,outfile(1:le),'unknown') 
+ !----------------------------FILE .rep-----------------------------------------
+  repfile=astname//'.rep' 
+  CALL rmsp(repfile,le) 
+  CALL filopn(iunrep,repfile(1:le),'unknown') 
+  CALL header_rep(iunrep)                           
+!---------------------------FILE .new-----------------------------------------
+  newfile=astname//'.new' 
+  CALL rmsp(newfile,le) 
+  CALL filopn(iunnew,newfile(1:le),'unknown') 
+  CALL header_new(iunnew)                              
+!---------------------------FILE .risk-----------------------------------------
+  nrisk=0 
+  bsdmin=1.d10 
+  bsdmax=.5d0 
+  shrinkea=1.d0
+  riskfile=astname//'.risk' 
+  CALL rmsp(riskfile,le) 
+  CALL filopn(iunrisk,riskfile(1:le),'unknown') 
+  WRITE(iunrisk,300) astname 
+300 FORMAT('Object: ',a9,' '/) 
+  CALL header_risk(iunrisk)
+!--------------------------FILE .warn----------------------------------
+  warfile=astname//'.warn' 
+  CALL rmsp(warfile,le) 
+  CALL filopn(iunwarn,warfile(1:le),'unknown') 
+  CALL filclo(iunwarn,'DELETE') 
+  CALL filopn(iunwarn,warfile(1:le),'unknown') 
+  WRITE(*,*)' units iunout,iunnew,iunwarn,iunrisk ',iunout,iunnew,iunwarn,iunrisk
 ! ===================================================================
-  deltasig=delta_sigma ! align stepsize in multiple_sol and tp_trace
-  imul0=imi0 ! align index of nominal solution in multiple_sol and tp_trace
-  smax=sigma ! to use in computation of minimum possible distance on TP
+  IF(prob_sampl)THEN
+! for densification when IP sampling this needs to be modified
+     imul0=imi0
+! sigma_max 
+  ELSE
+                       ! this is ok also for densification ????
+! WARNING: begins modification to allow for densification
+! modification 28/10/2013 to use in densification
+! imul0, sigma_max must be recomputed in such a way that vas_tr(1:no)%sigma
+! is aligned with sigma_q
+! ???????????
+!     imul0=imi0-sigma00/delta_sigma
+     imi0=imi0-sigma00/delta_sigma
+     sigma_max=abs(sigma00)+sigma ! range of LOV parameter is restricted, 
+                          ! ignore close app with minima ouside range
+  ENDIF
+
+! AS AN ALTERNATIVE, CORRECT VALUE OF vas_tr(1:no)%sigma after input 
+! deltasig, imul0, sigma_max must be recomputed in such a way that vas_tr(1:no)%sigma
+! is aligned with sigma_q
+! if imi0 corresponds to sigma0, sigma(imi)=sigma0+(imi-imi0)*delta_sigma
+! on the other hand rescaltp uses sigma(imi)=deltasig*(imi-imul0)
+! END WARNING 
+
+  CALL masjpl  ! should not matter, unless fclomon2 is executed too early....
+! ======================================================================== 
 ! copy observations 
   m_m=m
   obs_m(1:m)=obs(1:m)
@@ -123,33 +218,75 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
 ! setup close app. output
   tpplane=.true. ! use TP plane, not MTP
   REWIND(iuncla) ! cleanup previous close app. records
+  IF(scatterplane) THEN
+     WRITE(*,*) 'FITOBS: scatter_stretch = TRUE' 
+     scatter_stretch=.TRUE.
+     wfile=astname//'.wdir'
+     CALL rmsp(wfile,le)
+     CALL filopn(iwdir,wfile(1:le),'old')
+! read quadruple precision, convert in double 
+     READ(iwdir,*) vvv_q(1:nd)
+     vvv_tp(1:nd)=vvv_q(1:nd)
+     CALL filclo(iwdir,' ')   
+  END IF
 ! propagation and output close approach files
   nm=mm2-mm1+1
   DO j=mm1,mm2
-     WRITE(mulname,110)j
- 110 FORMAT('mult_',I5)
-     CALL rmsp(mulname,le)
-     WRITE(iuncla,*)mulname
+     astna0=' '
+     IF(j.le.9)THEN              
+        WRITE(astna0,111) j 
+111     FORMAT('va_00000',I1)
+     ELSEIF(j.le.99)THEN
+        WRITE(astna0,112) j
+112     FORMAT('va_0000',I2)
+     ELSEIF(j.le.999)THEN
+        WRITE(astna0,113) j
+113     FORMAT('va_000',I3)
+     ELSEIF(j.le.9999)THEN
+        WRITE(astna0,114) j
+114     FORMAT('va_00',I4)
+     ELSEIF(j.le.99999)THEN
+        WRITE(astna0,115) j
+115     FORMAT('va_0',I5)
+     ELSEIF(j.le.999999)THEN
+        WRITE(astna0,116) j
+116     FORMAT('va_',I6)
+     ELSE
+        WRITE(*,*)' nmulti: change format for imult>499999'
+        STOP
+     ENDIF
+     WRITE(iuncla,*)astna0
      CALL cov_avai(unm(j),elm(j)%coo,elm(j)%coord)
+     IF(dyn%nmod.GT.0)THEN
+        dyn%dp(1:dyn%ndp)=dpm(1:dyn%ndp,j)
+     END IF
+     WRITE(*,*) ' VA number ',j
      CALL pro_ele(elm(j),tmcla,el1,unm(j),unm1)
-     WRITE(*,*) ' VA number ',j,' propagated'
-  ENDDO 
+  ENDDO
+! Rewind
   REWIND(iuncla)
+  kill_propag=.FALSE.
 ! now input tp records
   despla='EARTH'
-  CALL masjpl  ! should not matter, unless fclomon2 is executed too early....
-  CALL inclolinctp(iun_log,iuncla,despla,vas_tr,no,nox)
+  CALL inclolinctp(iun_log,iuncla,despla,no)
+
   IF(no.le.0)THEN
      WRITE(*,*) ' no close approach to ', despla, ' found up to time MJD ',tmcla
      RETURN
   ENDIF
-  REWIND(iuncla)
+! close .clo file and open .clo2 file
+  CALL filclo(iuncla,' ')
+! close approach file (but for the falsi runs, to be deleted)           
+  clo2file=name_obj//'.clo2' 
+  CALL rmsp(clo2file,le) 
+  CALL filopn(iuncla,clo2file(1:le),'unknown') 
 ! shower analysis
-  CALL showret3tp(iun_log,no,vas_tr,dt,tgap,isho,nsho,iret,nret)
+  CALL showret3tp(iunout,no,dt,tgap,nsho,nret)
 ! main loop on returns                                                  
   ns=1 
   CALL header_rep(iun_log)
-  CALL header_rep(0)
+  no_risk=0
+  nnew=0
   DO 1 nr=1,nret 
 ! shower counter                                                        
      if(iret(nr).ge.isho(ns+1))ns=ns+1 
@@ -158,13 +295,14 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
 ! warning: remember to define iret(nr+1)                                
      lre=iret(nr+1)-iret(nr) 
 ! analyse return, finding minimum distance etc.                         
-     WRITE(iun_log,197)ns,nr,lre,vas_tr(ire)%rindex,vas_tr(ire+lre-1)%rindex 
+     WRITE(iunout,197)ns,nr,lre,vas_trace(ire)%rindex,vas_trace(ire+lre-1)%rindex 
 197  FORMAT('shower no. ', i4,' return no. ',i5,' length ',i5,' from ',f6.1,' to ',f6.1)
 ! vas_trace  copied in a "return record' vas_traceloc                                  
-     CALL arrcut(vas_tr,ire,lre,nox,iun_log,vas_trl) 
-     dist(1:lre)=vas_trl(1:lre)%b
-     dminpos(1:lre)=vas_trl(1:lre)%minposs
+     CALL arrcut(vas_trace,ire,lre,nox,iunout,vas_traceloc) 
+     dist(1:lre)=vas_traceloc(1:lre)%b
+     dminpos(1:lre)=vas_traceloc(1:lre)%minposs
      newflag=.false. 
+     nmin=0
      IF(lre.gt.1)THEN 
 ! finding local minima                                                  
         DO 2 j=1,lre 
@@ -181,29 +319,42 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
            IF(is_min)THEN
               CALL header_rep(iun_log)
               CALL header_rep(0)
-              CALL wrireptp(vas_trl(j),vas_trl(1)%rindex,vas_trl(lre)%rindex,-iun_log)   
+              CALL wrireptp(vas_traceloc(j),vas_traceloc(1)%rindex,vas_traceloc(lre)%rindex,iunrep)   
               IF(dminpos(j).lt.dnewton)THEN 
                  newflag=.true. 
+                 nmin=nmin+1
+                 stretch(nmin)= vas_traceloc(j)%stretch
               ENDIF
            ENDIF
 2       ENDDO
      ELSE 
 ! singletons: check if moid is small 
-        CALL header_rep(iun_log)
-        CALL header_rep(0)  
-        CALL wrireptp(vas_trl(1),vas_trl(1)%rindex,vas_trl(lre)%rindex,-iun_log)
+        CALL header_rep(iunrep) 
+        CALL wrireptp(vas_traceloc(1),vas_traceloc(1)%rindex,vas_traceloc(lre)%rindex,iunrep)
         DO j=1,lre 
-           IF(dminpos(j).lt.dnewton)newflag=.true.
+           IF(dminpos(j).lt.dnewton)THEN
+              newflag=.true.
+              nmin=nmin+1
+              stretch(nmin)= vas_traceloc(1)%stretch
+           END IF
         ENDDO
      ENDIF
 ! selected for further analysis?                                        
      IF(newflag)THEN 
+        IF(limit_stretch.GT.0.d0)THEN
+           stretchmin=MINVAL(stretch(1:nmin))
+           IF(stretchmin.GT.limit_stretch)THEN
+              CLOSE(iunrep) 
+              CLOSE(iunout)
+              CYCLE   
+           ENDIF
+        ENDIF
 ! reopen files for newton report                                        
         WRITE(*,*)' return number nr=',nr, ' falsi/newton ' 
-!        nnew=nnew+1 
-        CALL ret_min(lre,vas_trl,tdt_cat,dnewton,no_risk)
+        nnew=nnew+1 
+        CALL ret_min(lre,vas_traceloc,tdt_cat,dnewton,no_risk,iunnew,iunwarn,iunrisk,limit_stretch)
 ! test output                                                           
-!        nrisk=nrisk+no_risk 
+        nrisk=nrisk+no_risk 
      ELSE 
         WRITE(*,*)' return number nr=',nr, 'NO  falsi/newton ' 
      ENDIF
@@ -211,12 +362,27 @@ SUBROUTINE fclomon2(progna,m,obs,obsw,mm1,mm2,tmcla,sigma)
 1 ENDDO
   verb_dif=vdifold
   verb_mul=vmultold
+! close output files
+  IF(nrisk.gt.0)THEN
+     CALL filclo(iunrisk,' ')
+  ELSE
+     CALL filclo(iunrisk,'DELETE')
+  ENDIF
+  CALL filclo(iunout,' ')
+  CALL filclo(iunrep,' ')
+  IF(nnew.gt.0)THEN
+     CALL filclo(iunnew,' ')
+     CALL filclo(iunwarn,' ')
+  ELSE
+     CALL filclo(iunnew,'DELETE')
+     CALL filclo(iunwarn,'DELETE')
+  ENDIF
 END SUBROUTINE fclomon2
 
 ! ==================================================================    
 ! FINOBS                                                                
 ! ==================================================================    
-! Arc  observations input                                               
+! Arc observations input                                               
 subroutine finobs(progna,iar,astna0,obs0,nlef,m,obs,obsw,rwofi0  &
      &     ,error_model) 
   USE astrometric_observations
@@ -225,7 +391,7 @@ subroutine finobs(progna,iar,astna0,obs0,nlef,m,obs,obsw,rwofi0  &
 ! =======INPUT==================================                        
 ! ========= file names, i/o control ============ 
   character*(6), INTENT(IN) :: progna ! program name
-  character*(9), INTENT(IN) :: astna0 ! asteroid name (9 characters)
+  character*(*), INTENT(IN) :: astna0 ! asteroid name (9 characters)
   integer, INTENT(IN) :: iar ! flag for arcs 1-2 
   CHARACTER*20, INTENT(IN) ::  error_model ! weighing model
 ! =======OUTPUT================================== 
@@ -248,19 +414,23 @@ subroutine finobs(progna,iar,astna0,obs0,nlef,m,obs,obsw,rwofi0  &
   integer ll ! loop indexes                                              
   INCLUDE 'sysdep.h90' ! directory char  
 ! precedence to .obs file with respect to .rwo file: false for use in fitobs
-  LOGICAL precob 
+  LOGICAL precob
   precob=.false.                                             
 ! ====================================================   
   obs0=.false. ! nothing found yet
   m=0 
+  nam0=astna0
 ! find observations file name
   ireq=.false. 
   IF(iar.eq.1)THEN
-     nam0=astna0 
+     CALL rmsp(nam0,le)
+!     CALL rmsp(astna0,le)
+     nam0=astna0(1:le) 
      comment='first object obs. file name' 
      CALL input_cha_opt(progna,'nam0',nam0,ireq,found,comment,iun_log)
   ELSEIF(iar.eq.2 )THEN
-     nam0=astna0
+     CALL rmsp(nam0,le)
+     nam0=astna0(1:le)
      comment='second object obs. file name' 
      CALL input_cha_opt(progna,'namp',nam0,ireq,found,comment,iun_log)
   ENDIF
@@ -290,7 +460,7 @@ END SUBROUTINE finobs
 
 SUBROUTINE f_gaussdeg8(uniele,name,deforb,defcov,          &
      &     rwfil,obs,obsw,n,error_model,el)
-  USE fund_const, ONLY: gms  
+  USE fund_const, ONLY: gms 
   USE astrometric_observations 
   USE least_squares, ONLY: rms_compute
   USE orbit_elements
@@ -417,7 +587,7 @@ END SUBROUTINE f_gaussdeg8
 !                                                                       
 SUBROUTINE f_gauss(uniele,name,deforb,defcov,          &
      &     rwfil,obs,obsw,n,error_model,imeth,el)
-  USE fund_const, ONLY: gms  
+  USE fund_const, ONLY: gms 
   USE astrometric_observations 
   USE least_squares, ONLY: rms_compute
   USE orbit_elements
@@ -493,10 +663,9 @@ SUBROUTINE f_gauss(uniele,name,deforb,defcov,          &
      h=el%h_mag !default undefined values
      g=el%g_mag
 ! output new elements, multiline format, no header, in .fel file.       
-     CALL wro1lh(uniele,'ECLM','J2000','KEP') 
-     
+     !CALL wro1lh(uniele,'ECLM','J2000','KEP') 
      CALL wromlr(uniele,name,elem,'KEP',telem,gg,.false.,cc,.false. &
-     &        ,h,g,0.d0)  
+     &        ,h,g,0.d0,6)  
      rms=rms_compute(obs,obsw,n)
      WRITE(iun_log,222)rms 
      WRITE(*,222)rms 
@@ -520,6 +689,7 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
   USE fund_const
   USE station_coordinates, ONLY: codestat,obscoo
   USE reference_systems, ONLY: observer_position
+  USE ephem_prop
   IMPLICIT NONE 
 ! =================INPUT=========================================       
   INTEGER,INTENT(IN) :: icov ! requirements on covariance
@@ -548,7 +718,7 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
   INTEGER npo, ibv, npo1, npop 
   DOUBLE PRECISION sigma
   DOUBLE PRECISION :: aobs,dobs,adot,ddot ! alpha, delta, proper motion
-  DOUBLE PRECISION :: pha,dis,dsun,elo,gallat,gallon,elmoon,elev ! phase, dist. Earth, dist. Sun
+  DOUBLE PRECISION :: pha,dis,dsun,elo,gallat,gallon,elmoon,elev,elsun ! phase, dist. Earth, dist. Sun
   INTEGER  inl ! menu: handling of nonlinearity
   CHARACTER*20 menunam ! menu                                     
   CHARACTER*100 file,fields ! ephemerides output 
@@ -590,10 +760,11 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
      CALL predic_obs(el00,ids,t1,type1,             &
      &        alpha,delta,hmagn,inl,                                      &
      &        ADOT0=adot,DDOT0=ddot,PHA0=pha,DIS0=dis,                  &
-     &        DSUN0=dsun,ELO0=elo,GALLAT0=gallat,ELMOON0=elmoon,GALLON0=gallon,ELEV0=elev)
-     IF(icov.eq.1)THEN
-        CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
-     &     elo,dis,icov,gamad,sig,axes,elmoon,gallat,gallon,elev)
+     &        DSUN0=dsun,ELO0=elo,GALLAT0=gallat,ELMOON0=elmoon,GALLON0=gallon,ELSUN0=elsun,ELEV0=elev)
+    IF(icov.eq.1)THEN
+     CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
+     &     elo,dis,icov,gamad,sig,axes,elmoon,gallat,gallon,elev,dsun,elsun,pha)
+
      ELSE
 ! add second arc, if not there
         IF(.not.obsp)THEN
@@ -644,9 +815,9 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
      &        alpha,delta,hmagn,inl,                                    &
      &        UNCERT=unc00,GAMAD=gamad,SIG=sig,AXES=axes,          &
      &        ADOT0=adot,DDOT0=ddot,PHA0=pha,DIS0=dis,                  &
-     &        DSUN0=dsun,ELO0=elo,GALLAT0=gallat,GALLON0=gallon,ELMOON0=elmoon,ELEV0=elev)
+     &        DSUN0=dsun,ELO0=elo,GALLAT0=gallat,GALLON0=gallon,ELMOON0=elmoon,ELSUN0=elsun,ELEV0=elev)
      CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
-     &     elo,dis,icov,gamad,sig,axes,elmoon,gallat,gallon,elev)                                 
+     &     elo,dis,icov,gamad,sig,axes,elmoon,gallat,gallon,elev,dsun,elsun,pha)                                 
 ! ===================================================================   
 ! generation of sky epehemrides                                         
   ELSEIF(icov.eq.6)THEN 
@@ -663,7 +834,7 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
         file=astnam//'.eph' 
         CALL rmsp(file,ln) 
         CALL filopn(iuneph,file(1:ln),'unknown') 
-        fields='cal,mjd,coord,mag,elev,airm,elong,mooel,glat,glon,r,delta,appmot,skyerr' 
+        fields='cal,mjd,coord,mag,elev,airm,elsun,elong,mooel,glat,glon,r,delta,appmot,skyerr' 
         scale='UTC' 
         CALL ephemc(iuneph,el00,unc00,.true.,t1,t2,dt,ids,scale,fields)
         CALL filclo(iuneph,' ') 
@@ -680,9 +851,9 @@ SUBROUTINE fobpre(icov,ini00,cov00,ok,titnam,filnam,  &
      CALL predic_obs(el00,ids,t1,type1,             &
      &        alpha,delta,hmagn,inl,                                    &
      &        unc00,sigma,npo,ibv,gamad,sig,axes,npo1,                   &
-     &        adot,ddot,pha,dis,dsun,elo,gallat,ELMOON0=elmoon,GALLON0=gallon,ELEV0=elev)
+     &        adot,ddot,pha,dis,dsun,elo,gallat,ELMOON0=elmoon,GALLON0=gallon,ELSUN0=elsun,ELEV0=elev)
      CALL outobc(iun_log,type1,ids,tut,alpha,delta,hmagn,adot,ddot,    &
-     &        elo,dis,icov,gamad,sig,axes,elmoon,gallat,gallon,elev)                             
+     &        elo,dis,icov,gamad,sig,axes,elmoon,gallat,gallon,elev,dsun,elsun,pha)                             
      IF(npo1.le.0)THEN 
         WRITE(*,*)'fobpre: no elliptic orbits ',npo1 
         RETURN 
@@ -717,105 +888,102 @@ END SUBROUTINE fobpre
 ! FINELE                                                                
 ! ===================================================================   
 ! input of initial conditions                                           
-SUBROUTINE finele(progna,iar,astna0,el0,ini0,cov0,unc0)
+SUBROUTINE finele(progna,iar,astna,el,ini,cov,unc)
   USE fund_const                                
   USE orbit_elements
-  USE output_control           
+  USE output_control 
+  USE dyn_param          
   IMPLICIT NONE 
 ! ==========INPUT===================                                    
 ! file names, i/o control                                      
-  CHARACTER*18 astna0 ! asteroid full name                               
-  CHARACTER*6 progna ! program name 
-  INTEGER iar ! flag for arcs 1-2 
+  CHARACTER*(*), INTENT(IN) :: astna  ! asteroid full name                               
+  CHARACTER*6, INTENT(IN)  :: progna  ! program name 
+  INTEGER, INTENT(IN)      :: iar     ! flag for arcs 1-2 
 ! ==========OUTPUT==================                                    
 ! epoch time (MJD), elements (equinoctal), absolute magnitude, opp.effec
-  TYPE(orbit_elem), INTENT(INOUT) :: el0 !remains defined!
-  LOGICAL ini0 ! successful input flag 
-  TYPE(orb_uncert), INTENT(OUT) :: unc0 ! covariance matrices 
-  LOGICAL cov0 ! covariance available
+  TYPE(orbit_elem), INTENT(INOUT) :: el !remains defined!
+  LOGICAL, INTENT(OUT) ::  ini ! successful input flag 
+  TYPE(orb_uncert), INTENT(OUT) :: unc ! covariance matrices 
+  LOGICAL, INTENT(OUT) :: cov ! covariance available
 ! =========END INTERFACE=============                                   
 ! asteroid name for elements (18 characters)                            
-  CHARACTER*18 namel0(1) 
-  INTEGER lnam                                                   
+  CHARACTER*50 namel,name
+  INTEGER lnam, lnam1                                                   
   LOGICAL ireq, found ! logical input flags 
   CHARACTER*60 comment                     
   INTEGER le,lench ! length of names
 ! variables for reading routines  
-  CHARACTER*60 elefi0(1)   ! file name for elements    
-  DOUBLE PRECISION elem(6) 
-  DOUBLE PRECISION mass(1) 
-  CHARACTER*(80) comele(1)                                     
-  LOGICAL ini(1),cov(1) 
-  CHARACTER*3 coox,coo(1) 
-  DOUBLE PRECISION t(1),h(1),gma(1) 
-  DOUBLE PRECISION enne, eq0(6), gam(6,6), c(6,6) !elements, covariances 
-! ====================================                                  
-  lnam=lench(astna0) 
+  CHARACTER*100 elefi   ! file name for elements    
+! output from read_elems
+  INTEGER ndp, nlsloc, nmod, lsloc(ndyx) ! LSP record
+  DOUBLE PRECISION dp(ndyx) ! nongrav parameters
+  TYPE(dyn_par) :: dynam_par
+  CHARACTER*4 form ! 1l, ML
+  LOGICAL err,eof ! error, end of file (without error)
+! ====================================  
+  lnam=lench(astna) 
 ! this arc does not exist                                               
   IF(lnam.eq.0)RETURN 
 ! ====================================================                  
+! inizialization of ini
+  ini=.FALSE.
 ! check that the asteroid name has been read 
-  ireq=.false. 
-  namel0(1)=astna0
+  ireq=.false.
+  namel=' ' 
+  namel=astna
   IF(iar.eq.1)THEN 
      comment='first arc asteroid name'
-     CALL input_cha_opt(progna,'namel0',namel0(1),ireq,found,comment,iun_log)
+     CALL input_cha_opt(progna,'namel0',namel,ireq,found,comment,iun_log)
   ELSEIF(iar.eq.2)THEN 
      comment='second arc asteroid name'
-     CALL input_cha_opt(progna,'namelp',namel0(1),ireq,found,comment,iun_log)
+     CALL input_cha_opt(progna,'namelp',namel,ireq,found,comment,iun_log)
   ENDIF
-  CALL rmsp(namel0(1),lnam) 
+  CALL rmsp(namel,lnam) 
 ! read the name of the elements file, inquire                           
   ireq=.false. 
-  elefi0(1)='ast.cat' 
+  elefi='ast.cat' ! default not used; only to fail graciously when no orbit given
   IF(iar.eq.1)THEN 
      comment='first arc elements file'
-     CALL input_cha_opt(progna,'elefi0',elefi0(1),ireq,found,comment,iun_log)
+     CALL input_cha_opt(progna,'elefi0',elefi,ireq,found,comment,iun_log)
   ELSEIF(iar.eq.2)THEN 
      comment='second arc elements file'
-     CALL input_cha_opt(progna,'elefip',elefi0(1),ireq,found,comment,iun_log)
+     CALL input_cha_opt(progna,'elefip',elefi,ireq,found,comment,iun_log)
   ENDIF
-  CALL rmsp(elefi0(1),le) 
-  INQUIRE(file=elefi0(1),exist=found) 
+  CALL rmsp(elefi,le)
+!============================================= 
+  INQUIRE(file=elefi,exist=found) 
   IF(found)THEN 
-     ini(1)=.false. 
-     CALL rdelem(iun_log,namel0(1),1,elefi0(1),1,ini,cov,             &
-     &        coo,t,elem,gam,c,mass,h,gma,comele)                       
-! error case      
-     ini0=ini(1)                                      
-     IF(.not.ini0)THEN 
-        write(*,*)'asteroid ',namel0,' not found in ',elefi0 
-        write(iun_log,*)'asteroid ',namel0,' not found in ',elefi0 
-        RETURN 
+     CALL read_elems(el,name,eof,nlsloc,err,lsloc,form,unc,elefi)
+     CALL rmsp(name,lnam1)
+     IF(name.ne.namel)THEN
+! WARNING: elefi must contain only the orbit of the one we are looking for; scanning
+!          of the file for finding one object has been disabled.
+        WRITE(*,*)' finele: asteroid ',namel(1:lnam),' not found in file ',elefi(1:le),' found ',name(1:lnam1)
+        RETURN
      ENDIF
-     cov0=cov(1) 
-     coox=coo(1)
-     el0=undefined_orbit_elem
-     el0%coo=coo(1) 
-     el0%t=t(1) 
-     IF(h(1).gt.0.d0)THEN
-        el0%mag_set=.true.
+! control of errors
+     IF(err) RETURN
+! initial conditions found
+     ini=.true.     
+     IF(unc%succ)THEN
+        cov=.true.
      ELSE
-        el0%mag_set=.false.
+        cov=.false. ! even if covariance was available before, it is not applicable now
      ENDIF
-     el0%h_mag=h(1) 
-     el0%ndim=6
-     IF(gma(1).lt.-1.d6)THEN 
-        el0%g_mag=0.15d0
-     ELSE 
-        el0%g_mag=gma(1)
+     WRITE(*,*) 'input orbit file correctly read'
+     WRITE(iun_log,*) 'input orbit file correctly read'
+     WRITE(*,*) el
+     WRITE(iun_log,*) el
+! if consistent with the model being used, store dp in dyn_param.dyn
+     IF(.NOT.ngr_opt.AND.dyn%ndp.GT.0.AND.nlsloc.NE.0)THEN 
+        nls=nlsloc
+        ls=lsloc
      ENDIF
-     el0%coord=elem
-! initial conditions found                                              
-     WRITE(*,*)el0
+! lsloc, nlsloc are not used, that is the options in the .fop file prevail on the options used
+!        in the computation of orbit contained in elefi
   ELSE 
-     WRITE(*,*) 'File ',elefi0(1)(1:le),' not found!' 
-  ENDIF
-  IF(cov0)THEN
-     unc0=undefined_orb_uncert
-     unc0%g=gam
-     unc0%c=c
-     unc0%succ=.true.
+     WRITE(*,*) 'File ',elefi(1:le),' not found!' 
+     WRITE(iun_log,*) 'File ',elefi(1:le),' not found!' 
   ENDIF
 END SUBROUTINE finele
                                          
@@ -883,10 +1051,10 @@ SUBROUTINE fident(id_dim,cov0,covp,el0,elp,unc0,uncp,elid,ff)
 !  ENDIF
   eq0=el0%coord
   eqp=elp%coord
-  g0=unc0%g
-  c0=unc0%c
-  gp=uncp%g
-  cp=uncp%c
+  g0(1:6,1:6)=unc0%g(1:6,1:6)
+  c0(1:6,1:6)=unc0%c(1:6,1:6)
+  gp(1:6,1:6)=uncp%g(1:6,1:6)
+  cp(1:6,1:6)=uncp%c(1:6,1:6)
 ! selection of algorithm                                                
   IF(id_dim.eq.5)THEN 
 ! identification by 5x5 matrix                                          

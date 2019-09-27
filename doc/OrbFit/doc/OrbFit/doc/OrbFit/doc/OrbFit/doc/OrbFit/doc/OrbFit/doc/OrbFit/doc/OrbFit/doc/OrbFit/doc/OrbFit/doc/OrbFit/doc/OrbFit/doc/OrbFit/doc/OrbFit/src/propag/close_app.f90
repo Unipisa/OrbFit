@@ -6,7 +6,10 @@
 ! PRIVATE ROUTINES 
 !               stepcon                                                 
 !               falsi                                                   
-!               strclo    
+!               strclo  
+!               falsi_surf
+!               strsurf
+!               geod_hsurf
 ! 
 ! OUT OF MODULE
 !            npoint_set             
@@ -44,8 +47,10 @@ INTEGER npoint
 LOGICAL clost
 ! fix mole flag... to be used only by resret2...find close app min (vsa_attx)
 LOGICAL fix_mole, kill_propag, min_dist
+! logical to activate impact corridor computation
+LOGICAL surf_stop
 
-PUBLIC eprdot,npoint,clost,fix_mole, kill_propag, min_dist
+PUBLIC eprdot,npoint,clost,fix_mole, kill_propag, min_dist, surf_stop
 
 ! PRIVATE COMMON DATA   
 
@@ -117,7 +122,8 @@ CONTAINS
           jc=0 
 ! first call to falsi                                                   
           first=.true. 
-          IF(min_dist) CALL falsi(tcur,xa,va,nv,xpla,jc,first,iplam) 
+          IF(min_dist) CALL falsi(tcur,xa,va,nv,xpla,jc,first,iplam)
+          IF(surf_stop.AND.iplam.EQ.3) CALL falsi_surf(tcur,xa,va,nv,xpla,first,iplam)
 ! setup of fixed stepsize                                               
           nesold=nes 
           nes=.true. 
@@ -134,13 +140,14 @@ CONTAINS
 !    control of inconsistences                                          
        IF(idc.ne.0)THEN 
           IF(idc.ne.ic.or.idc.gt.nmass.or.idc.lt.0)THEN 
-             WRITE(*,*)' closap: this should not happen',idc,ic 
+             WRITE(*,*)' cloapp: this should not happen',idc,ic 
           ENDIF
 ! relative position and velocity                                        
           x(1:3)=xa(1:3)-xpla(1:3) 
           v(1:3)=va(1:3)-xpla(4:6) 
           first=.false. 
           IF(min_dist)CALL falsi(tcur,xa,va,nv,xpla,jc,first,iplam)
+          IF(surf_stop.AND.iplam.EQ.3) CALL falsi_surf(tcur,xa,va,nv,xpla,first,iplam)
 ! mole fix case: check kill_propag
           IF(kill_propag)THEN
              cloend=.true. 
@@ -198,7 +205,7 @@ CONTAINS
       IF(abs(dt).lt.1.d-5)THEN 
          WRITE(iun_log,*)'stepcon: ',dt, dtold,vsize(x),vsize(v),dtheta1,jgeo  
          dt=1.d-5
-         IF(.not.min_dist)kill_propag=.true.
+         IF(.not.min_dist.and.(.not.surf_stop))kill_propag=.true.
       ENDIF     
       END SUBROUTINE stepcon                                          
 ! =====================================                                 
@@ -229,7 +236,7 @@ CONTAINS
    DOUBLE PRECISION z1,z2,z0,zdot1,zdot2,zdot0 
 ! functions                                                             
    DOUBLE PRECISION vsize,prscal 
-! state vectors: without partials ! with partials 
+! state vectors: with partials 
    INCLUDE 'nvarx.h90' 
    DOUBLE PRECISION x(nvar2x),v(nvar2x),xt(nvar2x),vt(nvar2x),xplat(6) 
    DOUBLE PRECISION xat(nvar2x),vat(nvar2x) 
@@ -238,7 +245,7 @@ CONTAINS
 ! iterations                                                            
    INTEGER it,i 
 ! ======for ID========                                                
-   DOUBLE PRECISION moid0 
+!   DOUBLE PRECISION moid0 
 ! variables for call to dmintil_rms                                  
    DOUBLE PRECISION x6(6) 
    TYPE(orbit_elem) el1,el2
@@ -266,22 +273,22 @@ CONTAINS
       tt1=t 
       r1=vsize(x) 
       rdot1=prscal(x,v)/r1 
-      IF(nv.eq.21)THEN
+! MOID needed also when not propagating covariance
+!      IF(nv.ge.21)THEN
 ! MOID at the beginning of each encounter                               
-         x6(1:3)=xa(1:3) 
-         x6(4:6)=va(1:3)      
-         el2=undefined_orbit_elem
-         IF(rhs.EQ.2)THEN
-            el2%center=3
-         END IF
-         el2%t=t
-         el2%coo='CAR'
-         el1=el2
-         el2%coord=x6 ! asteroid cartesian elements
-         el1%coord=xpla
-!         CALL compute_minima_ta(x6,xpla,iplam,cmin,cplmin,d2,nummin)
-         CALL dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min)
-      ENDIF 
+      x6(1:3)=xa(1:3) 
+      x6(4:6)=va(1:3)      
+      el2=undefined_orbit_elem
+!      IF(rhs.EQ.2)THEN
+!         el2%center=3
+!      END IF
+      el2%t=t
+      el2%coo='CAR'
+      el1=el2
+      el2%coord=x6 ! asteroid cartesian elements
+      el1%coord=xpla
+      CALL dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min)
+!      ENDIF 
 ! end initialisation of close approach                                  
       RETURN 
    ENDIF
@@ -300,11 +307,13 @@ CONTAINS
       RETURN 
    ENDIF
 ! if inside Earth, use 2-body propagation
-   IF(iplam.eq.3.and.r2.lt.4.2e-5.and.fix_mole)THEN
+   IF(iplam.eq.3.and.r2.lt.reau.and.fix_mole)THEN
+! WARNING: in this way the minimum is not found
 ! let this be handled by strclo       
       CALL strclo(iplam,t,xpla,xa,va,nv,jc,r2,rdot2,         &
      &        dmintil,c1min,nummin)                                         
       rdot2=0.d0 
+! END WARNING
 ! check for minimum distance                                            
    ELSEIF(abs(rdot2).lt.eprdot)THEN 
 ! already at stationary point; WARNING: is it a minimum?                
@@ -375,18 +384,20 @@ CONTAINS
   SUBROUTINE  tp_fser(nv,t0,xt,vt,iplam,xpla,xat,vat,dt)
     USE ever_pitkin
     USE planet_masses
+    USE dyn_param, ONLY: ndimx
     INTEGER, INTENT(IN) :: nv,iplam
     DOUBLE PRECISION, INTENT(IN) :: t0,xt(nv),vt(nv)
     DOUBLE PRECISION, INTENT(OUT) :: dt, xpla(6),xat(nv),vat(nv)
 ! ===================== 
-    DOUBLE PRECISION, DIMENSION(6,6) :: dxvdxtvt,dxvdx0,dxdx0
+    DOUBLE PRECISION, DIMENSION(6,6) :: dxvdxtvt ! only initial conditions
+    DOUBLE PRECISION, DIMENSION(6,ndimx) :: dxvdx0,dxdx0 ! also possibly dyn.par
     DOUBLE PRECISION, DIMENSION(3) :: vlenz
     DOUBLE PRECISION :: vel2,gei2,gei,ecc,peri,sig0,alpha,psi,r0,conv_contr
 !  ang era definito scalare....
     DOUBLE PRECISION, DIMENSION(3) :: ang
-
 ! functions                                                             
-    DOUBLE PRECISION vsize,prscal 
+    DOUBLE PRECISION vsize,prscal
+    INTEGER nd 
     r0=vsize(xt)
     vel2=prscal(vt,vt)
     call prvec(xt,vt,ang)
@@ -407,10 +418,11 @@ CONTAINS
     IF(nv.eq.3)THEN
        CALL fser_propag(xt,vt,0.d0,dt,gm(iplam),xat(1:3),vat(1:3))
     ELSE
-       CALL vawrxv(xt,vt,dxdx0,nv)
+       nd=nv/3-1
+       CALL vawrxv(xt,vt,dxdx0(:,1:nd),nv,nd)
        CALL fser_propag_der(xt,vt,0.d0,dt,gm(iplam),xat(1:3),vat(1:3),dxvdxtvt)
-       dxvdx0=MATMUL(dxvdxtvt,dxdx0)
-       CALL varunw(dxvdx0,xat,vat,nv)
+       dxvdx0(:,1:nd)=MATMUL(dxvdxtvt,dxdx0(:,1:nd))
+       CALL varunw(dxvdx0,xat,vat,nd,nv)
        r0=vsize(xat)
        vel2=prscal(vat,vat)
        call prvec(xat,vat,ang)
@@ -436,6 +448,7 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
      &             dmintil,c1min,nummin) 
   USE tp_trace
   USE planet_masses
+  USE dyn_param, ONLY:nls
 ! input                                                                 
 ! planet number
   INTEGER, INTENT(IN) :: iplam0
@@ -470,19 +483,21 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
   CHARACTER*16 date 
 ! multiple minima analysis                                              
   DOUBLE PRECISION cosa,angle,prscal,angmin 
+  INTEGER iun
   INTEGER j
+  iun=abs(iun_log)
   iplam=iplam0
   planam=ordnam(iplam)
-! control to avoid computation of moid in strange orbits 
-  IF(nv.eq.21)THEN
 ! store current local moid (just before encounter)                      
-     IF(nummin.le.0)THEN
-        moid0=-0.9999d0
-        angmoid=0.d0
-     ELSE   
-        moid0=abs(dmintil(1)) 
-        angmoid=4.d2 
-        angmin=4.d2
+  IF(nummin.le.0)THEN
+     moid0=-0.9999d0
+     angmoid=0.d0
+  ELSE   
+     moid0=abs(dmintil(1)) 
+     angmoid=4.d2 
+     angmin=4.d2
+! control to avoid computation of moid in strange orbits 
+     IF(nv.ge.21)THEN
         DO j=1,nummin 
            cosa=prscal(c1min(1,j),xpla)/(vsize(c1min(1,j))*vsize(xpla)) 
            angle=acos(cosa) 
@@ -502,7 +517,9 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
   x(1:3)=xa(1:3)-xpla(1:3) 
   v(1:3)=va(1:3)-xpla(4:6) 
 ! handle near miss
-   IF(iplam.eq.3.and.r.lt.reau*20)THEN
+! WARNING: why 20*reau? should be less???????????????????????????
+   IF(iplam.eq.3.and.r.lt.reau)THEN
+! WARNING ????????????????????????????????????????
 ! if inside Earth, use 2-body propagation
       CALL tp_fser(nv,tcur,x,v,iplam,xpla2,xat,vat,dt)
 ! xat,vat are planetocentric a periplanet
@@ -548,13 +565,18 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
   IF(verb_clo.gt.9)THEN
      write(date,'(i4,a1,i2.2,a1,i2.2,f6.5)') iyear,'/',imonth,'/',iday,hour/24d0
      WRITE(*,97)planam(1:lpla),date,tcur2,r2 
-97   FORMAT(' Close approach to ',a,' on ',a16,f12.5,' MJD at ',f10.8,' AU.')
+     WRITE(iun,97)planam(1:lpla),date,tcur2,r2 
+97   FORMAT(' Close approach to ',a,' on ',a16,f12.5,' MJD at ',f10.8,' au')
   ENDIF
   IF(nv.eq.3)THEN 
 ! nothing to do
-  ELSEIF(nv.eq.21)THEN 
+  ELSEIF(nv.ge.21)THEN
+     IF(nv.ne.21+3*nls)THEN
+        WRITE(*,*)'strclo: error in dimensions, nv, nls ', nv,nls
+        STOP
+     ENDIF
 ! store partials at close approach time                                 
-     DO i=4,21 
+     DO i=4,nv 
         xcla(i,jc)=xat(i) 
         vcla(i,jc)=vat(i) 
      ENDDO
@@ -566,6 +588,247 @@ SUBROUTINE strclo(iplam0,tcur,xpla,xa,va,nv,jc,r,rdot,            &
   ENDIF
 END SUBROUTINE strclo
   
+ ! =================================================
+ ! FALSI_SURF
+ ! regula falsi for impact corridor computation
+ ! =================================================
+ SUBROUTINE falsi_surf(t,xa,va,nv,xpla,first,iplam) 
+   USE output_control
+   USE runge_kutta_gauss
+   USE planet_masses
+   USE critical_points
+   USE orbit_elements
+   USE surf_trace, ONLY: fail_surf
+   ! current position and velocity of asteroid and planet                                         
+   INTEGER,          INTENT(IN) :: nv 
+   REAL(KIND=dkind), INTENT(IN) :: t,xa(nv),va(nv),xpla(6) 
+   ! is this the beginning of an integration?                              
+   LOGICAL,          INTENT(IN) :: first 
+   ! planet being approached                                               
+   INTEGER,          INTENT(IN) :: iplam 
+
+   ! fixed stepsize time interval                                          
+   REAL(KIND=dkind)   :: tt1,tt2 
+   ! data for regula falsi        
+   REAL(KIND=dkind)   :: ell_dist1,ell_dist2,ell_dist0,t1,t2,t0,hei
+   ! state vectors: with partials 
+   INCLUDE 'nvarx.h90' 
+   REAL(KIND=dkind)   :: x(nvar2x),v(nvar2x),xt(nvar2x),vt(nvar2x)
+   REAL(KIND=dkind)   :: xat(nvar2x),vat(nvar2x),xplat(6) 
+   ! time steps                                                            
+   REAL(KIND=dkind)   :: dt,tt,di,hh
+   ! loop indices 
+   INTEGER            :: it,i  
+   ! functions                                                             
+   !REAL(KIND=dkind)   :: vsize,prscal
+   ! max no. iterations of falsi 
+   INTEGER, PARAMETER :: itmax_f=50 
+   
+   ! memory model is static                                                
+   SAVE 
+   ! default for flag stopping propagation due to collision
+   kill_propag=.false.
+   ! planetocentric position with derivatives
+   x(1:nv)=xa(1:nv)
+   v(1:nv)=va(1:nv)
+   x(1:3)=xa(1:3)-xpla(1:3) 
+   v(1:3)=va(1:3)-xpla(4:6) 
+   ! initialisation at the beginning of each close approach   
+  
+   IF(first)THEN
+      fail_surf=.FALSE.
+      tt1=t 
+      ell_dist1=geod_hsurf(iplam,x(1:3))
+      RETURN 
+   ENDIF
+   ! compute distance to ellipsoid surface           
+   ell_dist2=geod_hsurf(iplam,x(1:3))
+   tt2=t 
+   ! direction of time propagation                                         
+   IF(tt2.gt.tt1)THEN 
+      di=1.d0 
+   ELSEIF(tt2.lt.tt1)THEN 
+      di=-1.d0 
+   ELSE 
+      WRITE(iun_log,199) tt1,tt2,x(1:3)
+199   FORMAT('falsi_surf: zero step ',f8.2,1x,f8.2,1P,3(1x,d10.3))
+      RETURN 
+   ENDIF
+   IF(abs(ell_dist2).lt.eprdot)THEN 
+      ! already at ellipsoid surface: store result
+      CALL strsurf(iplam,t,xpla,xa,va,nv)                                         
+      ell_dist2=0.d0
+   ELSEIF(ell_dist1*di.gt.0.d0.and.ell_dist2*di.lt.0.d0)THEN 
+      ! ell_dist changes sign, in a way appropriate for an object approaching the ellipsoid surface         
+      t1=tt1 
+      t2=tt2 
+      dt=-ell_dist2*(t1-t2)/(ell_dist1-ell_dist2)
+      tt=dt+t2 
+      hh=tt-t 
+      ! iterate regula falsi                                                  
+      DO it=1,itmax_f 
+         CALL rkg(t,xa,va,nv,hh,xat,vat,xplat)
+         ! planetocentric position                                        
+         xt(1:3)=xat(1:3)-xplat(1:3) 
+         vt(1:3)=vat(1:3)-xplat(4:6)
+         ell_dist0=geod_hsurf(iplam,xt(1:3))
+         t0=tt 
+         ! selection of next couple of points with opposite sign                 
+         IF(abs(ell_dist0).lt.eprdot)THEN 
+            ! already at ellipsoid surface: store result 
+            CALL strsurf(iplam,tt,xplat,xat,vat,nv)     
+            GOTO 2 
+         ELSEIF(ell_dist0*ell_dist1.lt.0.d0)THEN 
+            ell_dist2=ell_dist0
+            t2=t0 
+         ELSEIF(ell_dist0*ell_dist2.lt.0.d0)THEN 
+            ell_dist1=ell_dist0
+            t1=t0 
+         ENDIF
+         dt=-ell_dist2*(t1-t2)/(ell_dist1-ell_dist2)
+         tt=dt+t2 
+         hh=tt-t 
+      ENDDO
+      ! failed convergence              
+      CALL strsurf(iplam,t0,xplat,xat,vat,nv)
+      WRITE(ierrou,*) 'falsi_surf: failed convergence for ', ordnam(iplam) 
+      WRITE(ierrou,*) 't1,ell_dist1,t2,ell_dist2,dt,tt' 
+      WRITE(ierrou,111) t1,ell_dist1,t2,ell_dist2,dt,tt
+111   FORMAT(6(1x,E24.16)) 
+      numerr=numerr+1 
+   ELSEIF(ell_dist1*di.lt.0.d0.and.ell_dist2*di.gt.0.d0)THEN
+      numerr=numerr+1
+      WRITE(ierrou,*) 'falsi_surf: object comes from interior of surface!'
+      WRITE(*,*) 'falsi_surf: object comes from interior of surface!'
+      kill_propag=.TRUE.
+      fail_surf=.TRUE.
+      RETURN
+      !STOP
+   ENDIF
+   ! found zero                                                            
+2  CONTINUE 
+   ! save current state to be previous state next time                     
+   tt1=tt2 
+   ell_dist1=ell_dist2
+ END SUBROUTINE falsi_surf
+
+ ! ===================================================                   
+ ! GEOD_HSURF
+ ! It computes the difference between the altitude over the 
+ ! geoid surface of the planet and the altitude height_surf
+ ! Zero value corresponds to a point at height height_surf 
+ ! over the geoid surface of the planet.
+ ! ===================================================                   
+ REAL(KIND=dkind) FUNCTION geod_hsurf(iplam0,pos_pla_ecl)
+   USE surf_trace
+   INTEGER,                        INTENT(IN) :: iplam0       ! index of planet
+   REAL(KIND=dkind), DIMENSION(3), INTENT(IN) :: pos_pla_ecl  ! geocentric ecliptic position
+   REAL(KIND=dkind), DIMENSION(3) :: x                        ! geocentric equatorial position
+   INTEGER                        :: i                        ! loop index
+   REAL(KIND=dkind)               :: ecc_squared              ! eccentricity of geoid squared
+   REAL(KIND=dkind)               :: z,t,zt,sinfi,h,dn,dnh,delth,h0
+
+   IF(iplam0.eq.3)THEN
+      ! this is an approximation, the altitude computed will not be exactly the altitude on Earth
+      x=MATMUL(roteceq,pos_pla_ecl)  
+   ELSE
+      numerr=numerr+1
+      WRITE(ierrou,*) 'geod_hsurf: not ready for impact corridor on planet different from Earth'
+      WRITE(*,*) 'geod_hsurf: not ready for impact corridor on planet different from Earth'
+      STOP
+   ENDIF
+   ecc_squared=flatt_surf*(2.d0-flatt_surf)
+   ! initialization
+   t=0.d0
+   h0=0.d0
+   dn=0.d0
+   ! conversion to km for internal loop
+   x=x*aukm
+   z=x(3)
+   DO i=1,40
+      zt=z+t
+      dnh=SQRT((x(1)**2+x(2)**2+zt**2))
+      sinfi=zt/dnh
+      !dn=eradkm/SQRT(1.d0-ecc_squared*sinfi**2)
+      dn=rad_surf/SQRT(1.d0-ecc_squared*sinfi**2)
+      t=dn*ecc_squared*sinfi
+      h=dnh-dn
+      delth=ABS(h-h0)
+      IF(delth.lt.1.d-5) EXIT
+      h0=h
+   ENDDO
+   IF(i.ge.40)THEN
+      numwar=numwar+1
+      WRITE(iwarou,*) 'geod_hsurf: convergence not attained, i= ',i
+   ENDIF
+   geod_hsurf=(h-height_surf*aukm)/aukm
+ END FUNCTION geod_hsurf
+
+ ! ===================================================                   
+ ! STRSURF                                                             
+ ! store intersection point with surface at height h
+ ! ===================================================                   
+ SUBROUTINE strsurf(ipl,tcur,xpla,xa,va,nv) 
+   USE surf_trace
+   USE dyn_param, ONLY:nls
+   ! input             
+   INTEGER, INTENT(IN) :: ipl   ! planet index 
+   ! time current
+   DOUBLE PRECISION,INTENT(IN) :: tcur
+   !  planet position and velocity                                         
+   DOUBLE PRECISION, INTENT(IN):: xpla(6) 
+   ! heliocentrci position and velocity                                    
+   !  with partial derivatives if nv=21, without if nv=3
+   !  (also dynamical paramenters if nv>21)                   
+   INTEGER, INTENT(IN) :: nv 
+   DOUBLE PRECISION, INTENT(IN) :: xa(nv),va(nv) 
+   ! =========end interface==================== 
+   ! state vectors: without partials ! with partials 
+   INCLUDE 'nvarx.h90' 
+   DOUBLE PRECISION x(nvar2x),v(nvar2x)
+   INTEGER i 
+
+   ! planetocentric position with derivatives
+   x(1:nv)=xa(1:nv)
+   v(1:nv)=va(1:nv)
+   x(1:3)=xa(1:3)-xpla(1:3) 
+   v(1:3)=va(1:3)-xpla(4:6) 
+
+   ! store surface intersection point                                            
+   tsurf=tcur 
+   ipla_ic=ipl   ! planet index   
+   DO i=1,3
+      xsurf(i)=x(i)
+      vsurf(i)=v(i) 
+      xplajs(i)=xpla(i) 
+      xplajs(i+3)=xpla(3+i) 
+   ENDDO
+      
+   IF(nv.GE.21)THEN
+      IF(nv.ne.21+3*nls)THEN
+         numerr=numerr+1
+         WRITE(ierrou,*)'strsurf: error in dimensions, nv, nls ', nv,nls
+         WRITE(*,*)'strsurf: error in dimensions, nv, nls ', nv,nls
+         STOP
+      ENDIF
+      ! store partials at close approach time                                 
+      DO i=4,nv 
+         xsurf(i)=x(i) 
+         vsurf(i)=v(i) 
+      ENDDO
+      ! planet velocity is needed [to define reference system] 
+      xplajs(1:6)=xpla(1:6) 
+   ELSEIF(nv.NE.3)THEN
+      numerr=numerr+1
+      WRITE(ierrou,*)' strsurf: nv=',nv 
+      WRITE(*,*)' strsurf: nv=',nv 
+      STOP 
+   ENDIF
+   ! STOP PROPAGATION
+   kill_propag=.TRUE.
+ END SUBROUTINE strsurf
+
+
 END MODULE close_app  
 
 ! routines not belonging to the module

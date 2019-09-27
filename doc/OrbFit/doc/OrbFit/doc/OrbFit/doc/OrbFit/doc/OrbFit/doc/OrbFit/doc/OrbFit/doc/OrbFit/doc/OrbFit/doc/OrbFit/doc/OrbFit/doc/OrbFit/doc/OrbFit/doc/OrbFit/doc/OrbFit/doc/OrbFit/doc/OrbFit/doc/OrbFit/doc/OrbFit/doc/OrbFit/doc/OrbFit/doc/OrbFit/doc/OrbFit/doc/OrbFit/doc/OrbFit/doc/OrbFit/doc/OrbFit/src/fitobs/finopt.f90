@@ -6,6 +6,15 @@
 !        run    = run identifier (80 characters, up to 76 non-blank)    
 SUBROUTINE finopt(progna,run,astna0,astnap,error_model) 
   USE output_control
+  USE tp_trace, ONLY: tpplane
+  USE eval_risk, ONLY: givenmass, massgiven
+  USE fund_const
+  USE astrometric_observations, ONLY: radius, ons_name
+  USE offlov_checktp, ONLY: shrinkea
+  USE cobweb, ONLY: hmax,sigx,ndir,np,ndir2,np2,grid_lev_curve,propag_geoc_orbit
+  USE dyn_param, ONLY : ngr_opt
+  USE multi_store, ONLY : prob_sampl
+  USE cla_store, ONLY : dmeacontr
   implicit none 
   character*6,INTENT(IN) :: progna 
   character*80,INTENT(IN) :: run 
@@ -20,37 +29,45 @@ SUBROUTINE finopt(progna,run,astna0,astnap,error_model)
   CHARACTER*60 comment 
   CHARACTER*100 filnam
   INTEGER iunout, iuncovar ! now only local names
-! =============================
+! modification to input mass from physical observations
+  INCLUDE 'parlib.h90' 
+  CHARACTER*200 filmass
+  LOGICAL ok
+  INTEGER iunmass
+! ===================================================================== 
   CALL initopt(progna,run,'fop')                                         
-! read option for physical model and integration method                 
-  CALL rmodel(1) 
-! ==============================                                        
-! initialisations for Gauss method                                      
-  CALL iodini 
 ! ===================================================================== 
 ! Output files: for control and results, for covariance  
+! === WARNING === 
+! File fou to be opened here because rmodel could write in it
   filnam=run//'.fou' 
   CALL rmsp(filnam,le) 
-  call filopn(iunout,filnam,'UNKNOWN')
+  CALL filopn(iunout,filnam,'UNKNOWN')
   iun_log=iunout ! later iunout to be abolished
   filnam=run//'.fga' 
   CALL rmsp(filnam,le) 
-  call filopn(iuncovar,filnam,'UNKNOWN')
+  CALL filopn(iuncovar,filnam,'UNKNOWN')
   iun_covar=iuncovar
+! ===================================================================== 
+! read option for physical model and integration method                 
+  CALL rmodel(1) 
+! ===================================================================== 
+! initializations for Gauss method                                      
+  CALL iodini 
 ! ===================================================================== 
 ! Output files: for errors, close approaches, for propagator parameters 
   filnam=run//'.err' 
   CALL rmsp(filnam,le)
-  call filopn(ierrou,filnam,'UNKNOWN') 
+  CALL filopn(ierrou,filnam,'UNKNOWN') 
   numerr=0 
   filnam=run//'.clo' 
   CALL rmsp(filnam,le)
-  call filopn(iuncla,filnam,'UNKNOWN') 
+  CALL filopn(iuncla,filnam,'UNKNOWN') 
   numcla=0
   filnam=run//'.pro' 
   CALL rmsp(filnam,le)
-  call filopn(ipirip,filnam,'UNKNOWN')
-! =============================                                         
+  CALL filopn(ipirip,filnam,'UNKNOWN')
+! =============================
 ! asteroid name(s)                                                      
 ! =============SOME ASTEROID NAME NEEDED===================
   ireq=.false.
@@ -58,6 +75,9 @@ SUBROUTINE finopt(progna,run,astna0,astnap,error_model)
   comment='first arc asteroid name'
   CALL input_cha_opt(progna,'astna0',astna0,ireq,found,comment,iunout)
   CALL rmsp(astna0,le)
+  ons_name=.false.
+  comment='not a designation'
+  CALL input_log_opt(progna,'ons_name',ons_name,ireq,found,comment,iunout)
   ireq=.false. 
   astnap=' '
   comment='second arc asteroid name'
@@ -68,6 +88,49 @@ SUBROUTINE finopt(progna,run,astna0,astnap,error_model)
   ireq=.false.
   comment='error model file'
   CALL input_cha_opt(progna,'error_model',error_model,ireq,found,comment,iunout)
+! =============FOR COBWEB ============================
+  comment='compute a grid for the level curves in case of cobweb'
+  CALL input_log_opt(progna,'grid_lev_curve',grid_lev_curve,ireq,found,comment,iunout)
+  comment='number of rho values at first iteration'
+  CALL input_int_opt(progna,'cob_ndir',ndir,ireq,found,comment,iunout)
+  comment='number of rho_dot values at first iteration'
+  CALL input_int_opt(progna,'cob_np',np,ireq,found,comment,iunout)
+  comment='number of rho values at second iteration (also for cobweb)'
+  CALL input_int_opt(progna,'cob_ndir2',ndir2,ireq,found,comment,iunout)
+  comment='number of rho_dot values at second iteration (also for cobweb)'
+  CALL input_int_opt(progna,'cob_np2',np2,ireq,found,comment,iunout)
+  comment='sigma max for cobweb'
+  CALL input_rea_opt(progna,'cob_sigx',sigx,ireq,found,comment,iunout)
+  comment='max absolute magnitude'
+  CALL input_rea_opt(progna,'cob_hmax',hmax,ireq,found,comment,iunout)
+  comment='propag geocentric orbits'
+  CALL input_log_opt(progna,'propag_geoc_orbit',propag_geoc_orbit,ireq,found,comment,iunout)
+! ======selection of target plane=====================
+!  tpplane is set to false in rmodel; true is default in fitobs
+  tpplane=.true.
+  comment='use b-plane as target plane' 
+  CALL input_log_opt(progna,'tpplane',tpplane,ireq,found,comment,iunout)
+! ======is mass given in a separate file?=====================
+  massgiven=.false.
+  comment='mass given in a separate file'
+  CALL input_log_opt(progna,'massgiven',massgiven,ireq,found,comment,iunout)
+  IF(massgiven)THEN
+! get mass known from other sources, if available
+     filmass=dlibd//'/'//astna0//'.mass'
+     CALL rmsp(filmass,le)
+     INQUIRE(file=filmass,exist=ok)
+     IF(ok)THEN
+        CALL filopn(iunmass,filmass(1:le),'old')
+        READ(iunmass,*) givenmass, radius
+        massgiven=.true.
+        radius=radius/aukm ! convert from km to AU
+        CALL filclo(iunmass,' ')
+     ELSE
+        WRITE(*,*) filmass(1:le),'not found, no mass data'
+        massgiven=.false.
+        STOP
+     ENDIF
+  ENDIF
 ! =============bizarre control=======================   
 ! ================limit eccentricity============================            
   ireq=.false. 
@@ -97,4 +160,23 @@ SUBROUTINE finopt(progna,run,astna0,astnap,error_model)
   CALL input_rea_opt(progna,'qmax',qmax,ireq,found,comment,iunout)
 ! ================control on bizarre orbits================ 
   CALL bizset(ecclim,samin,samax,phmin,ahmax,qmax) 
+! shrink of Earth cross section
+  ireq=.false. 
+  shrinkea=1.d0
+  comment='shrink of Earth cross section'
+  CALL input_rea_opt(progna,'shrinkea',shrinkea,ireq,found,comment,iunout)
+  IF(shrinkea.GT.1.d0)THEN
+     WRITE(*,*)'resintpopt: shrinkea must be smaller than 1, shrinkea=',shrinkea
+     STOP
+  ENDIF
+! =================use of IP sampling/sigma_lov sampling===================
+  ireq=.false.
+  prob_sampl=.false.
+  comment='use of constant steps in IP'
+  CALL input_log_opt(progna,'prob_sampl',prob_sampl,ireq,found,comment,iunout)
+! ================selection of smaller disk (for total ignore of close app)=====
+  ireq=.false.  
+  comment='max dist. for inclolinctp'
+!  dmeacontr=dmea
+  CALL input_rea_opt(progna,'dmeacontr',dmeacontr,ireq,found,comment,iunout)
 END SUBROUTINE finopt

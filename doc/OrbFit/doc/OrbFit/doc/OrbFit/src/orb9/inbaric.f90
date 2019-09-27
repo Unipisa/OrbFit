@@ -39,6 +39,8 @@ PROGRAM inbaric
   INTEGER ncen,nbo,noutp,nbod 
 ! loop indexes                                                          
   INTEGER i,m,j,len 
+! fail flag in reading JPL ephemerides
+  LOGICAL fail
 !  =========================================                            
 !  arrays for consulting jpl software                                   
   INCLUDE 'jplhdr.h90' 
@@ -87,11 +89,38 @@ PROGRAM inbaric
   ENDDO
 !   ========================================                            
 !   (4) copy masses, in au**3/day**2 in JPL ephem                       
-  gm(1)=cval(18) 
-  DO  m=1,npla 
-     gm(m+1)=cval(8+m) 
+!  gm(1)=cval(18) 
+!  DO  m=1,npla 
+!     gm(m+1)=cval(8+m) 
+!  ENDDO
+  gm=0.d0
+  DO i=1,30 ! maybe more???
+     IF(cnam(i).eq.'GMS')THEN
+        gm(1)=cval(i)
+     ELSEIF(cnam(i).eq.'GM1')THEN
+        gm(2)=cval(i)
+     ELSEIF(cnam(i).eq.'GM2')THEN
+        gm(3)=cval(i)
+     ELSEIF(cnam(i).eq.'GMB')THEN
+        gm(4)=cval(i)
+     ELSEIF(cnam(i).eq.'GM4')THEN
+        gm(5)=cval(i)
+     ELSEIF(cnam(i).eq.'GM5')THEN
+        gm(6)=cval(i)
+     ELSEIF(cnam(i).eq.'GM6')THEN
+        gm(7)=cval(i)
+     ELSEIF(cnam(i).eq.'GM7')THEN
+        gm(8)=cval(i)
+     ELSEIF(cnam(i).eq.'GM8')THEN
+        gm(9)=cval(i)
+     ELSEIF(cnam(i).eq.'GM9')THEN
+        gm(10)=cval(i) ! actually Pluto's mass is not anymore used
+     ENDIF
   ENDDO
-  CALL masses(gm,nbox,pmu,rm,rmt,sm,smp) 
+  DO i=1,10
+    IF(gm(i).eq.0.d0) fail=.true.
+  ENDDO
+  CALL masses(gm,nbox,pmu,rm,rmt,sm,smp)
 !   ========================================                            
 !  (5) conversion to cartesian coordinates, heliocentric and ecliptic   
 !     jpl data are cartesian, heliocentric, equatorial                  
@@ -136,7 +165,7 @@ PROGRAM inbaric
 !     write(*,*)au                                                      
 ! speed of light (Km/s)                                                 
   vlight = 2.99792458d5 
-! speed of light (AU/y)                                                 
+! speed of light (au/y)                                                 
   vlight=vlight/au*8.64d5*365.25 
 ! small parameter of Schwarzschild potential correction                 
   scw=3.d0*(gm(1)*gjyr2/vlight)**2 
@@ -151,7 +180,7 @@ PROGRAM inbaric
 !  (6)  output file barsunxx                                            
   open(2,file='barsunxx.inc',status='unknown') 
   compla=                                                           &
-     &' JPL DE 405; vector from baryc.inner sol.system to the sun '     
+     &' JPL DE 431; vector from baryc.inner sol.system to the sun '     
   colhea=                                                           &
        &'   x    y    z     dx/dt   dy/dt  dz/dt'                         
   nombar(1)='BARI     ' 
@@ -182,8 +211,8 @@ PROGRAM inbaric
      nompla(j)=nomi(j)
   ENDDO
   write(compla,128)iday,cmont,iyear,hour 
-128 format(' JPL DE 405 ',i3,1x,a3,1x,i4,1x,f8.4) 
-  colhea='  a(AU)    e    I    Node  nrev   arg.peri nrev  an.med.  nrev ' 
+128 format(' JPL DE 431 ',i3,1x,a3,1x,i4,1x,f8.4) 
+  colhea='  a(au)    e    I    Node  nrev   arg.peri nrev  an.med.  nrev ' 
   call wrihea(2,nompla,compla,colhea,coox,sysx,refx,'DEG',npla,0,t0)
 !   ========================================                            
 !   (9) output all planets: masses                                      
@@ -213,7 +242,7 @@ PROGRAM inbaric
      nompla(j)=nomi(j+noutp) 
   ENDDO
   write(compla,128)iday,cmont,iyear,hour 
-  colhea='  a(AU)    e    I    Node  nrev   arg.peri nrev  an.med.  nrev ' 
+  colhea='  a(au)    e    I    Node  nrev   arg.peri nrev  an.med.  nrev ' 
   call wrihea(2,nompla,compla,colhea,coox,sysx,refx,'DEG',noutp,0,t0)
 !   ========================================                            
 !   (12) output outer planets: masses                                   

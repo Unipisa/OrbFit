@@ -449,7 +449,7 @@ CONTAINS
       INTEGER ips,imem 
 ! workspace state variables
       INTEGER ndx,nvx 
-      PARAMETER (ndx=60,nvx=2*ndx) 
+      PARAMETER (ndx=1221,nvx=2*ndx) 
 ! x,v temporary                                                         
       DOUBLE PRECISION y(nvx),z(nvx) 
       DOUBLE PRECISION ck(nvx,8),fj(nvx) 
@@ -478,7 +478,7 @@ CONTAINS
 ! =========do on substep=========================                       
 !  loop 174 is for each substep within a sequence.                      
       do 174 j=2,8 
-          jd=j-1 
+
 !         jdm=j-2                                                       
           s=h(j) 
           q=s 
@@ -535,7 +535,8 @@ CONTAINS
 !  find g-value for the force fj found at the current substep. this     
 !  section, including the many-branched goto, uses eq. (2.4) of text.   
 ! ===============================================================       
-            temp=g(jd,k) 
+!		write(*,*)j-1,k
+            temp=g(j-1,k) 
             g_k=(fj(k)-f1(k))/s 
             IF(j.le.2)then 
                g(1,k)=g_k 
@@ -559,8 +560,8 @@ CONTAINS
 ! ===============================================================       
 !  upgrade all b-values                                                 
 ! ===============================================================       
-            temp=g(jd,k)-temp 
-            b(jd,k)=b(jd,k)+temp 
+            temp=g(j-1,k)-temp 
+            b(j-1,k)=b(j-1,k)+temp 
 ! ===============================================================       
 !  temp is now the improvement on g(jd,k) over its former value.        
 !  now we upgrade the b-value using this dfference in the one term.     
@@ -765,7 +766,7 @@ CONTAINS
 ! close approach control for orbit9
  SUBROUTINE cloapp9(idc,tt)
    USE massmod
-   INTEGER, INTENT(IN) :: idc
+   INTEGER, INTENT(INOUT) :: idc
    DOUBLE PRECISION, INTENT(IN) :: tt
    INCLUDE 'comnbo.h90'
    INTEGER np,n
@@ -773,8 +774,8 @@ CONTAINS
    IF(np.eq.0) np=nbod-1
    n=(idc-np)/(nbod-1)
    if(idc.ne.0)then
-      write(*,*)'t =',tt,' close approach of ',ida(n),' to planet ',nompla(np)
       write(iuncla,*)'t =',tt,' close approach of ',ida(n),' to planet ',nompla(np)
+      idc=0
    endif
  END SUBROUTINE cloapp9
 

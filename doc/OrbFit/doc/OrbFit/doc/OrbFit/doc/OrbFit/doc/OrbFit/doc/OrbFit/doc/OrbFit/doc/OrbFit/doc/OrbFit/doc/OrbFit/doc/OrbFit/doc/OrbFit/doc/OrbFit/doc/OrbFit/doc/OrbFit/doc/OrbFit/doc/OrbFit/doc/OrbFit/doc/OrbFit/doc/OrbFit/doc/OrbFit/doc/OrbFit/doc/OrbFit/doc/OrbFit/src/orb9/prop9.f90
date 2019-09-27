@@ -49,8 +49,8 @@ PROGRAM prop9
 ! unit conversion                                                       
   DOUBLE PRECISION conv 
 ! unit numbers                                                          
-  INTEGER iun1,iun2,iun3,iun9,iun10,iun11,iun19,iun21,iun18,iun8    &
-     &     ,iun7,iun17                                                  
+  INTEGER iun1,iun2,iun3,iun8,iun9,iun10,iun11,iun19,iun21,iun18    &
+     &     ,iun7,iun17, iundone                                                 
 ! ********************************************************              
 ! use orbfit library                                                    
   CALL libini 
@@ -69,9 +69,15 @@ PROGRAM prop9
 ! input/output file names                                               
 !  input file: asteroid osculating elements                             
   call reastr(iun1,'filast',filast) 
+! Warning: INP=3 IS CURRENTLY NOT SUPPORTED
 !  input file for mean (filtered) elements:                             
-! (only for inp=3, otherwise dummy)                                     
+! (only for inp=3, otherwise just to skip line in option file
   call reastr(iun1,'filfil',filfil) 
+  IF(INP.eq.3)THEN
+     WRITE(*,*)' inp=3 NOT SUPPORTED'
+     STOP
+  ENDIF
+! End Warning AM, ZK 14/6/2017
 !  output file: beginning of name                                       
   call reastr(iun1,'filpro',filpro) 
 ! ----------------------------------------------------------------------
@@ -79,27 +85,28 @@ PROGRAM prop9
   call skip(iun1,1) 
 !  input file: planets                                                  
   call reastr(iun1,'filpla',filpla) 
-!  input file: barycenter of the inner solar system                     
+!  input file: barycenter of the inner solar system; used only for inp=3
 !  ibar=1 barycentric correction, ibar=0 no correction                  
-  call reastr(iun1,'filbar',filbar) 
+  call reastr(iun1,'filbar',filbar) ! only to skip line in .opt file
 !  end input options                                                    
   close(iun1) 
 ! ********************************************************************* 
 !  initialisations, file opening, for short and long                    
 ! **********************************************************************
   call openfi(inp,t0,filast,filfil,filpro,filpla,filbar,            &
-     &    iun2,iun3,iun9,iun10,iun11,iun19,iun21,iun18,iun7,iun17)      
-!     write(*,*)iun8,iun18,iun7,iun17                                   
+     &    iun2,iun3,iun8,iun9,iun10,iun11,iun19,iun21,              &
+! iun18,
+     &    iun7,iun17)  
 ! *********************************************************             
 !   loop on input asteroid data begins here                             
 !  counter for mean/proper elements                                     
   krdon=0 
-  DO 10 kr=1,nmax 
+  DO 10 kr=1,nmax ! WARNING: update nmax in prop.opt.allnum, now 600,000
 !   input osculating elements                                           
      if(inp.eq.1.or.inp.eq.2)then 
         call iosho(kr,inp,iun8,iun7,iun17,nam0,t0,tt,el,            &
    &           pel,eof,iqco,hm,iun19)                                 
-        if(kr.eq.100*(kr/100))then 
+        if(kr.eq.1000*(kr/1000))then 
            if(inp.eq.1)then 
               write(*,*)nam0,'  read no ',kr 
            elseif(inp.eq.2)then 
@@ -138,14 +145,16 @@ PROGRAM prop9
      else 
 !  filtered mean elements to be read for inp=3                          
 !   input from output of orbit8v, filtered                              
-!   only one orbit in the input, equinoctal                             
+!   only one orbit in the input, equinoctal
+        WRITE(*,*)' inp=3 not supported, long period'
+        STOP
         call inpfil(iun18,tt,em,eof) 
 !   iqcm is not given, it is assumed that filtering has                 
 !   eliminated all the short periods anyway                             
         iqcm=0 
 !  end job and counters                                                 
         if(eof)goto 99 
-        if(kr.eq.(kr/100)*100)then 
+        if(kr.eq.(kr/1000)*1000)then 
            write(*,*)tt,'  read  ',kr 
         endif
 ! ********************************************************              
@@ -165,7 +174,7 @@ PROGRAM prop9
       &        irfl,irfl2,                                               &
       &        ngper,apiv,ngnod,atev,conv,iun2,iun3,iun9,iun11)          
 ! counter                                                               
-     if(krdon.eq.100*(krdon/100))then 
+     if(krdon.eq.1000*(krdon/1000))then 
         if(inp.eq.1)then 
            write(*,*)nam0,'  mean el. done no ',krdon 
         elseif(inp.eq.2.or.inp.eq.3)then 
@@ -186,11 +195,13 @@ PROGRAM prop9
   IF(inp.eq.1)call filclo(iun3,' ') 
   IF(inp.eq.1)call filclo(iun11,' ') 
 ! mean elements output files (if mean elements are computed)            
-  IF(inp.eq.1.or.inp.eq.2)call filclo(iun19,' ') 
-  IF(inp.eq.1.or.inp.eq.2)call filclo(iun21,' ') 
+  call filclo(iun19,' ') 
+  call filclo(iun21,' ') 
 ! input planetary data (if mean elements are computed)                  
-  IF(inp.eq.1.or.inp.eq.2)call filclo(iun17,' ') 
-  IF(inp.eq.1.or.inp.eq.2)call filclo(iun7,' ') 
+  call filclo(iun17,' ') 
+  call filclo(iun7,' ') 
 ! input filtered data (if mean elements are not computed)               
-  IF(inp.eq.3)call filclo(iun18,' ') 
+!  IF(inp.eq.3)call filclo(iun18,' ') 
+  CALL filopn(iundone,'prop9.done','unknown') 
+  CALL filclo(iundone,' ')
 END PROGRAM prop9

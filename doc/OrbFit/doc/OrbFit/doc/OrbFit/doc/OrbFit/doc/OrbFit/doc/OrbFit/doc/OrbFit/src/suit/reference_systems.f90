@@ -47,7 +47,7 @@ DOUBLE PRECISION,               INTENT(IN)           :: tdt          ! MJD TDT
 DOUBLE PRECISION, DIMENSION(3), INTENT(OUT)          :: position     ! Position vector
 DOUBLE PRECISION, DIMENSION(3), INTENT(OUT)          :: velocity     ! Velocity vector
 INTEGER,                        INTENT(IN), OPTIONAL :: obscode      ! Observatory code
-DOUBLE PRECISION, DIMENSION(3), INTENT(IN), OPTIONAL :: bfpos        ! Observatory BF position vector (AU)
+DOUBLE PRECISION, DIMENSION(3), INTENT(IN), OPTIONAL :: bfpos        ! Observatory BF position vector (au)
 INTEGER,                        INTENT(IN), OPTIONAL :: precision    ! Precision class (1=normal, 2=high precision)
 
 CHARACTER(LEN=20)                :: name
@@ -102,13 +102,14 @@ SELECT CASE (prec)
 !  modification 12/1/2009
       IF(rhs.eq.2)THEN
 ! transformation to equatorial
-         STOP '*** observer_position: rhs=2 and precision=1 not allowed ******'
+         CALL prodmv(position,roteceq,position)
+         CALL prodmv(velocity,roteceq,velocity) 
       ENDIF 
    CASE (2)
       dvbf=0.d0
 !      modification 12/1/2009
       CALL rotpv('BF  ',.true.,mjd1,sec1,dxbf,dvbf,'ECLM',.true.,51544,43200.d0,position,velocity)
-! Transformation of velocity from AU/s to AU/d
+! Transformation of velocity from au/s to au/d
       velocity=velocity*86400.d0
 !      modification 12/1/2009
       IF(rhs.eq.2)THEN
@@ -436,7 +437,7 @@ SUBROUTINE pvobs3(t,pos,dx,dv)
 ! rotation of coordinates, with dragging of velocities
   CALL rotpv('BF  ',.true.,mjd1,sec1,pos,vel,                     &
      &                 'ECLM',.true.,mjdjpl,secjpl,dx,dv)
-! Transformation of velocity from AU/s to AU/d
+! Transformation of velocity from au/s to au/d
   dv=dv*86400.d0
 END SUBROUTINE pvobs3
 

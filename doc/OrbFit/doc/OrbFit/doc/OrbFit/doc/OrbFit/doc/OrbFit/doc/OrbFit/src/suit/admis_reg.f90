@@ -11,7 +11,7 @@
 ! last modified October 2003 GFG
 ! ======================================================================
   SUBROUTINE admis_reg(name0,iun,tc,att,idsta_s,nroots,roots,c,refs, &
-       & xo,vo,a_orb,E_bound,nrootsd,rootsd)
+       & xo,vo,a_orb,E_bound,nrootsd,rootsd,apm,xogeout,vogeout,elongout)
     USE fund_const
     USE reference_systems
     USE planet_masses
@@ -29,7 +29,7 @@
     INTEGER,INTENT(OUT) :: nrootsd ! number of pos. roots of the derivative 
     DOUBLE PRECISION,INTENT(OUT),DIMENSION(3) :: roots ! not more than 3
     DOUBLE PRECISION,INTENT(OUT),DIMENSION(8) :: rootsd ! roots of the
-                                                    ! polynomial derivative
+                                                        ! polynomial derivative
     DOUBLE PRECISION,INTENT(OUT) :: c(0:5) ! polynomial coefficients
     ! matrix of the (r,eps,theta) ref.sys. (topocentric equatorial)
     DOUBLE PRECISION,INTENT(OUT) :: refs(3,3)
@@ -38,6 +38,11 @@
     ! bound for E_sun
     DOUBLE PRECISION,INTENT(IN) :: a_orb ! maximum value for semimajor axis
     DOUBLE PRECISION,INTENT(OUT) :: E_bound
+    ! optional variables: only for cobweb
+    DOUBLE PRECISION,INTENT(IN),OPTIONAL :: apm ! apparent magnitude, mean
+    DOUBLE PRECISION,INTENT(OUT),OPTIONAL :: xogeout(3) ! geocentric observer coordinates, equatorial  
+    DOUBLE PRECISION,INTENT(OUT),OPTIONAL :: vogeout(3) ! geocentric observer coordinates velocity, equatorial  
+    DOUBLE PRECISION,INTENT(OUT),OPTIONAL :: elongout ! elongation   
 ! ---------------- END INTERFACE -------------------------------------------
     INTEGER, DIMENSION(3) :: indsrt ! index for sorted roots
     INTEGER, DIMENSION(8) :: inddsrt ! index for sorted roots of derivatives
@@ -66,8 +71,16 @@
     DOUBLE PRECISION :: r
     INTEGER :: j ! loop index
     DOUBLE PRECISION :: rot(3,3), rotinv(3,3)
+    ! auxiliary variables: only for cobweb
+    DOUBLE PRECISION :: vogeo(3), coselo, elong
+    LOGICAL :: cob_opt ! flag for cobweb optional variables computation
 ! ====================================
-! assignement of gmcenter and root_gm
+    cob_opt = .FALSE.
+    ! checking optional cobweb variables
+    IF(PRESENT(xogeout).AND.PRESENT(vogeout).AND.PRESENT(apm).AND.PRESENT(elongout))THEN
+       cob_opt = .TRUE.
+    END IF
+    ! assignement of gmcenter and root_gm
     IF(rhs.EQ.1)THEN
        gmcenter=gms
        CALL earcar(tc,xea,1) ! earth coord, heliocentric ecliptic
@@ -84,6 +97,7 @@
     CALL observer_position(tc,xoec,voec,idsta_i)
     IF(rhs.EQ.1)THEN
        xogeo=MATMUL(roteceq,xoec) ! obs coord, geocentric equatorial
+       IF(cob_opt) vogeo=MATMUL(roteceq,voec) ! obs vel, geocentric equatorial
        xoec=xoec+xea(1:3) ! obs coord, heliocentric/geocentric ecliptic
        voec=voec+xea(4:6) ! id velocity
        xo=MATMUL(roteceq,xoec) ! obs coord, heliocentric/geocentric equatorial
@@ -95,9 +109,27 @@
     ELSE
        STOP
     ENDIF
-    IF(iun.gt.0)WRITE(iun,112)name0,tc,xo,vo,att,xogeo
-112 FORMAT(a9,1x,f12.4,1p,6(1x,d13.6),0p,2(1x,f10.7),1p,2(1x,d12.5),3(1x,d13.6)) 
-    ! eq. (5)
+    IF(cob_opt)THEN
+       xogeout=xogeo
+       vogeout=vogeo
+       IF(iun.gt.0)THEN
+          WRITE(iun,'(A)') '% Time                        Observer pos.                           Observer vel.'&
+               &'Attributable                                      Earth pos.                              Earth vel,'&
+               &'Apparent magnitude'
+
+          WRITE(iun,111) tc,xo,vo,att,xogeo,vogeo,apm
+       END IF
+    ELSE
+       IF(iun.gt.0)THEN
+          WRITE(iun,'(A)') '% Time                        Observer pos.                           Observer vel.'&
+               &'Attributable                                      Earth pos.'
+          WRITE(iun,112) tc,xo,vo,att,xogeo
+       END IF
+    END IF
+
+111 FORMAT(f12.4,1p,6(1x,d13.6),0p,2(1x,f10.7),1p,2(1x,d12.5),6(1x,d13.6),0p,1x,F5.2) 
+112 FORMAT(f12.4,1p,6(1x,d13.6),0p,2(1x,f10.7),1p,2(1x,d12.5),3(1x,d13.6)) 
+    ! eq. (5) WARNING: eps=alpha (RA), theta=delta (DEC) 
     c(0)=prscal(xo,xo)
     rhat(1)=cos(att(1))*cos(att(2))  ! unitv along obs, geocentric equatorial
     rhat(2)=sin(att(1))*cos(att(2))
@@ -114,7 +146,11 @@
     c(4) = prscal(vo,vo)
     c(5) = 2.d0*prscal(xo,rhat)
     gamma=c(4)-c(1)*c(1)/4.d0
-    
+    IF(cob_opt)THEN
+       coselo=-prscal(xo,rhat)/sqrt(c(0))
+       elong=acos(coselo)
+       elongout=elong
+    END IF
 
 !&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 ! computation of the roots of the zero energy curve
@@ -139,7 +175,7 @@
 ! computation of the roots of the -gm/2*a_orb energy curve
 ! coefficients in eq. (8)
     E_bound = -gmcenter/(2.d0*a_orb)
-    gammod= c(4) -2.d0* E_bound - c(1)*c(1)/4.d0
+    gammod= c(4) -0.5d0* E_bound - c(1)*c(1)/4.d0
     
     a(0) = c(0)*gammod**2 - 4*rootgm**4
     a(1) = c(5)*gammod**2 + 2.d0*c(0)*c(3)*gammod
@@ -163,7 +199,7 @@
           STOP
        ENDIF
     ELSE
-       write(*,*)'admis_reg ERROR!: zero leading coefficient'
+       WRITE(*,*)'admis_reg ERROR!: zero leading coefficient'
        nroots=0
     ENDIF
     roots(1:3)=tmproots(1:3)
@@ -193,11 +229,11 @@
 ! *********************
 ! find positive roots
 ! *********************
-    IF(b(8).ne.0.d0)THEN
-       call find_pos_roots(8,b,rootsd,nrootsd,hzflagd,multfld)
+    IF(b(8).NE.0.d0)THEN
+       CALL find_pos_roots(8,b,rootsd,nrootsd,hzflagd,multfld)
 !       call solv8(b,rootsd,nrootsd,radiusd)
     ELSE
-       write(*,*)'admis_reg ERROR!: zero leading coefficient of drivative'
+       WRITE(*,*)'admis_reg ERROR!: zero leading coefficient of drivative'
        nrootsd=0
     ENDIF
 
@@ -386,3 +422,100 @@
 103 FORMAT(a7,2x,10f20.5)
 
  END SUBROUTINE find_pos_roots
+
+ !============================================================!                  
+ ! ENERGY_SUN                                                 !
+ !============================================================!
+ ! Energy w.r.t. the Sun and flags definition.                !
+ !============================================================!
+ SUBROUTINE energy_sun(r_rdot,c,n_rho,n_rdot,use_nominal,E_lim,rmin,E_sun,inside_AR,succ_flag)
+   USE fund_const
+   !=======================================================================================================
+   DOUBLE PRECISION, INTENT(IN)    :: r_rdot(0:n_rho,0:n_rdot,2)  ! (rho,rhodot) of the cobweb/grid points
+   DOUBLE PRECISION, INTENT(IN)    :: c(0:5)                      ! Coefficients of V(r)
+   INTEGER,          INTENT(IN)    :: n_rho, n_rdot               ! Grid dimensions
+   LOGICAL,          INTENT(IN)    :: use_nominal                 ! If true, do cobweb; if false, grid is used
+   DOUBLE PRECISION, INTENT(IN)    :: E_lim                       ! Limiting energy
+   DOUBLE PRECISION, INTENT(IN)    :: rmin                        ! Minimum value for rho
+   DOUBLE PRECISION, INTENT(OUT)   :: E_sun(0:n_rho,0:n_rdot)     ! Energy w.r.t the Sun
+   LOGICAL,          INTENT(OUT)   :: inside_AR(0:n_rho,0:n_rdot) ! TRUE if the point is inside the AR
+   INTEGER,          INTENT(INOUT) :: succ_flag(0:n_rho,0:n_rdot) ! Succ flag
+   !=======================================================================================================
+   INTEGER          :: i,j         ! Loop indices
+   DOUBLE PRECISION :: W_rho,S_rho ! Computation of the energy
+   !=======================================================================================================
+   E_sun     = 0.d0
+   inside_AR = .FALSE.
+   succ_flag = 0
+   DO i=0,n_rho
+      DO j=0,n_rdot
+         IF(i.EQ.0 .AND. j.NE.0) CYCLE
+         IF(i.NE.0 .AND. j.EQ.0) CYCLE
+         IF(i.EQ.0 .AND. j.EQ.0 .AND. (.NOT.use_nominal)) CYCLE
+         W_rho      = c(2)*r_rdot(i,j,1)**2 + c(3)*r_rdot(i,j,1) + c(4)
+         S_rho      = r_rdot(i,j,1)**2 + c(5)*r_rdot(i,j,1) + c(0)
+         E_sun(i,j) = (r_rdot(i,j,2)**2 + c(1)*r_rdot(i,j,2) + W_rho - 2*gms/SQRT(S_rho))*0.5d0
+         ! Exclude from the AR the points with E > E_lim
+         IF(r_rdot(i,j,1).GT.rmin .AND. E_sun(i,j).LE.E_lim)THEN
+            inside_AR(i,j) = .TRUE.
+         ELSE
+            succ_flag(i,j) = 2
+         END IF
+      END DO
+   END DO
+ END SUBROUTINE energy_sun
+
+
+ !============================================================!                  
+ ! ENERGY_EARTH                                               !
+ !============================================================!
+ ! Energy w.r.t. the Earth.                                   !
+ !============================================================!
+ SUBROUTINE energy_earth(att,xogeo,vogeo,r_rdot,n_rho,n_rdot,use_nominal,E_earth)
+   USE fund_const
+   USE planet_masses, ONLY: gmearth
+   !=======================================================================================================
+   DOUBLE PRECISION, INTENT(IN)  :: att(4)                     ! Angles
+   DOUBLE PRECISION, INTENT(IN)  :: xogeo(3)                   ! Geocentric observer coordinates, equatorial  
+   DOUBLE PRECISION, INTENT(IN)  :: vogeo(3)                   ! Geocentric observer coordinates velocity, equatorial
+   DOUBLE PRECISION, INTENT(IN)  :: r_rdot(0:n_rho,0:n_rdot,2) ! Coordinates of the cobweb/grid points
+   INTEGER,          INTENT(IN)  :: n_rho, n_rdot              ! Grid dimension
+   LOGICAL,          INTENT(IN)  :: use_nominal                ! If true, do cobweb; if false, grid is used
+   DOUBLE PRECISION, INTENT(OUT) :: E_earth(0:n_rho,0:n_rdot)  ! Energy w.r.t the Earth
+   !=======================================================================================================
+   INTEGER          :: i,j        ! Loop indices
+   DOUBLE PRECISION :: rhat(3)    ! Unit vector in the obs direction
+   DOUBLE PRECISION :: rhalpha(3) ! Derivative of rhat w.r.t. alpha
+   DOUBLE PRECISION :: rhdelta(3) ! Derivative of rhat w.r.t. delta
+   DOUBLE PRECISION :: rgeo(3)    ! Geocentric position of the small body
+   DOUBLE PRECISION :: rdotgeo(3) ! Geocentric velocity of the small body
+   DOUBLE PRECISION :: dgeo       ! Geocentric distance of the small body
+   DOUBLE PRECISION :: vgeo2      ! Squared geocentric velocity magnitude
+   DOUBLE PRECISION :: prscal     ! Scalar product
+   DOUBLE PRECISION :: vsize      ! Norm of a vector
+   !=======================================================================================================
+   ! Unit vector along observer (geocentric equatorial)
+   rhat(1)    =  COS(att(1))*COS(att(2))
+   rhat(2)    =  SIN(att(1))*COS(att(2))
+   rhat(3)    =  SIN(att(2))
+   rhalpha(1) = -SIN(att(1))*COS(att(2))
+   rhalpha(2) =  COS(att(1))*COS(att(2))
+   rhalpha(3) =  0.d0
+   rhdelta(1) = -COS(att(1))*SIN(att(2))
+   rhdelta(2) = -SIN(att(1))*SIN(att(2))
+   rhdelta(3) =  COS(att(2))
+   ! Energy w.r.t. Earth
+   E_earth = 0.d0
+   DO i=0,n_rho
+      DO j=0,n_rdot
+         IF(i.EQ.0 .AND. j.NE.0) CYCLE
+         IF(i.NE.0 .AND. j.EQ.0) CYCLE
+         IF(i.EQ.0 .AND. j.EQ.0 .AND. (.NOT.use_nominal)) CYCLE
+         rgeo         = xogeo + rhat*r_rdot(i,j,1)
+         dgeo         = vsize(rgeo)
+         rdotgeo      = vogeo + r_rdot(i,j,2)*rhat + r_rdot(i,j,1)*(rhalpha*att(3) + rhdelta*att(4))
+         vgeo2        = prscal(rdotgeo,rdotgeo)
+         E_earth(i,j) = vgeo2/2 -gmearth/dgeo;
+      ENDDO
+   ENDDO
+ END SUBROUTINE energy_earth

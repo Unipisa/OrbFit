@@ -1,4 +1,3 @@
-
 ! Copyright (C) 1997,2003 ORBFIT consortium 
 ! version 3.1: A. Milani December 2003
 ! ===================================================================   
@@ -14,14 +13,21 @@ PROGRAM fitobs
   USE output_control
   USE least_squares
   USE multiple_sol
+  USE multi_store
   USE yark_pert
   USE util_suit
-  USE force_model, ONLY: radar, norad_obs ! to report on radar data
+  USE force_model
   USE two_states
   USE attributable
   USE arc_control
   USE virtual_impactor
-  USE tp_trace, ONLY: wri_tppoint,dtpde
+  USE tp_trace, ONLY:  wri_tppoint,tpplane,dtpde,mtp_store,njc, vvv_tp, scatter_stretch
+  USE close_app, ONLY: fix_mole, kill_propag
+  USE dyn_param
+  USE cobweb
+  USE station_coordinates, ONLY : statcode
+  USE triangles
+  USE ephem_prop
   IMPLICIT NONE 
 ! ===== input observations ======================
   INTEGER ifobs ! menu index
@@ -35,8 +41,9 @@ PROGRAM fitobs
 ! ===== differential corrections ==============                  
   LOGICAL succ ! success flag                             
   double precision meanti ! function for time of difcor 
-  INTEGER idif, itsav, ist_fit ! menu index, save itmax when changed, step fit flag
+  INTEGER idif, itsav, ist_fit, incfit ! menu index, save itmax when changed, step fit flag, No. param
   DOUBLE PRECISION peq(6) ! unit vector in weak direction
+  DOUBLE PRECISION   :: h_ini, g_ini ! H and G magnitudes for correction of mag_est
 ! ======== proposed identifications =======                             
 ! equinoctal orbital elements (guess from identif), epoch time
   TYPE(orbit_elem) :: elide          
@@ -55,12 +62,14 @@ PROGRAM fitobs
   INTEGER ids, iprob ! station code, menu index                
   INTEGER  im  ! confidence boundary, line of max variation 
 ! ======== multiple solutions ==========================                
-  DOUBLE PRECISION sigma 
-  INTEGER imult,ifff,iff,iffat,imi,nmult,iarm,marc,iscal
+  DOUBLE PRECISION sigma, sigma0, csino00  ! max value, central value,
+!  residual norm at nominal value
+  logical mult_adopted
+  INTEGER imult,ifff,iff,iffat,imi,nmult,iarm,marc,iscal,isampl,iscat,iwdir
   INTEGER m1,m2 ! interval  
   CHARACTER*160 catname ! input multiple solution catalog
-! propagation times, close appr. analysys time                         
-  DOUBLE PRECISION trmult,tcmult,tmcla 
+! propagation times, close appr. analysis time                         
+  DOUBLE PRECISION trmult,tcmult,tmcla, dtclo 
 ! minimum v_infty with respect to Earth (circular approx.)              
   DOUBLE PRECISION vel_inf 
 ! max value of sigma change allowed for newton step                     
@@ -69,6 +78,10 @@ PROGRAM fitobs
   TYPE(orbit_elem) elop
   INTEGER, PARAMETER :: nj=20
   DOUBLE PRECISION :: del(2,nj)
+! scatter plane
+  REAL(KIND=qkind) :: vvv_q(ndimx)  ! weak direction (quadruple precision)
+  CHARACTER(LEN=100) :: wfile             ! for vvv_tp
+  DOUBLE PRECISION :: limit_stretch ! Limit in the stretching
 ! ===========close approach analysis======================
   INTEGER iclan 
   DOUBLE PRECISION tlim 
@@ -77,18 +90,40 @@ PROGRAM fitobs
   INCLUDE 'doclib.h90' 
 ! ===============to change coord=================
   DOUBLE PRECISION, DIMENSION(6,6) :: dee !partials
-  CHARACTER*3 cooy ! target type
+  CHARACTER*3 cooy  ! target type
+  CHARACTER choice  ! choice if you want to propagate even if nd.NE.unc0%ndim
   INTEGER fail_flag, icoord ! control coo_cha, menu index
-! ===============atttributables ===================
+  !Wrikep
+  LOGICAL :: pha
+  DOUBLE PRECISION :: moid
+  CHARACTER*60 :: elefil
+! ===============attributables ===================
   TYPE(attrib) attr0,attrp,attr,attrc !attributables
   DOUBLE PRECISION trou ! rounded time (at the integer MJD)
   DOUBLE PRECISION, PARAMETER :: sphx=2.d0 ! max arc span in degrees
-  INTEGER iatt
+  INTEGER iatt ! attributable menu selection
   LOGICAL error ! only 1 obs and so on
   DOUBLE PRECISION r, rdot ! to complete an attributable to an ATT elem.
   INTEGER artyp, nigarc, fail_arty ! arc type 
+  INTEGER obscodi ! for ATT elements
+  INTEGER :: iunpol, iunfla ! file unit for admissibile region
   DOUBLE PRECISION rmsmax,geoc_chi, acce_chi, chi !arc type
-  DOUBLE PRECISION dx2n,dx2v ! for Poincare' topocentric correction
+  DOUBLE PRECISION dx2n,dx2v ! for Poincare' topocentric correction 
+  INTEGER iii,ind, ntot, nimp, nposs
+! =======================================================================
+! output of admis_reg
+  INTEGER nrootsf,nrootsd
+  DOUBLE PRECISION roots(3),c(0:5),refs(3,3),xo(3),vo(3),E_bound,rootsd(8)
+  DOUBLE PRECISION r1,r2,rder0, rdw                 ! for range in rhodot
+  DOUBLE PRECISION,DIMENSION(npox) :: frv,rhodot
+  DOUBLE PRECISION rmax, rdotmax,rdotmin, dr, drdot ! for grid
+! =======================================================================
+! MonteCarlo impacts
+  INTEGER  obscodn,isucc, nmc
+  DOUBLE PRECISION :: simppro,impp
+! === multiple minima=================
+  INTEGER jmin
+  DOUBLE PRECISION rmsmin
 ! ======== output moid =====================                            
   DOUBLE PRECISION moid0, dnp0, dnm0 
 ! ========= calendar to julian =================                        
@@ -99,7 +134,7 @@ PROGRAM fitobs
 ! file names depending upon run identifier                              
   CHARACTER*80 run 
   CHARACTER*80 titnam 
-  CHARACTER*100 filnam,dummyfile, file
+  CHARACTER*100 filname,dummyfile, file
   INTEGER le,lnam 
   CHARACTER*6 progna 
 ! logical units                                                         
@@ -115,6 +150,10 @@ PROGRAM fitobs
 ! asteroids with mass                                                   
   LOGICAL found 
   INTEGER nfound 
+  INTEGER nd ! number of solve for parameters
+  CHARACTER*6 vers ! OEF version for output orbit file
+!Partials for nd parameters
+  DOUBLE PRECISION, DIMENSION(ndimx,ndimx) :: depdep !partials
 ! ======== loop indexes =====================                           
 !  ii=subset of 1,6 etc,j=1,6,i=1,m                                     
   INTEGER j,ii,i 
@@ -123,13 +162,24 @@ PROGRAM fitobs
   WRITE(*,*) 'Run name =' 
   READ(*,100) run 
 100 FORMAT(a) 
-! Change format of rwo files, taking into account the catalog biases !!! One time keyword!!!
-  change_format=' '
   IF(run.eq.'')stop 'No run specified.' 
 ! input options                                                         
   progna='fitobs' 
   CALL finopt(progna,run,astna0,astnap,error_model) 
+! error model
   CALL errmod_set(error_model)
+! dimension of matrices determined by ls,nls
+  nd=6+nls 
+! version of orbit files determined by ndp
+!  IF(det_drp.gt.0)THEN
+  vers='OEF2.0'
+!  ELSE
+!     vers='OEF1.1'
+!  ENDIF
+! ================fix mole by using 2-body inside Earth?==============
+  fix_mole=.true.            ! default for fix_mole    
+ ! setup close app. output
+  tpplane=.true. ! use TP plane, not MTP
 ! check for asteroid masses                                             
   IF(lench(astnap).ne.0)THEN 
      CALL selpert2(astna0,astnap,nfound) 
@@ -137,8 +187,10 @@ PROGRAM fitobs
      CALL selpert(astna0,found) 
   ENDIF
 ! ===================================================================== 
-! initialisations   
+! initializations   
   batch=.false. ! batch control
+  sigma0=0.d0  ! central solution is nominal
+  mult_adopted=.false.
 ! asteroid name for messages
   name_obj=astna0
   CALL rmsp(name_obj,lobjnam)  
@@ -178,7 +230,7 @@ PROGRAM fitobs
      ifun=2 
      GOTO 60 
   ENDIF
-  IF(init)THEN
+  IF(init)THEN 
      ifun=1 
      GOTO 60 
   ENDIF
@@ -214,7 +266,9 @@ PROGRAM fitobs
      ELSE 
         CALL filclo(ierrou,'DELETE') 
      ENDIF
-     CALL filclo(iunrms,' ')
+     IF(obs0)THEN
+        CALL filclo(iunrms,' ')
+     END IF
      STOP 
   ELSEIF(ifun.eq.1)THEN 
 ! ================MENU 1: INPUT OBS============================         
@@ -223,7 +277,6 @@ PROGRAM fitobs
         GOTO 61 
      ENDIF
      WRITE(*,*)' INPUT OF OBSERVATIONAL DATA' 
-     change_format='INPUT'
 51   menunam='inputobs' 
      CALL menu(ifobs,menunam,5,' which data to input?=',            &
      &      'first arc=','second arc=','both=',                         &
@@ -245,7 +298,7 @@ PROGRAM fitobs
               CALL rmsp(elefi0,le) 
               CALL filopn(iunel0,elefi0(1:le),'unknown') 
 ! output header                                                         
-              CALL wromlh (iunel0,'ECLM','J2000')
+              CALL wromlh2 (iunel0,'ECLM','J2000',vers)
               file=astna0//'.rms'
               CALL rmsp(file,le)
               CALL filopn(iunrms,file(1:le),'UNKNOWN') ! statistical report
@@ -267,7 +320,7 @@ PROGRAM fitobs
               CALL rmsp(elefip,le) 
               CALL filopn(iunelp,elefip(1:le),'unknown') 
 ! output header                                                         
-              CALL wromlh (iunelp,'ECLM','J2000')
+              CALL wromlh2 (iunelp,'ECLM','J2000',vers)
            ENDIF 
         ENDIF
      ENDIF
@@ -297,7 +350,7 @@ PROGRAM fitobs
         CALL rmsp(eletwo,le) 
         CALL filopn(iunelt,eletwo(1:le),'unknown') 
 ! output header                                                         
-        CALL wromlh (iunelt,'ECLM','J2000') 
+        CALL wromlh2 (iunelt,'ECLM','J2000',vers) 
      ENDIF
 ! ===================================================================== 
   ELSEIF(ifun.eq.2)THEN 
@@ -328,6 +381,10 @@ PROGRAM fitobs
 ! initial conditions for arc 1                                          
         CALL tee(iun_log,' INPUT OF ORBITAL ELEMENTS, ARC 1=') 
         CALL finele(progna,1,astna0,el0,ini0,cov0,unc0) 
+        ! Store H and G magnitude from catalog or from eq0 (to be passed to fdiff cor)
+        h_ini=el0%h_mag
+        g_ini=el0%g_mag
+        nd=6+nls
         IF(.not.ini0)THEN 
            IF(.not.init2)GOTO 52 
         ENDIF
@@ -407,11 +464,13 @@ PROGRAM fitobs
         CALL laplace_poincare(m,obs,obsw,el3,nroots,nsolp,rr3,failpre,msg,.true.)
         IF(nsolp.eq.1)THEN
            el0=el3(1)
+           ini0=.true.
         ELSEIF(nsolp.gt.1)THEN
 21         WRITE(*,*)' select one solution between 1 and ', nsolp
            READ(*,*) nselect
            IF(nselect.lt.1.or.nselect.gt.nsolp) GOTO 21
            el0=el3(nselect)
+           ini0=.true.
         ELSE
            WRITE(*,*)' no solution '
         ENDIF 
@@ -425,11 +484,13 @@ PROGRAM fitobs
         CALL laplace_poincare(mp,obs(m+1:mall),obsw(m+1:mall),el3,nroots,nsolp,rr3,failpre,msg,.true.)
         IF(nsolp.eq.1)THEN
            elp=el3(1)
+           inip=.true.
         ELSEiF(nsolp.gt.1)THEN
 22         WRITE(*,*)' select one solution between 1 and ', nsolp
            READ(*,*) nselect
            IF(nselect.lt.1.or.nselect.gt.nsolp) GOTO 22
            elp=el3(nselect)
+           inip=.true.
         ELSE
            WRITE(*,*)' no solution '
         ENDIF 
@@ -446,7 +507,7 @@ PROGRAM fitobs
            WRITE(*,*)' initial conditions for arc 1 not available' 
         ENDIF
      ENDIF
-! initialisation of Yarkovski after acquiring elements                  
+! initialisation of Yarkovsky after acquiring elements                  
 ! (the physical model of the first asteroid is assumed)                  
      IF(ini0) CALL yarkinit(astna0,el0) 
 ! ===================================================================== 
@@ -454,7 +515,7 @@ PROGRAM fitobs
      CALL tee(iun_log,' DIFFERENTIAL CORRECTIONS=') 
 ! =================MENU 3: DIFFERENTIAL CORRECTIONS==================== 
 53   CALL orb_sel2(.false.,iarc)
-     IF(iarc.eq.0)GOTO 50
+     IF(iarc.eq.0)GOTO 553
      CALL obs_cop(1,iarc) ! copy observations to obsc, obswc
      IF(iarc.eq.1)THEN
         rwofic=rwofi0 ! ARC 1
@@ -468,7 +529,7 @@ PROGRAM fitobs
      ENDIF
 ! =========== select mode======================
      menunam='difcomod' 
-     CALL menu(idif,menunam,5,' select correction and reject mode=',&
+553  CALL menu(idif,menunam,5,' select correction and reject mode=',&
      &      'correct all, autoreject=',                                 &
      &      'correct all, no rejections=',                              &
      &      'constrained solution on LOV (no rejections)=',             &
@@ -491,6 +552,7 @@ PROGRAM fitobs
      ENDIF
 ! ====================constrained solution=========================== 
      IF(idif.eq.3)THEN
+        incfit=5
 ! check availability of observations and initial condition              
         CALL cheobs(obsflag,inic,ok) 
         IF(.not.ok) GOTO 53
@@ -519,7 +581,7 @@ PROGRAM fitobs
         ENDIF
         CALL tee(iun_log,' CONSTRAINED DIFFERENTIAL CORRECTIONS=') 
         peq=0.d0
-        CALL constr_fit(mc,obsc,obswc,elc,peq,elc,uncc,csinoc,delnoc,rmshc,iobc,succ)
+        CALL constr_fit(mc,obsc,obswc,elc,peq,elc,uncc,csinoc,delnoc,rmshc,iobc,succ,nd,h_ini,g_ini)
         covc=succ
 ! =========================step-fit=================================
         IF(succ)THEN
@@ -530,10 +592,11 @@ PROGRAM fitobs
            ENDIF
         ENDIF
 ! =========================full solution=============================
-     ELSE 
+     ELSE
+        incfit=6 
         CALL tee(iun_log,' FULL DIFFERENTIAL CORRECTIONS=') 
         CALL fdiff_cor(batch,1,obsflag,inic,ok,covc,elc,mc,obsc,obswc,iobc,    &
-      &         rwofic,elc,uncc,csinoc,delnoc,rmshc,succ)
+             &         rwofic,elc,uncc,csinoc,delnoc,rmshc,succ,H_READ=h_ini,G_READ=g_ini)
 ! output for global parameter determination
         nrej=0
         nscobs=0
@@ -552,7 +615,7 @@ PROGRAM fitobs
 ! availability of observations, initial condition, JPL and ET-UT data   
      IF(.not.ok.or..not.succ) GOTO 50 
 ! output new elements  
-     CALL write_elems(elc,astnac,'ML',dummyfile,iunelc,uncc)
+     CALL write_elems(elc,astnac,'ML',dyn,nls,ls,UNC=uncc,UNIT=iunelc)
      CALL nomoid(elc%t,elc,moid0,dnp0,dnm0) 
      write(*,199)moid0,0,dnp0,dnm0 
 199  format('orb.dist.      dist.n+  dist.n-'/                &
@@ -684,6 +747,7 @@ PROGRAM fitobs
      &           'also covariance matrix=')                              
         IF(icov.eq.0) GOTO 55 
      ELSE 
+! default no covariance
         icov=1 
      ENDIF
      IF(iprop.le.5)THEN
@@ -692,10 +756,10 @@ PROGRAM fitobs
 ! ===================================================================== 
         IF(iprop.eq.4)THEN ! selection of target epoch
            tr= meanti(obs(1:m)%time_tdt,obsw(1:m)%rms_coord(1),        &
-     &           obsw(1:m)%rms_coord(2),m) 
+     &           obsw(1:m)%rms_coord(2),obs(1:m)%coord(2),m) 
         ELSEIF(iprop.eq.5)THEN 
            tr= meanti(obs(m+1:m+mp)%time_tdt,obsw(m+1:m+mp)%rms_coord(1),&
-     &           obsw(m+1:m+mp)%rms_coord(2),mp) 
+     &           obsw(m+1:m+mp)%rms_coord(2),obs(m+1:m+mp)%coord(2),mp) 
 ! warning: funny result if mp=0; check obsp?                            
         ELSE 
            WRITE(*,*)' propagate to epoch (MJD)?   ' 
@@ -712,11 +776,18 @@ PROGRAM fitobs
            iunelc=iunelt
         ENDIF
         CALL orb_sel2(.true.,iarc)
+        IF(icov.eq.2)THEN
+           CALL cov_avai(uncc,elc%coo,elc%coord)
+        ENDIF
         CALL fstpro(.false.,icov,inic,covc,iun_log,iun_covar,ok,       &
-     &         elc,uncc,tr,elc,uncc)                               
-        IF(ok)THEN 
+     &         elc,uncc,tr,elc,uncc)   
+        IF(ok.and.(.not.kill_propag))THEN 
 ! problem with name for identification; used arc 1, but...  
-           CALL write_elems(elc,astnac,'ML',dummyfile,iunelc,uncc)
+           IF(dyn%ndp.gt.0)THEN 
+              CALL write_elems(elc,astnac,'ML',dyn,nls,ls,UNC=uncc,FILE=dummyfile,UNIT=iunelc)
+           ELSE 
+              CALL write_elems(elc,astnac,'ML',UNC=uncc,FILE=dummyfile,UNIT=iunelc)
+           END IF
            CALL nomoid(elc%t,elc,moid0,dnp0,dnm0) 
            write(*,199)moid0,0,dnp0,dnm0 
            write(iunelc,198)moid0,0,dnp0,dnm0 
@@ -760,6 +831,11 @@ PROGRAM fitobs
            iarc=3
         ENDIF
         CALL orb_sel2(.true.,iarc)
+! avoiding self perturbations
+        CALL selpert(astna0,found)
+        IF(found)THEN 
+           WRITE(*,*)astna0,' massive asteroid, no selfperturbation' 
+        ENDIF
         CALL fsteph(astnac,'.',inic,ok,elc,                &
      &           tr,tf,step,numsav,.true.,cooy,.true.) 
 ! if some data are not available, this cannot be done                   
@@ -777,7 +853,7 @@ PROGRAM fitobs
 56   CALL orb_sel2(.false.,iarc)                                            
      IF(iarc.eq.0) GOTO 50 
 ! setup title string for graphics output                                
-     CALL titast(iarc,astna0,astnap,titnam,filnam,lnam)
+     CALL titast(iarc,astna0,astnap,titnam,filname,lnam)
 ! ===================================================================== 
 ! observations vector only? also covariance?                            
 ! ==================================================================   
@@ -806,7 +882,7 @@ PROGRAM fitobs
 ! predict                                                               
 ! ===================================================================== 
      CALL fobpre(iprob,inic,covc,ok,                &
-     &           titnam,filnam,elc,uncc,ids,type1,t1,        &
+     &           titnam,filname,elc,uncc,ids,type1,t1,        &
      &           tut1,obs(im)%coord(1),obs(im)%coord(2),t2,dt,astnac)
 ! if some data are not available, this cannot be done                   
      IF(.not.ok)THEN 
@@ -832,25 +908,73 @@ PROGRAM fitobs
      &      'use already computed=',                             &
      &      'input from file=')
      IF(marc.eq.0) GOTO 50
-581  WRITE(*,*)' use scaling, 1=yes, 0=no?'
+! choice of LOV 
+581  WRITE(*,*)' use scaling, 1=yes, 0=no, 2=linear LOV?'
      READ(*,*)iscal
      IF(iscal.eq.0)THEN
         scaling_lov=.false.
      ELSEIF(iscal.eq.1)THEN
         scaling_lov=.true.
+     ELSEIF(iscal.eq.2)THEN
+! note that scatter plane has no meaning if not lin_lov
+        lin_lov=.true.
+583     WRITE(*,*)' use scatterplane? 0=no 1=yes'
+        READ(*,*)iscat
+        IF(iscat.eq.0)THEN
+           scatterplane=.false.
+        ELSEIF(iscat.eq.1)THEN
+           scatterplane=.true.
+           WRITE(*,*) 'date MJD before scattering encounter'
+           READ(*,*) before_scatter
+           WRITE(*,*) 'date MJD after scattering encounter'
+           READ(*,*) after_scatter
+        ELSE
+           WRITE(*,*)' answer ', iscat, ' not understood'
+           GOTO 583
+        ENDIF
      ELSE
         WRITE(*,*)' answer ', iscal, ' not understood'
         GOTO 581
      ENDIF
-582  WRITE(*,*)' which LOV, 1=largest eigenv., 2=second'
-     READ(*,*)iscal
-     IF(iscal.eq.1)THEN
-        second_lov=.false.
-     ELSEIF(iscal.eq.2)THEN
-        second_lov=.true.
+582  IF(iscal.lt.2)THEN
+        WRITE(*,*)' which LOV, 1=largest eigenv., 2=second'
+        READ(*,*)iscal
+        IF(iscal.eq.1)THEN
+           second_lov=.false.
+        ELSEIF(iscal.eq.2)THEN
+           second_lov=.true.
+        ELSE
+           WRITE(*,*)' answer ', iscal, ' not understood'
+           GOTO 582
+        ENDIF
+     END IF
+584  WRITE(*,*)' which sampling? 1=const step in sigma 2=const step in IP'
+     READ(*,*)isampl
+     IF(isampl.eq.1)THEN
+! Constant step in sigma
+        prob_sampl=.false.
+        WRITE(*,*)' sigma_max (extent on LoV)?' 
+        READ(*,*) sigma 
+559     WRITE(*,*)' steps on each side' 
+        READ(*,*) imult 
+        WRITE(iun_log,*)' sigma=',sigma,'  in ',imult,' steps' 
+        IF(2*imult+1.gt.mulx)THEN 
+           WRITE(*,*)' too many; max is ',mulx 
+           GOTO 559 
+        ENDIF
+     ELSEIF(isampl.eq.2)THEN
+! Constant step in IP
+        prob_sampl=.true.
+        WRITE(*,*)' prob_step (completeness limit)?'
+        READ(*,*) prob_step
+        WRITE(*,*)' sigma_step_max (control against too long steps)?'
+        READ(*,*) sigma_step_max
+        WRITE(*,*)' sigma_max (extent on LoV)?'
+        READ(*,*) sigma_max
+        WRITE(iun_log,*) ' sigma_max=',sigma_max,'  prob_step ',prob_step,' and sigma_step_max', sigma_step_max
      ELSE
-        WRITE(*,*)' answer ', iscal, ' not understood'
-        GOTO 582
+        WRITE(*,*)' answer ', isampl, ' not understood'
+        GOTO 584
      ENDIF
 ! ===================================================================== 
 ! compute multiple solutions   
@@ -859,23 +983,48 @@ PROGRAM fitobs
         CALL orb_sel2(.true.,marc)
         CALL obs_cop(1,marc) ! copy observations to obsc, obswc
         CALL tee(iun_log,'COMPUTE MULTIPLE SOL=') 
-        CALL f_multi(batch,obsflag,inic,ok,covc, &
-     &           elc,uncc,csinoc,delnoc,mc,obsc,obswc,sigma,imult)         
+        IF(lin_lov)THEN
+           IF(scatterplane)THEN
+              CALL filnam('.',astnac,'wdir',file,le) 
+              CALL filopn(iwdir,file(1:le),'unknown')
+           ENDIF
+! use linear lov
+           IF(prob_sampl)THEN
+              CALL lin_multi_gen(batch,elc,uncc,prob_step,sigma_step_max,sigma_max,nd,imult,iwdir,mc,obs,obsw,csinoc)
+           ELSE
+              CALL lin_multi(batch,elc,uncc,sigma,imult,nd,iwdir,mc,obsc,obswc,csinoc)
+           END IF
+           IF(scatterplane) CALL filclo(iwdir,' ')
+        ELSEIF(mult_adopted)THEN
+! use alternate nominal
+           IF(prob_sampl)THEN
+              CALL multi_gen(batch,elc,uncc,csinoc,delnoc,mc,obsc,obswc,   &
+                   &          prob_step,sigma_step_max,sigma_max,nd,imult,CSINO0=csino00)
+           ELSE
+              CALL f_multi(batch,obsflag,inic,ok,covc, &
+                   &   elc,uncc,csinoc,delnoc,mc,obsc,obswc,sigma,imult,nd,CSINO0=csino00)
+           ENDIF
+        ELSE
+! use of true nominal
+           IF(prob_sampl)THEN
+              CALL multi_gen(batch,elc,uncc,csinoc,delnoc,mc,obsc,obswc,   &
+                   &          prob_step,sigma_step_max,sigma_max,nd,imult)
+           ELSE
+              CALL f_multi(batch,obsflag,inic,ok,covc, &
+                   &   elc,uncc,csinoc,delnoc,mc,obsc,obswc,sigma,imult,nd)
+           ENDIF
+        ENDIF         
      ELSEIF(marc.eq.4)THEN 
         CALL tee(iun_log,'USE THE ALREADY COMPUTED ONES=') 
         ok=imip-imim.gt.0 
 ! input from file                                                       
      ELSEIF(marc.eq.5)THEN 
         CALL tee(iun_log,'INPUT MULTIPLE SOL. FROM FILE=') 
-        WRITE(*,*)' File name?' 
+        WRITE(*,*)' File name? no suffix' 
         READ(*,'(A)')catname 
-        CALL mult_input(catname,ok)
-        WRITE(*,*)' Assign delta_sigma (interval in sigma space between multiple sols.)'
-        READ(*,*) delta_sigma
-        WRITE(*,*)' Assign max sigma (maximum of interval in sigma space)'
-        READ(*,*) sigma
-        CALL orb_sel2(.false.,marc)
-        CALL obs_cop(1,marc) ! copy observations to obsc, obswc
+        CALL mult_input(catname,ok,sigma,nd,sigma_step_max)
+        CALL orb_sel2(.false.,iarc) ! need to know which arc they are for
+        CALL obs_cop(1,iarc) ! copy observations to obsc, obswc
      ENDIF
      IF(.not.ok)GOTO 58 
      nmult=imip-imim+1 
@@ -898,7 +1047,7 @@ PROGRAM fitobs
 ! ================================================================= 
      CALL orb_sel2(.false.,iarc) 
 ! setup title string for graphics output                                
-     CALL titast(iarc,astna0,astnap,titnam,filnam,lnam) 
+     CALL titast(iarc,astna0,astnap,titnam,filname,lnam) 
 ! ======================================================                
      IF(ifff.eq.1)THEN 
 ! ======================================================                
@@ -930,24 +1079,35 @@ PROGRAM fitobs
 ! only alpha, delta, magnitude                                          
         CALL fmuobs(type1,ids,t1,tut1,sigma,     &
      &      obs(im)%coord(1),obs(im)%coord(2),iff, &
-     &            titnam,filnam,iun_log)
+     &            titnam,filname,iun_log)
 ! ======================================================                
      ELSEIF(ifff.eq.3)THEN 
 ! ======================================================                
 ! adopt alternate solution                                              
+        IF(prob_sampl)THEN
+           WRITE(*,*)' densification not available for IP sampling'
+           GOTO 145
+        ENDIF
         WRITE(*,*)' which one to keep? 0=none' 
         READ(*,*) imi 
         IF(imi.ge.imim.and.imi.le.imip)THEN 
-           CALL tee(iun_log,'ALTERNATE SOLUTION ADOPTED=') 
+           CALL tee(iun_log,'ALTERNATE SOLUTION ADOPTED=')
+           IF(mult_adopted)THEN
+              WRITE(*,*)' WARNING: multiple densification is'
+              WRITE(*,*) ' incompatible with impact monitoring'
+           ENDIF 
+           mult_adopted=.true.
+           sigma0=(imi-imi0)*delta_sigma
            WRITE(*,*)' NUMBER ',imi 
            WRITE(iun_log,*)' NUMBER ',imi 
            WRITE(iun_log,*) 
            WRITE(*,144)imi,elm(imi)%coord,csinom(imi) 
-144        FORMAT(i3,6f12.8,1p,e13.5,e12.3) 
+144        FORMAT(i5,1P,6d15.8,e13.5,e12.3) 
 ! copy state vector and matrices, norms                                 
            icop=2 
-! handle case in which the multiple solutions do not come from arc      
-           IF(iarc.eq.4.or.iarc.eq.5)THEN 
+! handle case in which the multiple solutions do not come from arc
+! CORRECTION AMC 28/10/2013 iarc-> marc      
+           IF(marc.eq.4)THEN 
 147           WRITE(*,*)' for which arc? 1,2=arcs, 3=joint' 
               READ(*,*)iarm 
               IF(iarm.ge.1.and.iarm.le.3)THEN 
@@ -956,6 +1116,9 @@ PROGRAM fitobs
                  WRITE(*,*)' must be 1,2,3' 
                  GOTO 147 
               ENDIF
+              csino00=csinom(imi0)
+           ELSEIF(marc.eq.5)THEN
+              csino00=csinom(imi0)
            ENDIF
            IF(iarc.eq.1)THEN 
               CALL stacop(icop,el0,unc0,csino0,delno0,             &
@@ -969,6 +1132,11 @@ PROGRAM fitobs
            ELSE 
               WRITE(*,*)' iarm=',iarm,' not understood' 
               GOTO 145 
+           ENDIF
+! handle dynamical parameters
+! WARNING: only one set of dyn.par. for arcs 1,2,3
+           IF(dyn%ndp.gt.0)THEN
+              dyn%dp(1:ndyx)=dpm(1:ndyx,imi)
            ENDIF
         ELSE 
            CALL tee(iun_log,'BACK TO THE ORIGINAL SOLUTION=') 
@@ -984,7 +1152,18 @@ PROGRAM fitobs
 ! check availability of JPL ephemerides                                 
         CALL chetim(tcmult,trmult,ok) 
         IF(.not.ok)GOTO 145 
-! propagation                                                           
+! propagation 
+        IF(scatterplane) THEN
+           WRITE(*,*) 'FITOBS: scatter_stretch = TRUE' 
+           scatter_stretch=.TRUE.
+           wfile=astnac//'.wdir'
+           CALL rmsp(wfile,le)
+           CALL filopn(iwdir,wfile(1:le),'old')
+! read quadruple precision, convert in double 
+           READ(iwdir,*) vvv_q(1:nd)
+           vvv_tp(1:nd)=vvv_q(1:nd)
+           CALL filclo(iwdir,' ')   
+        END IF
         CALL fmupro(iun_log,trmult)
 ! close approach analysis on multiple solutions (as in CLOMON2)         
      ELSEIF(ifff.eq.5)THEN 
@@ -997,9 +1176,9 @@ PROGRAM fitobs
         CALL filopn(iunit,helpfi,'OLD') 
         CALL filcat(iunit) 
         CALL filclo(iunit,' ') 
-        filnam=run//'.vis' 
-        CALL rmsp(filnam,le) 
-        CALL filopn(iunvi,filnam(1:le),'UNKNOWN')           
+        filname=run//'.vis' 
+        CALL rmsp(filname,le) 
+        CALL filopn(iunvi,filname(1:le),'UNKNOWN')           
 ! select interval in index (and sigma) space                            
 146     WRITE(*,*)' SELECT INTERVAL, between ',imim,' and ',imip 
         READ(*,*)m1,m2 
@@ -1013,14 +1192,26 @@ PROGRAM fitobs
         WRITE(*,*)' search for close approaches until time (MJD)?' 
         READ(*,*) tmcla 
         WRITE(iun_log,*)' search until time',tmcla,' MJD'
-        CALL fclomon2(progna,mc,obsc,obswc,m1,m2,tmcla,sigma)          
+! Control on stretching?
+        WRITE(*,*)' Stretching limit (0 for not using it)?' 
+        READ(*,*) limit_stretch
+! modified for densification
+        IF(mult_adopted)THEN
+           CALL fclomon2(progna,astnac,mc,obsc,obswc,m1,m2,tmcla,sigma,nd,limit_stretch,sigma0)
+        ELSE
+           CALL fclomon2(progna,astnac,mc,obsc,obswc,m1,m2,tmcla,sigma,nd,limit_stretch,0.d0)
+        ENDIF          
         IF(num_vi.le.0)THEN
            CALL filclo(iunvi,'DELETE')
            GOTO 145
         ENDIF
         DO nvi=1,num_vi
            CALL wri_tppoint(vis(nvi)%tp,iunvi,.true.)
-           CALL write_elems(vis(nvi)%ele,astnac,'ML',dummyfile,iunvi,vis(nvi)%unc)
+           IF(dyn%ndp.gt.0)THEN 
+              CALL write_elems(vis(nvi)%ele,astnac,'ML',dyn,nls,ls,UNC=vis(nvi)%unc,FILE=dummyfile,UNIT=iunvi)
+           ELSE 
+              CALL write_elems(vis(nvi)%ele,astnac,'ML',UNC=vis(nvi)%unc,FILE=dummyfile,UNIT=iunvi)
+           END IF
         ENDDO
         CALL filclo(iunvi,' ')
 ! what to do with VIs
@@ -1061,14 +1252,55 @@ PROGRAM fitobs
      &      ' identification=')
      IF(iarc.eq.1.or.iarc.eq.3)THEN
         IF(ini0)THEN
+! handle special case of attributable elements
+           IF(same_station(obs,m))THEN
+              obscodi=obs(1)%obscod_i
+           ELSE
+              obscodi=500              
+           ENDIF
            IF(cov0)THEN
               CALL coo_cha(el0,cooy,el0,fail_flag,dee)
-              CALL convertunc(unc0,dee,unc0)
+              depdep(1:6,1:6)=dee
+              IF(nd.gt.6)THEN
+                 depdep(7:nd,1:nd)=0.d0
+                 depdep(1:nd,7:nd)=0.d0
+                 DO j=7,nd
+                    depdep(j,j)=1.d0
+                 ENDDO
+              ENDIF
+              IF(nd.ne.unc0%ndim)THEN
+                 WRITE(*,*)' Warning '
+                 WRITE(*,*)' propagunc: inconsistent dimension of matrices, nd',nd
+                 WRITE(*,*)' unc0%ndim: ', unc0%ndim
+260              WRITE(*,*)' do you want to continue? (y=yes or n=no)' 
+                 READ(*,*) choice
+                 IF(choice.EQ.'y')THEN
+                    CALL propagunc(unc0%ndim,unc0,depdep(1:unc0%ndim,1:unc0%ndim),unc0)
+                 ELSE IF(choice.EQ.'n') THEN
+                    WRITE(*,*) 'covariance non propagated'
+                    unc0%succ=.FALSE.
+                 ELSE
+                    WRITE(*,*) 'Wrong choice, please select only y or n.'
+                    GO TO 260
+                 END IF
+              ELSE
+                 CALL propagunc(nd,unc0,depdep(1:nd,1:nd),unc0)
+              END IF
            ELSE
-              CALL coo_cha(el0,cooy,el0,fail_flag)
+              CALL coo_cha(el0,cooy,el0,fail_flag,OBSCODE=obscodi)
               unc0%succ=.false.
            ENDIF
-           CALL write_elems(el0,astna0,'ML',dummyfile,iunel0,unc0)
+           IF(dyn%ndp.gt.0.AND.nd.EQ.unc0%ndim)THEN 
+              CALL write_elems(el0,astna0,'ML',dyn,nls,ls,UNC=unc0,FILE=dummyfile,UNIT=iunel0)
+           ELSE
+              CALL write_elems(el0,astna0,'ML',UNC=unc0,FILE=dummyfile,UNIT=iunel0)
+           END IF
+! write .ke0 file as in neofit
+           IF(cooy.EQ.'KEP') THEN
+              CALL filnam('.',astna0,'ke',elefil,le)
+              el0%mag_set=.TRUE. 
+              CALL wrikep(elefil(1:le),astna0,el0,unc0,moid,pha)
+           END IF
            WRITE(*,*)' elements for arc 1', el0
         ELSE
            WRITE(*,*)' initial conditions not available for ',astna0
@@ -1076,14 +1308,32 @@ PROGRAM fitobs
      ENDIF
      IF(iarc.eq.2.or.iarc.eq.3)THEN
         IF(inip)THEN
+! handle special case of attributable elements
+           IF(same_station(obs(m+1:m+mp),mp))THEN
+              obscodi=obs(m+1)%obscod_i
+           ELSE
+              obscodi=500              
+           ENDIF
            IF(covp)THEN
               CALL coo_cha(elp,cooy,elp,fail_flag,dee)
-              CALL convertunc(uncp,dee,uncp)
+              depdep(1:6,1:6)=dee
+              IF(nd.gt.6)THEN
+                 depdep(7:nd,1:nd)=0.d0
+                 depdep(1:nd,7:nd)=0.d0
+                 DO j=7,nd
+                    depdep(j,j)=1.d0
+                 ENDDO
+              ENDIF
+              CALL propagunc(nd,uncp,depdep(1:nd,1:nd),uncp)
            ELSE
-              CALL coo_cha(elp,cooy,elp,fail_flag)
+              CALL coo_cha(elp,cooy,elp,fail_flag,OBSCODE=obscodi)
               uncp%succ=.false.
            ENDIF
-           CALL write_elems(elp,astnap,'ML',dummyfile,iunelp,uncp)
+           IF(dyn%ndp.gt.0)THEN 
+              CALL write_elems(elp,astnap,'ML',dyn,nls,ls,UNC=uncp,FILE=dummyfile,UNIT=iunelp)
+           ELSE 
+              CALL write_elems(elp,astnap,'ML',UNC=uncp,FILE=dummyfile,UNIT=iunelp)
+           END IF
            WRITE(*,*)' elements for arc 2', elp
         ELSE
            WRITE(*,*)' initial conditions not available for ',astnap
@@ -1091,14 +1341,32 @@ PROGRAM fitobs
      ENDIF
      IF(iarc.eq.4)THEN
         IF(initwo)THEN
-           IF(covtwo)THEN
-              CALL coo_cha(el,cooy,el,fail_flag,dee)
-              CALL convertunc(unc,dee,unc)
+! handle special case of attributable elements
+           IF(same_station(obs,mall))THEN
+              obscodi=obs(1)%obscod_i
            ELSE
-              CALL coo_cha(el,cooy,el,fail_flag)
+              obscodi=500              
+           ENDIF
+           IF(covtwo)THEN
+              CALL coo_cha(el,cooy,el,fail_flag,dee,obscodi)
+              depdep(1:6,1:6)=dee
+              IF(nd.gt.6)THEN
+                 depdep(7:nd,1:nd)=0.d0
+                 depdep(1:nd,7:nd)=0.d0
+                 DO j=7,nd
+                    depdep(j,j)=1.d0
+                 ENDDO
+              ENDIF
+              CALL propagunc(nd,unc,depdep(1:nd,1:nd),unc)
+           ELSE
+              CALL coo_cha(el,cooy,el,fail_flag,OBSCODE=obscodi)
               unc%succ=.false.
            ENDIF
-           CALL write_elems(el,astna0,'ML',dummyfile,iunelt,unc)
+           IF(dyn%ndp.gt.0)THEN 
+              CALL write_elems(el,astna0,'ML',dyn,nls,ls,UNC=unc,FILE=dummyfile,UNIT=iunelt)
+           ELSE
+              CALL write_elems(el,astna0,'ML',UNC=unc,FILE=dummyfile,UNIT=iunelt)
+           END IF
            WRITE(*,*)' elements for both arcs', el
         ELSE
            WRITE(*,*)' initial conditions not available for '  &
@@ -1113,6 +1381,13 @@ PROGRAM fitobs
      CALL orb_sel(.false.,iarc)
      IF(iarc.eq.0) GOTO 50 
      CALL obs_cop(1,iarc) ! copy observations to obsc, obswc
+     IF(iarc.eq.1)THEN
+        astnac=astna0
+     ELSEIF(iarc.eq.2)THEN
+        astnac=astnap
+     ELSEIF(iarc.eq.3)THEN
+        astnac=astna0
+     ENDIF
      CALL attri_comp(mc,obsc,obswc,attrc,error)
      IF(error) GOTO 50
      trou=nint(attrc%tdtobs)
@@ -1131,18 +1406,23 @@ PROGRAM fitobs
         attr=attrc
         elc=el
      ENDIF
+! set controls to detect missing steps
+     artyp=0
      menunam='dummy' 
-     CALL menu(iatt,menunam,2,'What to do with attributable?=', &
+ 59  CONTINUE
+     CALL menu(iatt,menunam,7,'What to do with attributable?=',     &
  &                    'Assign r, rdot to form ATT elements=',       &
- &                    'Compute arc type=')
-! &                    'Compare with predictions=',                  &
-! &                    'Output to file=')
+ &                    'Compute arc type=',                          &
+ &                    'Compute admissible region=',                 &
+ &                    'Cobweb/Grid=','Imminent Impacts=',           &
+ &                    'MC imminent impacts=',                       &
+ &                    'Select local minima as preliminary orbits=')
 
      IF(iatt.eq.0) GOTO 50
      IF(iatt.eq.1)THEN
-599     WRITE(*,*) 'assign r (AU) '
+599     WRITE(*,*) 'assign r (au) '
         READ(*,*,ERR=599) r
-598     WRITE(*,*) 'assign rdot (AU/day) '
+598     WRITE(*,*) 'assign rdot (au/day) '
         READ(*,*,ERR=598) rdot
         CALL attelements(attrc,r,rdot,elc,uncc)
         IF(iarc.eq.1)THEN
@@ -1174,9 +1454,122 @@ PROGRAM fitobs
         WRITE(*,177)mc,nigarc,fail_arty,geoc_chi,acce_chi,chi
  177    FORMAT('nobs=',I4,' nights=',i3,' errcode=',i4/         &
 &              'geoc_chi=',1p,d9.2,' acce_chi=',d9.2,' chi=',d9.2)
+        !WRITE(iun_log,*)' arc type of arc ', iarc,' is ', artyp      ! a lot of iun_log WRITEs are removed
+        !WRITE(iun_log,177)mc,nigarc,fail_arty,geoc_chi,acce_chi,chi  ! a lot of iun_log WRITEs are removed
+     ELSEIF(iatt.eq.3)THEN
+        CALL tee(iun_log,'COMPUTE ADMISSIBLE REGION=')
+        file=astnac//'.att'
+        CALL rmsp(file,le)
+        CALL filopn(iunfla,file(1:le),'unknown')
+        CALL admis_reg(astnac,iunfla,attrc%tdtobs,attrc%angles,attrc%obscod,nrootsf, &
+       & roots,c,refs,xo,vo,100.d0,E_bound,nrootsd,rootsd,attrc%apm,xogeo,vogeo,elong)
+        CALL filclo(iunfla,' ')
+        WRITE(*,*) 'roots= ', roots(1:nrootsf) 
+        !WRITE(iun_log,*) 'roots= ', roots(1:nrootsf)  ! a lot of iun_log WRITEs are removed
+! =============================================================
+! WARNING: this may be not useful, now all in sample_web_grid
+! find the range of values for rhodot
+        r2=roots(1)
+        r1=1.d-4 ! arbitrary lower boundary
+! search for a zero of the derivative between r1,r2 
+        rder0 = -1.d0
+        ind = 0
+        IF(nrootsd.ge.1) THEN
+           IF(nrootsd.eq.1) THEN
+              ! do nothing
+           ELSEIF(nrootsd.eq.2) THEN
+              ! do nothing
+           ELSEIF(nrootsd.eq.3) THEN
+              DO iii=1,nrootsd
+                 IF((rootsd(iii).gt.r1).and.(rootsd(iii).lt.r2)) THEN
+                    ind=iii
+                 ENDIF
+              ENDDO
+              IF(ind.gt.2)THEN
+                 IF(rootsd(ind-2).gt.r1) THEN
+                    rder0=rootsd(ind-2)
+                    write(*,*)'r1,rder0,r2',r1,rder0,r2
+                 ENDIF
+              ENDIF
+              IF(rder0.ge.r2) THEN
+                 WRITE(*,*)'ERROR!!: rder0 > r2'
+              ENDIF
+              !            write(*,*)'r1,rder0,r2',r1,rder0,r2
+           ELSE
+              WRITE(*,*)'not included case: r1,r2 nrootsd=',nrootsd
+           ENDIF
+        ENDIF
+! use logaritmic scale
+        nfunc=2
+        CALL sample_bound_ne1(0.d0,attrc%eta**2,r1,rder0,r2,8,5,&
+             &ntot,c,frv,rhodot,npox,rdw)
+        rdotmin=MINVAL(rhodot(1:ntot))
+        rdotmax=MAXVAL(rhodot(1:ntot))
+        file=astnac//'.pol'
+        CALL rmsp(file,le)
+        CALL filopn(iunpol,file(1:le),'unknown')
+        WRITE(iunpol,178) roots, c, rdotmin,rdotmax
+178     FORMAT(11(1x,d14.6)) 
+        CALL filclo(iunpol,' ')
+! END WARNING
+     ELSEIF(iatt.eq.4)THEN
+!  ndir=50;np=50;sigx=5.d0; hmax=34.5d0 defaults assigned in finopt.f90
+        CALL sample_web_grid(astnac,ini0,cov0,elc,uncc,     &
+             &       csino0,m,obs(1:m),obsw(1:m),nd,artyp,geoc_chi,acce_chi,chi)
+     ELSEIF(iatt.eq.5)THEN
+        CALL tee(iun_log,'SEARCH FOR IMMEDIATE IMPACTORS=')
+        IF(.NOT.mov_flag)THEN
+           WRITE(*,*) ' Compute the MOV first!'
+           GOTO 59
+        ENDIF
+! select final time
+        WRITE(*,*)' Initial conditions at ',elc%t,' select delta t'
+        READ(*,*)dtclo
+        tmcla=elc%t+dtclo
+        WRITE(*,*)' search until final time ', tmcla
+        !WRITE(iun_log,*)' search until final time ', tmcla   ! a lot of iun_log WRITEs are removed
+! search and write output
+        CALL immediate_imp(astnac,tmcla,dtclo,csino0,artyp,&
+          &     geoc_chi,acce_chi,chi,m,obs(1:m))
+     ELSEIF(iatt.eq.6)THEN
+! MonteCarlo computation of impact probability
+        IF(.not.(ini0.and.cov0))THEN
+           WRITE(*,*)' Montecarlo not ready without nominal solution'
+           GOTO 59
+        ENDIF
+        CALL statcode(attrc%obscod,obscodn)
+        WRITE(*,*)' number of MC sample points? 0=exit'
+        READ(*,*) nmc
+        IF(nmc.le.0) GOTO 59
+! select final time
+        WRITE(*,*)' Initial conditions at ',el0%t,' select delta t'
+        READ(*,*)dtclo
+        tmcla=el0%t+dtclo
+        CALL mc_res_att(astnac,nmc,tmcla,m,obs,obsw,el0,obscodn,nd,nimp,isucc)
+! compute probability and report
+        impp=(nimp*1.d0)/(isucc*1.d0)
+        simppro=sqrt(impp*(1.d0-impp)/isucc)
+        WRITE(*,778)nimp, isucc,impp,simppro
+778     FORMAT('impactors= ',I4,' out of nominal= ',I4,' IP= ',F6.4,' sigma(IP)= ', F6.4)  
+     ELSEIF(iatt.eq.7)THEN
+! find absolute minimum of RMS in grid
+        rmsmin=1.d8
+        imin=0;jmin=0
+        DO i=1,ndir
+           DO j=1,np
+              IF(succ_cob(i,j).and.rms_points(i,j).lt.rmsmin)THEN
+                 rmsmin=rms_points(i,j)
+                 imin=i;jmin=j
+              ENDIF
+           ENDDO
+        ENDDO
+        el0=el_mov(imin,jmin)
+        ini0=.true.
+        WRITE(*,*)el0%coord(5:6), rmsmin
      ELSE
         WRITE(*,*)iatt, ' option not operational'
      ENDIF
+     GOTO 59
 ! ===================================================================== 
   ELSEIF(ifun.eq.10)THEN 
 ! ===================================================================== 
@@ -1185,7 +1578,12 @@ PROGRAM fitobs
    &         cov0,covp,covtwo                                         
 180  FORMAT('   obs0',' obsp ',' ini0 ',' inip ','inide ','initwo',    &
      &       ' cov0 ',' covp ','covtwo'                                 &
-     &           /10L6)                                                 
+     &           /10L6)
+! check that there are data 
+     IF(m.eq.0)THEN
+        WRITE(*,*)' no observation available '
+        GOTO 50
+     ENDIF                                                
 ! give the epoch times for all the elements                            
      WRITE(*,181)el0%t,elp%t,el%t,elide%t, &
    & obs(1)%time_tdt,obs(m)%time_tdt,obs(m+1)%time_tdt,obs(mall)%time_tdt
@@ -1235,7 +1633,7 @@ PROGRAM fitobs
   ELSEIF(ifun.eq.12)THEN 
 ! ===================================================================== 
 ! Check first and possibly second derivatives at the starting points    
-     CALL twotes(1,obs(1)%time_tdt,obs(1)%obscod_i,el0,obs(1)%obspos,obs(1)%obsvel)
+     CALL twotes(1,obs(1)%time_tdt,obs(1)%obscod_i,el0,obs(1)%obspos,obs(1)%obsvel,nd)
 ! ===================================================================== 
   ELSE 
 ! ===================================================================== 

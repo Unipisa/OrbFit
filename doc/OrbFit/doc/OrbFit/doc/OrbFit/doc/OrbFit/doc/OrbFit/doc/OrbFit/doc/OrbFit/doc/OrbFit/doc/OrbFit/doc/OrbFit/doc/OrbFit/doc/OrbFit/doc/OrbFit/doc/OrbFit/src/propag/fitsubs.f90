@@ -18,9 +18,12 @@
 ! WHICOR                                                                
 ! ===================================================================   
 ! interrogation routine for inew, icor                                  
-SUBROUTINE whicor(inter,icor,ncor,inew) 
+SUBROUTINE whicor(inter,nd,icor,ncor,inew) 
   implicit none 
-  integer iansw,inew,ncor,icor(6),inter,i 
+  INTEGER, INTENT(IN) :: inter, nd 
+  INTEGER, INTENT(OUT) :: icor(nd),ncor,inew
+! end interface
+  integer iansw,i 
 ! Choose method (NOW FIXED AT PSEUDO-NEWTON)                            
   inew=2 
 !60   write(*,*)' 1=true Newton 2=pseudo Newton'                        
@@ -31,15 +34,15 @@ SUBROUTINE whicor(inter,icor,ncor,inew)
 !     endif                                                             
 ! interactive/automatic default version                                 
   if(inter.eq.0)then 
-     icor=1 
-     ncor=6 
+     icor(1:nd)=1 
+     ncor=nd 
      return 
   else 
 ! interactive version                                                   
 !                                                                       
 ! Component of orbital element vector that need to be corrected         
      ncor=0 
-     do 63 i=1,6 
+     do 63 i=1,nd 
         write(*,*)'Element:  ',i,   ' 1=correct, 0=no' 
         read(*,*) iansw 
         if(iansw.ne.0)then 
@@ -120,7 +123,7 @@ SUBROUTINE chetim(t1,t2,ok)
 ! ==================================================================    
 ! check availability of JPL ephemerides                                 
   if(t1.lt.tejpl1.or.t2.gt.tejpl2)then 
-     write(*,*)' JPL epehemerides not available for =',t1,t2 
+     write(*,*)' JPL ephemerides not available for =',t1,t2 
      write(*,*)' but only for interval ',tejpl1,tejpl2 
      ok=.false. 
   endif
@@ -141,7 +144,8 @@ END SUBROUTINE chetim
 ! ===================================================                   
 ! SELEPH                                                                
 ! select time interval, step                                            
-SUBROUTINE seleph(tut1,tdt1,tut2,tdt2,dt,idsta) 
+SUBROUTINE seleph(tut1,tdt1,tut2,tdt2,dt,idsta)
+  USE station_coordinates
   IMPLICIT NONE 
 ! output                                                                
   DOUBLE PRECISION  tut1,tdt1,tut2,tdt2,dt 
@@ -149,7 +153,9 @@ SUBROUTINE seleph(tut1,tdt1,tut2,tdt2,dt,idsta)
 ! times in various formats used internally                              
   CHARACTER*3 scale 
   INTEGER mjd,mjdtdt 
-  DOUBLE PRECISION sec,sectdt 
+  DOUBLE PRECISION sec,sectdt
+ ! output                                                                
+  CHARACTER*3 obsstr 
   WRITE(*,*)' Initial time (MJD UTC)?' 
   READ(*,*)tut1 
   WRITE(*,*)' Final time (MJD UTC)?' 
@@ -157,7 +163,8 @@ SUBROUTINE seleph(tut1,tdt1,tut2,tdt2,dt,idsta)
   WRITE(*,*)' Time interval (days)?' 
   READ(*,*)dt 
   WRITE(*,*)' Observatory code?' 
-  READ(*,*)idsta 
+  READ(*,*)obsstr 
+  CALL statcode(obsstr,idsta)
   scale='UTC' 
 ! =========== TIME CONVERSION ================                          
 ! starting time                                                         
@@ -182,6 +189,7 @@ END SUBROUTINE seleph
 ! ====================================================                  
 SUBROUTINE asstim(icov,typ,tau,tut,idsta,m,mall,im,type1,t1,tut1,ids)
   USE util_suit
+  USE station_coordinates, ONLY: statcode
   IMPLICIT NONE 
   INTEGER m,mall
 ! ==============input=============  
@@ -191,6 +199,7 @@ SUBROUTINE asstim(icov,typ,tau,tut,idsta,m,mall,im,type1,t1,tut1,ids)
 ! ==============output=============                                     
   INTEGER im,ids
   CHARACTER*(1) type1
+  CHARACTER*3 ids_aux ! observatory alpha-numeric code
 ! end interface
   INTEGER iob1
   DOUBLE PRECISION t1,tut1 
@@ -272,7 +281,8 @@ SUBROUTINE asstim(icov,typ,tau,tut,idsta,m,mall,im,type1,t1,tut1,ids)
 ! assign observatory code                                               
      write(*,*) 
      write(*,*)' observatory code (geocenter=500)?   ' 
-     read(*,*) ids 
+     read(*,*) ids_aux
+     CALL statcode(ids_aux,ids)
 ! secret nationalistic feature                                          
      if(ids.lt.0)then 
         ids=599 
@@ -315,7 +325,7 @@ END SUBROUTINE asstim
 !         MUST BE EQU!!!
 !         iorb select orbit 1,2                                         
 ! Output  ng number of revolutions                                      
-!         eng mean motion value for central time                        
+!         enm mean motion value for central time                        
 !         am  semimajor axis value                                      
 !         plm mean longitude value                                      
 ! ===============INTERFACE========================                      

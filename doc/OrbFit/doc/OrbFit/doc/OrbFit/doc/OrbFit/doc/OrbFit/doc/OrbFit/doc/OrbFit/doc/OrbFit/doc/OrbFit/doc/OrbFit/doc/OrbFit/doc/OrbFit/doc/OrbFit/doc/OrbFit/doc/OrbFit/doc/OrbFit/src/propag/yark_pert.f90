@@ -10,15 +10,18 @@
 
 MODULE yark_pert
 USE fund_const
+USE dyn_param
 IMPLICIT NONE
 PRIVATE
 
-PUBLIC yarkdi, yarkse, yarkinit, secular_nongrav
+DOUBLE PRECISION :: yark_exp
+
+PUBLIC yarkdi, yarkse, yarkinit, secular_nongrav,yark_exp, sec_nong9
 
 ! private common data
 ! former yarkom.h
 ! controls and directory for Yarkovski force
-      INTEGER iyark,iyarpt
+      INTEGER iyarpt
       CHARACTER*80 yardir
 
 ! fromer yarkov.h 
@@ -30,52 +33,141 @@ PUBLIC yarkdi, yarkse, yarkinit, secular_nongrav
 !  has yarkinit routine been called
       LOGICAL yarfil,yarini
 ! secular perturbation in semiajor axis 
-      DOUBLE PRECISION dadt
-      PUBLIC iyark,iyarpt,yardir,yarfil,yarini,dadt
+!      DOUBLE PRECISION dadt
+      PUBLIC iyarpt,yardir,yarfil,yarini !,dadt
       
 CONTAINS 
-
+! =========================================================
+! SEC_NONG9   added by AM 9/9/2009
+! secular perturbation on semimajor axis, presumably due to
+! non gravitational perturbations (including Yarkovsky)
+! implemented as acceleration along the transverse direction
+! 22/3/2018 added radial component 
+SUBROUTINE sec_nong9(xb,vb,s,sv,secacc,iyark,dadt)
+!  interface: INPUT
+  DOUBLE PRECISION, INTENT(IN), DIMENSION(3) :: xb,vb ! position and velocity, barycentric
+  DOUBLE PRECISION, INTENT(IN), DIMENSION(3) :: s,sv !  position and velocity of the sun, barycentric
+  INTEGER,INTENT(IN) :: iyark ! 3= A2 only; 4=A2 and A1
+  DOUBLE PRECISION, INTENT(IN) :: dadt ! in au/My
+!  interface: OUTPUT
+  DOUBLE PRECISION, INTENT(OUT), DIMENSION(3) :: secacc
+! end interface
+!        DOUBLE PRECISION :: vvec(3),vv2, rr, vsize, prscal, factor, conv
+  DOUBLE PRECISION :: rr,rr2,vv2,rv
+  DOUBLE PRECISION :: factor,conv,yark_acc,trans_size, angm2, gmsy, sqarg
+  DOUBLE PRECISION :: vsize, prscal
+  DOUBLE PRECISION, DIMENSION(3) :: x, v, trans, angm
+! =========================================================
+! conversion to heliocentric coordinates
+  x=xb-s
+  v=vb-sv
+! Steve Chesley's implementation, assumes heliocentric position and velocity
+  rr=vsize(x)
+  rr2=prscal(x,x)
+  vv2=prscal(v,v)
+  rv =prscal(x,v)
+  CALL prvec(x,v,angm)
+  angm2=prscal(angm,angm)
+  gmsy=gms*365.25d0**2 ! here units are AU, y
+  sqarg=2*gmsy/rr-vv2
+  IF(sqarg.lt.0.d0)sqarg=0
+  factor=angm2*dsqrt(sqarg)/gmsy !fails for heliocentric hyperbolic
+! warning: dadt is in au/My, thus it has to be converted in au/y
+  conv=1.d6 
+  yark_acc=0.5*factor/conv/rr2
+  trans=v-(x*rv/rr2)
+  trans_size=vsize(trans)
+  secacc=dadt*yark_acc*trans/trans_size
+  IF(iyark.eq.4)THEN
+     secacc=secacc+(30.d0*yark_acc*abs(dadt)/rr)*x
+  ENDIF
+END SUBROUTINE sec_nong9
 ! =========================================================
 ! SECULAR_NONGRAV   added 17/9/2008
 ! secular perturbation on semimajor axis, presumably due to
 ! non gravitational perturbations (including Yarkovsky)
 ! implemented as acceleration along the velocity
-      SUBROUTINE secular_nongrav(x,v,secacc)
+! 22.11.2016 - Added derivatives, LDimare
+      SUBROUTINE secular_nongrav(x,v,secacc,der)
 !  interface: INPUT
         DOUBLE PRECISION, INTENT(IN), DIMENSION(3) :: x,v ! position and velocity, heliocentric
 !  interface: OUTPUT
         DOUBLE PRECISION, INTENT(OUT), DIMENSION(3) :: secacc
+        DOUBLE PRECISION, INTENT(OUT), OPTIONAL :: der(3,6) ! derivatives of acc wrt pos and vel
 ! end interface
-!        DOUBLE PRECISION :: vvec(3),vv2, rr, vsize, prscal, factor, conv
         DOUBLE PRECISION :: rr,rr2,vv2,rv,angm_x,angm_y,angm_z,angm2
         DOUBLE PRECISION :: factor,conv,yark_acc,trans_size,trans(3)
         DOUBLE PRECISION :: vsize, prscal
+        DOUBLE PRECISION,DIMENSION(3) :: ang_mom
+!!! 1/r^3 model
+        DOUBLE PRECISION :: p,e,a,n,a2,integral
+! derivatives
+        DOUBLE PRECISION, DIMENSION(3,6) :: dtrans,dtvers
+        DOUBLE PRECISION, DIMENSION(3,3) :: idmat ! id. matrix
+        INTEGER          :: i,j
 ! =========================================================
-!! first attempt (David V.)
-!         rr=vsize(x)
-!         vv2=prscal(v,v)
-!         vvec=v*(1/vv2)
-!         factor=(2*gms/rr-vv2)**2/gms
-!! warning: dadt is in AU/My, thus it has to be converted in AU/d
-!         conv=1.d6*365.25d0 
-!         factor=factor/conv
-!         secacc=0.5*factor*vvec
-! Steve Chesley's implementation
-         rr=vsize(x)
-         rr2=prscal(x,x)
-         vv2=prscal(v,v)
-         rv =prscal(x,v)
-         angm_x=x(2)*v(3)-x(3)*v(2)
-         angm_y=x(3)*v(1)-x(1)*v(3)
-         angm_z=x(1)*v(2)-x(2)*v(1)
-         angm2=angm_x*angm_x+angm_y*angm_y+angm_z*angm_z
-         factor=angm2*dsqrt(2*gms/rr-vv2)/gms
+! secacc=A2/r^yark_exp
+        rr=vsize(x)
+        trans=v-(x*DOT_PRODUCT(x,v)/rr**2)
+        trans_size=vsize(trans)
+!        secacc=1.d-15/rr**yark_exp*trans/trans_size
+! Good for Apophis!
+        secacc=1.d-10/rr**yark_exp*trans/trans_size
+        IF(PRESENT(der))THEN
+           ! derivatives of vector trans
+           dtrans=0.d0
+           CALL eye(3,idmat)
+           dtrans(1:3,1:3)=-DOT_PRODUCT(x,v)/rr**2*idmat
+           dtrans(1:3,4:6)=idmat
+           DO i=1,3
+              DO j=1,3
+                 dtrans(i,j)=dtrans(i,j)-x(i)*v(j)/rr**2+2.d0*DOT_PRODUCT(x,v)/rr**4*x(i)*x(j)
+              ENDDO
+              DO j=4,6
+                 dtrans(i,j)=dtrans(i,j)-x(j-3)*x(i)/rr**2
+              ENDDO
+           ENDDO
+           ! derivatives of trans/trans_size
+           dtvers=1.d0/trans_size*dtrans
+           DO i=1,3
+              DO j=1,6
+                 dtvers(i,j)=dtvers(i,j)-1.d0/trans_size**3*DOT_PRODUCT(trans,dtrans(1:3,j))*trans(i)
+              ENDDO
+           ENDDO
+           der=0.d0
+           DO i=1,3    ! index of acceleration component to be derived
+              DO j=1,3 ! index of position component wrt derive
+                 ! first piece: derivative of 1/rr**(yark_exp)
+                 der(i,j)=-yark_exp/rr**(yark_exp+2)*x(j)*trans(i)/trans_size
+              ENDDO
+              DO j=1,6 
+                 ! second piece: derivative of trans/trans_size
+                 der(i,j)=der(i,j)+dtvers(i,j)/rr**yark_exp
+              ENDDO
+           ENDDO
+           der=der*1.d-10
+        ENDIF
+
+        RETURN
+!! below we have obsolete formulations to directly compute
+!! dadt
+! useful quantities
+        rr=vsize(x)
+        rr2=rr**2
+        CALL prvec(x,v,ang_mom)
+        a=-gms/2/(DOT_PRODUCT(v,v)/2-gms/rr)
+        n=SQRT(gms/a**3)
+        p=DOT_PRODUCT(ang_mom,ang_mom)/gms
+        e=SQRT(ABS(1-p/a))
+        trans=v-(x*DOT_PRODUCT(x,v)/rr2)
+        trans_size=vsize(trans)
 ! warning: dadt is in AU/My, thus it has to be converted in AU/d
-         conv=1.d6*365.25d0 
-         yark_acc=0.5*factor/conv/rr2
-         trans=v-(x*rv/rr2)
-         trans_size=vsize(trans)
-         secacc=yark_acc*trans/trans_size
+        conv=1.d6*365.25d0
+! 1/r^2 model
+        secacc=0.5d0/conv*n*p*a/rr2*trans/trans_size
+!        return
+! 1/r^3 model
+        secacc=1.d0/conv*n*p**2*a/(2+e**2)/rr**3*trans/trans_size
       END SUBROUTINE secular_nongrav
 ! ******************************************************************    
       SUBROUTINE yarkdi(xast,a,iparti) 
@@ -300,7 +392,7 @@ CONTAINS
       implicit double precision (a-h,o-z) 
 ! modified 17/4/2007, to comply with the Golevka code at JPL.
      integer, parameter:: napprox=7
-!      integer, parameter:: napprox=12
+!     integer, parameter:: napprox=12
       parameter (capacity=680.d0,dsqrt2=1.414213562373d0) 
       parameter (emiss=0.9d0,clight3=8.99377374d8,aceuni=0.049900176d0) 
       dimension xast(3),vast(3) 
@@ -417,24 +509,28 @@ CONTAINS
       return 
       END SUBROUTINE yarkse                                          
 ! ==================================================================    
-! yarkinit: initialisation of the yarkovsky force model for a given aste
+! yarkinit: initialisation of the yarkovsky force model 
+!           for a given asteroid
 !           written by A. Milani & D. Vokrouhlicky, Oct 99              
 SUBROUTINE yarkinit(astnam,elem)
   USE orbit_elements 
+  USE dyn_param
   IMPLICIT NONE 
-  CHARACTER*(*), INTENT(IN) ::  astnam 
+! ============ BEGIN INTERFACE ===================
+  CHARACTER*(*),    INTENT(IN) ::  astnam 
   TYPE(orbit_elem), INTENT(IN) :: elem
-  CHARACTER*80 file 
-  DOUBLE PRECISION lat,long,emiss,stefboltz,argu,argu2,tstarya,eta 
+! ============ END INTERFACE =====================
+  CHARACTER*80 :: file 
+  DOUBLE PRECISION :: lat,long,emiss,stefboltz,argu,argu2,tstarya,eta 
   TYPE(orbit_elem) :: elekep
-  DOUBLE PRECISION elkep(6),pvya(3),qvya(3),nvya(3),enne,cgam,obli 
-  INTEGER unit,le, fail_flag
+  DOUBLE PRECISION :: elkep(6),pvya(3),qvya(3),nvya(3),enne,cgam,obli 
+  INTEGER          :: unit,le, fail_flag
   INCLUDE 'sysdep.h90' 
 ! yar is the logical flag for the existence of the physical data        
 ! allowing computation of Yarkovsky; otherwise, the non gravitational   
 ! force is set to zero                                                  
 !                                                                       
-  IF(iyark.eq.0.or.iyark.ge.3)RETURN 
+  IF(iyark.EQ.0.OR.iyark.GE.3)RETURN 
   yarini=.true. 
 ! convert elements to keplerian                                         
   call coo_cha(elem,'KEP',elekep,fail_flag)

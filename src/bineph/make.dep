@@ -1,20 +1,13 @@
 
-bineph.o: \
-	../suit/reference_systems.mod \
-	comast.h90 \
-	dim.h90 
-
-forceb.o: \
-	comast.h90 \
-	comjpl.h90 \
-	dim.h90 
-
-ra15b.o: \
-	dim.h90 
-
-rdoptb.o: \
+bineph2.o: \
+	../include/parobx.h90 \
+	../propag/dyn_param.mod \
+	../propag/force_model.mod \
+	../propag/least_squares.mod \
+	../propag/orbit_elements.mod \
+	../propag/propag_state.mod \
+	../suit/astrometric_observations.mod \
 	../suit/fund_const.mod \
+	../suit/output_control.mod \
 	../suit/reference_systems.mod \
-	comast.h90 \
-	comjpl.h90 \
 	dim.h90 

@@ -1,11 +1,11 @@
 bineph.x is used to prepare binary files of ephemerides files in order
 to include asteroid perturbations in OrbFit. You need an option file
-and a initial conditions file. See the /lib/propag.def file to learn
+and an initial conditions file. See the /lib/propag.def file to learn
 how to include these ephemerides in the Orbfit force model.
 
-The option file (*.bop) should look something like the included CPV.bop:
+The option file (*.bop) should look something like the included CPV_noiter.bop:
 
-======== CPV.bop ===============
+======== CPV_noiter.bop ===============
 input_files.
 	.incond = CPV.inc
 bineph.
@@ -15,8 +15,46 @@ bineph.
 	.step = 50
 force.JPLDE.
 	.planets = Mercury Venus Earth+Moon Mars Jupiter Saturn Uranus Neptune
+	.error_model='cbm10'    ! error model for observational data
+	.obsdir='obsdata'       ! observation directory
+	.diffcor_bineph=.T.     ! differential corrections for bineph
 JPLDE.
-!	.file = c:\users\zoran\jpl\jpleph
+
+propag.
+	.imet=0                 !   numerical method automatic choice
+        .irel=2                 !   general relativistic correction
+        .epms=1.d-12            !   corrector: ON
+        .hmax_me=6.d0           !   max stepsize if Mercury is included: ON
+	.imerc=1
+	.ilun=1
+================================
+
+or CPV_iter.bop:
+
+======== CPV_iter.bop ===============
+input_files.
+	.incond = CPV.inc
+bineph.
+	.eph_obj= 1 2 4
+	.epoch.start = CAL 1989/Jan/01 0:0:0 TDT
+	.epoch.end   = CAL 1991/Jan/01 0:0:0 TDT
+	.step = 50
+force.JPLDE.
+	.planets = Mercury Venus Earth+Moon Mars Jupiter Saturn Uranus Neptune
+	.error_model='cbm10'    ! error model for observational data
+	.obsdir='obsdata'       ! observation directory
+	.diffcor_bineph=.T.     ! differential corrections for bineph
+JPLDE.
+
+propag.
+	.imet=0                 !   numerical method automatic choice
+	.iast=3                 !   number of perturbers
+	.filbe='CPV'            !   name of the perturbers file
+        .irel=2                 !   general relativistic correction
+        .epms=1.d-12            !   corrector: ON
+        .hmax_me=6.d0           !   max stepsize if Mercury is included: ON
+	.imerc=1
+	.ilun=1
 ================================
 
 The initial conditions should use the format of the provided CPV.inc:
@@ -48,8 +86,8 @@ options to the *.fop or *.oop option file:
 
 ! Asteroid perturbations
 propag.
-	.iast=3!  0=no asteroids with mass n=no. of massive asteroids 
-	.filbe='CPV'! name of the asteroid ephemerides file
+	.iast=3      !  0=no asteroids with mass n=no. of massive asteroids, 17=16 perturbers+Pluto
+	.filbe='CPV' ! name of the asteroid ephemerides file (if iast=17, filbe must be equal to 'AST17')
 !
 
 

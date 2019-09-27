@@ -8,6 +8,7 @@ PROGRAM test_moid_rms
   USE fund_const
   USE output_control
   USE critical_points
+  USE dyn_param
   IMPLICIT NONE
   INTEGER, PARAMETER :: nastmax=10000
 ! for read_elems
@@ -27,7 +28,7 @@ PROGRAM test_moid_rms
   INTEGER :: j,m,enn,o,p,q
 ! ===============ASTEROID/COMET====================
   CHARACTER(LEN=9) :: name ! asteroid name 
-  LOGICAL ::  eof
+  LOGICAL ::  eof, err
   CHARACTER(LEN=60) file,elefil,eledir ! file names 
   LOGICAL ::  chk_der
   INTEGER :: le
@@ -35,6 +36,8 @@ PROGRAM test_moid_rms
   CHARACTER(LEN=3) :: coord ! coord type
   LOGICAL, DIMENSION(3,nminx) :: comp_flag
   DOUBLE PRECISION, DIMENSION(6,6) :: dee 
+  INTEGER :: nlsloc
+  INTEGER :: lsloc(ndyx) ! solve-for dynamical
 ! -------------------------------------------------
   TYPE(orbit_elem) :: elem2
   TYPE(orb_uncert) :: unc2
@@ -87,7 +90,10 @@ PROGRAM test_moid_rms
              & ' initial conditions not found.'             
         STOP
      ENDIF
-     CALL read_elems(elem2,name,eof,elefil,COVAR=unc2)
+
+     CALL read_elems(elem2,name,eof,nlsloc,err,lsloc,UNC=unc2,FILE=elefil)
+     write(*,*)'nlsloc',nlsloc
+
      If(.not.eof)THEN
         ini2=.true.
      ELSE
@@ -109,7 +115,7 @@ PROGRAM test_moid_rms
      ENDIF
 ! Earth orbital elements
      elem1=undefined_orbit_elem
-     unc1=undefined_orb_uncert
+     CALL undefined_orb_uncert(6,unc1)
      unc1%g=0.d0 ! to be sure Earth has negligible uncertainty
      CALL earth(elem2%t,elem1%coord)
      elem1%coo='EQU'

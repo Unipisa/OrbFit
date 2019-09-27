@@ -13,7 +13,7 @@ MODULE synthtro
 ! array size for all the data read at once 
   INTEGER, PARAMETER, PUBLIC :: nsx=501 ! max no of bodies
   INTEGER, PARAMETER, PUBLIC :: nastx=1100 ! max no of bodies
-  INTEGER, PARAMETER, PUBLIC :: ntx=5001  ! max no of records
+  INTEGER, PARAMETER, PUBLIC :: ntx=50001  ! max no of records
   INTEGER, PARAMETER, PUBLIC :: nforc=9   ! max no forced terms
 !  max no. running boxes
   INTEGER, PARAMETER, PUBLIC :: nbx=100
@@ -64,7 +64,7 @@ SUBROUTINE parprtt(inflag,nbb,ntt,ndap,nshi,isum,iste)
      iste=2
   ELSEIF(inflag.eq.2)THEN
      !  parameters for propert 50 Myr extended integration
-     nbb=135
+     nbb=150
      ntt=50001
      IF(ntt.gt.ntx)THEN
         WRITE(*,*)' parprtt: too many records, ntx=',ntt,    &

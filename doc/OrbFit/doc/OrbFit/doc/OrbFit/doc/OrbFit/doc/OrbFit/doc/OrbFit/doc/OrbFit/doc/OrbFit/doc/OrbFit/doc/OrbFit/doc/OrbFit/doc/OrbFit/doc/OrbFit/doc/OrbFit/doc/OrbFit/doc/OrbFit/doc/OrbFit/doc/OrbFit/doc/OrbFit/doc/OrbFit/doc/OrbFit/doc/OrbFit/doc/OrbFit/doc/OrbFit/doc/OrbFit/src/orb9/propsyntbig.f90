@@ -41,6 +41,9 @@ PROGRAM propsynt
   INTEGER n,ib,ij,i0,i1,i2,j,l,jj,ii 
 ! lengths, addresses                                                    
   INTEGER naf,len,nb,ntf,iwri,nop,nbeg 
+! secular resonance: flag, libration phase deg (proper ecc. is amplitude)
+  INTEGER resflag ! 0=non-res., 1=res, forced, -1=non-res, forced
+  DOUBLE PRECISION phalib, phalibb(nbx), sigph, sigdel! for running box test of phase
 ! ===================================================
 ! interactive input
 ! ===================================================
@@ -125,15 +128,6 @@ PROGRAM propsynt
         call dosemim(x,y,tf,ntf,pe0(1),dpe0(1),fe0(1),dfe0(1),          &
      &     ang0(1),rmsang0(1),devmax,iwri)
 ! =====================================================                 
-!   compute proper eccentricity from all data                           
-        WRITE(9,*)' =========== eccentricity ' 
-        DO j=1,ntf 
-          x(j)=elf(3,n,j) 
-          y(j)=elf(2,n,j) 
-        ENDDO 
-        call doinc(x,y,tf,ntf,gp,klisg,pe0(2),dpe0(2),                  &
-     &             fe0(2),dfe0(2),ang0(2),rmsang0(2),iwri)
-! =====================================================                 
 !   compute proper inclination from all data                            
         WRITE(9,*)' =========== inclination ' 
         DO j=1,ntf 
@@ -146,6 +140,21 @@ PROGRAM propsynt
 ! conversion from tg(I/2) to sinI                                       
         dpe0(3)=2.d0*dpe0(3)* cos(2.d0*atan(pe0(3))) 
         pe0(3)=sin(2.d0*atan(pe0(3))) 
+! =====================================================                 
+!   compute proper eccentricity from all data                           
+        WRITE(9,*)' =========== eccentricity ' 
+        DO j=1,ntf 
+          x(j)=elf(3,n,j) 
+          y(j)=elf(2,n,j) 
+        ENDDO
+        IF(pe0(1).gt.2.5d0.and.pe0(1).lt.2.7d0)THEN
+           resflag=0 ! non-resonant, but can be changed to resonance after test
+        ELSE
+           resflag=-1 ! force ignore secular resonance
+        ENDIF 
+        CALL doecc(x,y,tf,ntf,gp,klisg,pe0(2),dpe0(2),                  &
+     &        fe0(2),dfe0(2),ang0(2),rmsang0(2),iwri,resflag,phalib,pe0(3),pe0(1))
+!        WRITE(*,*) 0, pe0(2), fe0(2)
 ! =====================================================                 
 !   running box test for accuracy; ib=box index                         
         ib=0 
@@ -165,13 +174,7 @@ PROGRAM propsynt
      &            dfe(ib,1),ph(ib,1),rmsph(ib,1),devmad,iwri)       
 !          IF(pe(ib,1).gt.9.9999999d0)pe(ib,1)=9.9999999d0              
 !
-          DO j=1,ndap 
-            x(j)=elf(3,n,j+i0) 
-            y(j)=elf(2,n,j+i0) 
-          ENDDO 
-          call doinc(x,y,tf(i1),ndap,gp,klisg,pe(ib,2),                 &
-     &            dpe(ib,2),fe(ib,2),dfe(ib,2),ph(ib,2),rmsph(ib,2),iwri)
-!                                                                       
+! proper inclination
           DO j=1,ndap 
             x(j)=elf(5,n,j+i0) 
             y(j)=elf(4,n,j+i0) 
@@ -181,19 +184,40 @@ PROGRAM propsynt
 ! conversion from tg(I/2) to sinI                                       
           pe(ib,3)=sin(2.d0*atan(pe(ib,3))) 
           dpe(ib,3)=2.d0*dpe(ib,3)* cos(2.d0*atan(pe(ib,3))) 
+! to avoid that different running boxes have different resonance status
+          IF(resflag.eq.0) resflag=-1
+! proper eccentricity 
+          DO j=1,ndap 
+            x(j)=elf(3,n,j+i0) 
+            y(j)=elf(2,n,j+i0) 
+          ENDDO
+          CALL doecc(x,y,tf(i1),ndap,gp,klisg,pe(ib,2),dpe(ib,2),fe(ib,2),   &
+     &        dfe(ib,2),ph(ib,2),rmsph(ib,2),iwri,resflag,phalibb(ib),pe(ib,3),pe(ib,1))
+!          WRITE(*,*) ib, pe(ib,2),fe(ib,2)
+
    50   ENDDO 
         nb=ib 
 !   compute max deviation, standard deviation                           
         WRITE(9,*)' summary proper elements:' 
         DO l=1,3 
-          sige(l)=sigmf(pe(1,l),pe0(l),nb) 
-          delte(l)=MAX(MAXVAL(pe(1:nb,l)),pe0(l))-MIN(MINVAL(pe(1:nb,l)),pe0(l))
-          sigf(l)=sigmf(fe(1,l),fe0(l),nb) 
-          deltf(l)=MAX(MAXVAL(fe(1:nb,l)),fe0(l))-MIN(MINVAL(fe(1:nb,l)),fe0(l))
-! security feature: the average must be close to the value on all the in
-          WRITE(9,250)pe0(l),sige(l),delte(l),fe0(l),sigf(l),deltf(l) 
-250       FORMAT(f10.7,1x,f9.7,1x,f9.7,1x,f9.5,1x,f7.5,1x,f7.5) 
+           sige(l)=sigmf(pe(1,l),pe0(l),nb) 
+           delte(l)=MAX(MAXVAL(pe(1:nb,l)),pe0(l))-MIN(MINVAL(pe(1:nb,l)),pe0(l))
+           sigf(l)=sigmf(fe(1,l),fe0(l),nb) 
+           deltf(l)=MAX(MAXVAL(fe(1:nb,l)),fe0(l))-MIN(MINVAL(fe(1:nb,l)),fe0(l))
+! security feature: the average must be close to the value on all the interval
+           WRITE(9,250)pe0(l),sige(l),delte(l),fe0(l),sigf(l),deltf(l) 
+250        FORMAT(f10.7,1x,f9.7,1x,f9.7,1x,f9.5,1x,f7.5,1x,f7.5) 
         ENDDO 
+        IF(resflag.eq.1)THEN
+           sigph=sigmfprideg(phalibb(1),phalib,nb)
+!           sigdel=MAX(MAXVAL(phalibb(1:nb)),phalib)-MIN(MINVAL(phalibb(1:nb)),phalib)
+! security feature: the average must be close to the value on all the interval
+           WRITE(9,251)phalib, sigph 
+251        FORMAT(f12.8,1x,f11.7) 
+        ELSE
+           sigph=0.d0
+           sigdel=0.d0
+        ENDIF
 ! ==========================================================            
 !   2d: Lyapounov characteristic exponents                              
 ! ==========================================================            
@@ -233,8 +257,9 @@ PROGRAM propsynt
         ang0(1)=ang0(1)-360*floor(ang0(1)/360)
         ang0(2)=ang0(2)-360*floor(ang0(2)/360)
         ang0(3)=ang0(3)-360*floor(ang0(3)/360)
-        WRITE(23,123)number(n),ang0,rmsang0 
-123     FORMAT(A,3(1x,f12.6),3(1x,f12.4))
+        phalib=phalib-360*floor(phalib/360)
+        WRITE(23,123)number(n),ang0,phalib,rmsang0, sigph
+123     FORMAT(A,4(1x,f12.6),4(1x,f12.4))
 ! ==================================================                    
 !  end loop on asteroids                                                
 ! ==================================================                    

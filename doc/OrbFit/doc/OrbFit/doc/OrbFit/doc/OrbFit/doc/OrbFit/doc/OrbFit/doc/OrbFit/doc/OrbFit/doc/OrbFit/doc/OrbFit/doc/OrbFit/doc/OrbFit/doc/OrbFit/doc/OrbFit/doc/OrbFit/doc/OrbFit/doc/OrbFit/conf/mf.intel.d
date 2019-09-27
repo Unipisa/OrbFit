@@ -3,7 +3,7 @@
 # Fortran compiler
 FC=ifort
 # Options for Fortran compiler for debugging:
-FFLAGS=  -cm -g -CB -traceback -mp -save -assume byterecl -I../include 
+FFLAGS=  -warn nousage -g -CB -shared-intel -mcmodel=medium -traceback -fp-model fast -save -assume byterecl -I../include 
 # "ranlib" command: if it is not needed, use "RANLIB=touch"
 RANLIB=ranlib
 VPATH=../include

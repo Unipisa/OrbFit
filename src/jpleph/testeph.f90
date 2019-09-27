@@ -1,6 +1,37 @@
-!            *****    JPL Planetary and Lunar Ephemerides    *****      
+      program testeph 
 !                                                                       
-!                                      Version : July 8, 1997           
+!     This program reads a binary format file of ploynomial coefficients
+!     fit to the JPL/Calech Planetary and Lunar Ephemerides,            
+!     interpolates the coefficients to a set of input times to          
+!     evaluate the positions and velocities of the planets at those     
+!     times anc compres with a test printout file.                      
+!                                                                       
+!$ Disclaimer                                                           
+!                                                                       
+!     THIS SOFTWARE AND ANY RELATED MATERIALS WERE CREATED BY THE       
+!     CALIFORNIA INSTITUTE OF TECHNOLOGY (CALTECH) UNDER A U.S.         
+!     GOVERNMENT CONTRACT WITH THE NATIONAL AERONAUTICS AND SPACE       
+!     ADMINISTRATION (NASA). THE SOFTWARE IS TECHNOLOGY AND SOFTWARE    
+!     PUBLICLY AVAILABLE UNDER U.S. EXPORT LAWS AND IS PROVIDED "AS-IS" 
+!     TO THE RECIPIENT WITHOUT WARRANTY OF ANY KIND, INCLUDING ANY      
+!     WARRANTIES OF PERFORMANCE OR MERCHANTABILITY OR FITNESS FOR A     
+!     PARTICULAR USE OR PURPOSE (AS SET FORTH IN UNITED STATES UCC      
+!     SECTIONS 2312-2313) OR FOR ANY PURPOSE WHATSOEVER, FOR THE        
+!     SOFTWARE AND RELATED MATERIALS, HOWEVER USED.                     
+!                                                                       
+!     IN NO EVENT SHALL CALTECH, ITS JET PROPULSION LABORATORY, OR NASA 
+!     BE LIABLE FOR ANY DAMAGES AND/OR COSTS, INCLUDING, BUT NOT        
+!     LIMITED TO, INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND,      
+!     INCLUDING ECONOMIC DAMAGE OR INJURY TO PROPERTY AND LOST PROFITS, 
+!     REGARDLESS OF WHETHER CALTECH, JPL, OR NASA BE ADVISED, HAVE      
+!     REASON TO KNOW, OR, IN FACT, SHALL KNOW OF THE POSSIBILITY.       
+!                                                                       
+!     RECIPIENT BEARS ALL RISK RELATING TO QUALITY AND PERFORMANCE OF   
+!     THE SOFTWARE AND ANY RELATED MATERIALS, AND AGREES TO INDEMNIFY   
+!     CALTECH AND NASA FOR ALL THIRD-PARTY CLAIMS RESULTING FROM THE    
+!     ACTIONS OF RECIPIENT IN THE USE OF THE SOFTWARE.                  
+!                                                                       
+!                Version : March 25, 2013                               
 !                                                                       
 !     Program TESTEPH                                                   
 !     ---------------                                                   
@@ -39,9 +70,8 @@
 !         - writes an error message if the difference between           
 !           any of the state components is greater than 10**(-13).      
 !                                                                       
-!         - writes state and difference information for every 10th      
+!         - writes state and difference information for every 100th     
 !           test case processed.                                        
-!                                                                       
 !                                                                       
 !      This program is written in standard Fortran-77.                  
 !                                                                       
@@ -79,35 +109,44 @@
 !         c)  Hardwire the value of RECL.  This number is NRECL*1652 for
 !             NRECL*2036 for DE405, and NRECL*1456 for DE406.           
 !                                                                       
-!                                                                       
-!                                                                       
-       CHARACTER*6  NAMS(400) 
+       INTEGER NMAX 
+       PARAMETER (NMAX = 1000) 
+                                                                        
+       CHARACTER*6  NAMS(NMAX) 
        CHARACTER*3  ALF3 
                                                                         
        DOUBLE PRECISION  DEL 
        DOUBLE PRECISION  ET 
        DOUBLE PRECISION  R(6) 
        DOUBLE PRECISION  SS(3) 
-       DOUBLE PRECISION  VALS(400) 
+       DOUBLE PRECISION  VALS(NMAX) 
        DOUBLE PRECISION  XI 
+       DOUBLE PRECISION  JDEPOC 
                                                                         
        INTEGER  I 
        INTEGER  LINE 
+       DATA LINE/0/ 
        INTEGER  NVS,NTARG,NCTR,NCOORD 
-       INTEGER  NPT
-       DATA NPT /100/ 
+       INTEGER  NPT 
+       DATA NPT/100/ 
                                                                         
 !      Write a fingerprint to the screen.                               
                                                                         
        WRITE(*,*) ' JPL TEST-EPHEMERIS program. ' //                    &
-     &            ' Last modified July 1997.'                           
+     &            ' Last modified March 2013.'                          
                                                                         
 !      Print the ephemeris constants.                                   
                                                                         
-       CALL  Const (NAMS, VALS, SS, NVS) 
+       CALL  CONST (NAMS, VALS, SS, NVS) 
                                                                         
-       WRITE (*,'(/3F14.2/200(/2(A8,D24.16)))') SS,                     &
-     &                                         (NAMS(I),VALS(I),I=1,NVS)
+       JDEPOC = 2440400.5d0 
+                                                                        
+       WRITE (*,'(/3F14.2)') SS 
+                                                                        
+       DO I=1,NVS 
+         IF(NAMS(I) .EQ. 'JDEPOC')JDEPOC = VALS(I) 
+         WRITE(6,'(A8,D24.16)')NAMS(I),VALS(I) 
+       ENDDO 
                                                                         
 !     Skip the file header comments.                                    
                                                                         
@@ -122,7 +161,7 @@
 !     Read a value from the test case; skip if not within the time-range
 !     of the present version of the ephemeris                           
                                                                         
-    2 READ(*,'(15X,D10.1,3I3,D22.13)',END=9)                            &
+    2 READ(*,'(15X,D10.1,3I3,F30.20)',END=9)                            &
      & ET,NTARG,NCTR,NCOORD,XI                                          
                                                                         
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
@@ -136,29 +175,47 @@
       IF(ET .LT. SS(1)) GO TO 2 
       IF(ET .GT. SS(2)) GO TO 2 
                                                                         
-      CALL  Pleph ( ET, NTARG, NCTR, R ) 
+      CALL  PLEPH ( ET, NTARG, NCTR, R ) 
                                                                         
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
                                                                         
-      DEL=DABS(R(NCOORD)-XI)/(DABS(R(NCOORD))+DABS(XI)) 
-      LINE=LINE+1 
+!     For testing purposes DEL is the computation of the difference in  
+!       read values of the ephemeris converted from the export ascii fil
+!       versus those printed form the original integration.             
+!     The difference is checked for random parameters, one every 32 day 
+!     The agreement is considered okay if DEl is less that 1e-13.       
+!     This corresponds to a few cm for body positions, and very small   
+!     values for velocities, and angles and their rates.                
+!       (A fractional test isn't suitable since sometimes the values wil
+!        be near zero for particular components.)                       
+!     For lunar libration psi, NCOORD=15, the angle accumulates in time 
+!     so precision is lost after several centuries. This is handled belo
+!     by scaling DEL down for psi, by 100 radians per year from the refe
+!     as opposed to having different tolerances for different types of q
+                                                                        
+      DEL=DABS(R(NCOORD)-XI) 
+                                                                        
+      IF(NTARG .EQ. 15 .AND. NCOORD .EQ. 3)THEN 
+        DEL = DEL/(1.D0+100.D0*ABS(ET-JDEPOC)/365.25d0) 
+      ENDIF 
+                                                                        
+      LINE = LINE+1 
                                                                         
       IF ( MOD(LINE,npt) .EQ. 0 )  WRITE(*,200)                         &
      & LINE,ET,NTARG,NCTR,NCOORD,XI,R(NCOORD),DEL                       
-  200 FORMAT(I6,F10.1,3I5,3F20.13) 
+  200 FORMAT(I6,F10.1,3I5,2F25.13,1E13.5) 
                                                                         
 !  Print out WARNING if difference greater than tolerance.              
 !                                                                       
       IF (DEL .GE. 1.D-13) WRITE(*,201)                                 &
      & LINE,ET,NTARG,NCTR,NCOORD,XI,R(NCOORD),DEL                       
   201 FORMAT(/ '*****  WARNING : next difference >= 1.D-13  *****'//    &
-     & I6,F10.1,3I3,3F20.13/' ')                                        
+     & I6,F10.1,3I3,2F25.13,1E13.5/' ')                                 
                                                                         
       GO TO 2 
                                                                         
     9 STOP 
       END                                           
-                                                                        
                                                                         
 !++++++++++++++++++++++++                                               
 !                                                                       
@@ -183,7 +240,8 @@
                                                                         
       CHARACTER*80  NAMFIL 
                                                                         
-      NAMFIL= 'jpleph' 
+!      NAMFIL='JPLEPH'                                                  
+                                                                        
 !  *****************************************************************    
                                                                         
 !  NRECL=1 IF "RECL" IN THE OPEN STATEMENT IS THE RECORD LENGTH IN S.P. 
@@ -191,18 +249,19 @@
 !  (for a VAX, it is probably 1)                                        
 !                                                                       
       NRECL=4 
+                                                                        
 !  *****************************************************************    
                                                                         
 !  NRFILE IS THE INTERNAL UNIT NUMBER USED FOR THE EPHEMERIS FILE       
                                                                         
-      NRFILE=12 
+!      NRFILE=12                                                        
                                                                         
 !  *****************************************************************    
                                                                         
 !   FIND THE RECORD SIZE USING THE INQUIRE STATEMENT                    
                                                                         
                                                                         
-      IRECSZ=0 
+!      IRECSZ=0                                                         
                                                                         
       INQUIRE(FILE=NAMFIL,RECL=IRECSZ) 
                                                                         
@@ -231,7 +290,12 @@
                                                                         
       SAVE 
                                                                         
-      CHARACTER*6 TTL(14,3),CNAM(400) 
+      INTEGER OLDMAX 
+      PARAMETER (OLDMAX = 400) 
+      INTEGER NMAX 
+      PARAMETER (NMAX = 1000) 
+                                                                        
+      CHARACTER*6 TTL(14,3),CNAM(NMAX) 
       CHARACTER*80 NAMFIL 
                                                                         
       DIMENSION SS(3) 
@@ -249,7 +313,7 @@
 !  NRECL=4 IF "RECL" IN THE OPEN STATEMENT IS THE RECORD LENGTH IN BYTES
 !  (for UNIX, it is probably 4)                                         
 !                                                                       
-      NRECL= 4 
+      NRECL=4 
                                                                         
 !  NRFILE IS THE INTERNAL UNIT NUMBER USED FOR THE EPHEMERIS FILE       
                                                                         
@@ -257,8 +321,7 @@
                                                                         
 !  NAMFIL IS THE EXTERNAL NAME OF THE BINARY EPHEMERIS FILE             
                                                                         
-                                                                        
-      NAMFIL='jpleph' 
+      NAMFIL='JPLEPH' 
                                                                         
 !  *****************************************************************    
 !  *****************************************************************    
@@ -275,12 +338,10 @@
      &       RECL=MRECL,                                                &
      &       STATUS='OLD')                                              
                                                                         
-      READ(NRFILE,REC=1)TTL,CNAM,SS,NCON,AU,EMRAT,                      &
+      READ(NRFILE,REC=1)TTL,(CNAM(K),K=1,OLDMAX),SS,NCON,AU,EMRAT,      &
      & ((IPT(I,J),I=1,3),J=1,12),NUMDE,(IPT(I,13),I=1,3)                
                                                                         
       CLOSE(NRFILE) 
-                                                                        
-                                                                        
                                                                         
 !  FIND THE NUMBER OF EPHEMERIS COEFFICIENTS FROM THE POINTERS          
                                                                         
@@ -324,7 +385,7 @@
 !  NRECL=1 IF "RECL" IN THE OPEN STATEMENT IS THE RECORD LENGTH IN S.P. 
 !  NRECL=4 IF "RECL" IN THE OPEN STATEMENT IS THE RECORD LENGTH IN BYTES
                                                                         
-!      NRECL=                                                           
+       NRECL=4 
                                                                         
 !  *****************************************************************    
                                                                         
@@ -345,8 +406,15 @@
 !  For  de200, set KSIZE to 1652                                        
 !  For  de405, set KSIZE to 2036                                        
 !  For  de406, set KSIZE to 1456                                        
+!  For  de414, set KSIZE to 2036                                        
+!  For  de418, set KSIZE to 2036                                        
+!  For  de421, set KSIZE to 2036                                        
+!  For  de422, set KSIZE to 2036                                        
+!  For  de423, set KSIZE to 2036                                        
+!  For  de424, set KSIZE to 2036                                        
+!  For  de430, set KSIZE to 2036                                        
                                                                         
-      KSIZE = 2036 
+      KSIZE = 2036
                                                                         
 !  *******************************************************************  
                                                                         
@@ -363,8 +431,6 @@
 !  whether or not the requested date is covered by the ephemeris.  We ap
 !  for this inconsistency; in this present version, we use only the four
 !  arguments and do the testing outside of the subroutine.              
-!                                                                       
-!                                                                       
 !                                                                       
 !     THIS SUBROUTINE READS THE JPL PLANETARY EPHEMERIS                 
 !     AND GIVES THE POSITION AND VELOCITY OF THE POINT 'NTARG'          
@@ -410,15 +476,19 @@
                                                                         
       IMPLICIT DOUBLE PRECISION (A-H,O-Z) 
                                                                         
+      INTEGER NMAX 
+      PARAMETER (NMAX = 1000) 
+                                                                        
       DIMENSION RRD(6),ET2Z(2),ET2(2),PV(6,13) 
-      DIMENSION SS(3),CVAL(400),PVSUN(6) 
+      DIMENSION PVST(6,11),PNUT(4) 
+      DIMENSION SS(3),CVAL(NMAX),PVSUN(6),ZIPS(2) 
+      DATA ZIPS/2*0.d0/ 
                                                                         
       LOGICAL BSAVE,KM,BARY 
       LOGICAL FIRST 
       DATA FIRST/.TRUE./ 
                                                                         
       INTEGER LIST(12),IPT(39),DENUM 
-                                                                        
                                                                         
       COMMON/EPHHDR/CVAL,SS,AU,EMRAT,DENUM,NCON,IPT 
                                                                         
@@ -438,17 +508,13 @@
       ET2(1)=ET2Z(1) 
       ET2(2)=ET2Z(2) 
                                                                         
-   11 DO I=1,6 
-      RRD(I)=0.D0 
-      ENDDO 
-                                                                        
-      IF(FIRST) CALL STATE(0.D0,0,0,0) 
+   11 IF(FIRST) CALL STATE(ZIPS,LIST,PVST,PNUT) 
       FIRST=.FALSE. 
                                                                         
    96 IF(NTARG .EQ. NCENT) RETURN 
                                                                         
       DO I=1,12 
-      LIST(I)=0 
+        LIST(I)=0 
       ENDDO 
                                                                         
 !     CHECK FOR NUTATION CALL                                           
@@ -456,9 +522,17 @@
       IF(NTARG.NE.14) GO TO 97 
         IF(IPT(35).GT.0) THEN 
           LIST(11)=2 
-          CALL STATE(ET2,LIST,PV,RRD) 
+          CALL STATE(ET2,LIST,PVST,PNUT) 
+          DO I=1,4 
+            RRD(I)=PNUT(I) 
+          ENDDO 
+          RRD(5) = 0.d0 
+          RRD(6) = 0.d0 
           RETURN 
         ELSE 
+          DO I=1,4 
+            RRD(I)=0.d0 
+          ENDDO 
           WRITE(6,297) 
   297     FORMAT(' *****  NO NUTATIONS ON THE EPHEMERIS FILE  *****') 
           STOP 
@@ -466,12 +540,17 @@
                                                                         
 !     CHECK FOR LIBRATIONS                                              
                                                                         
-   97 IF(NTARG.NE.15) GO TO 98 
+   97 CONTINUE 
+      DO I=1,6 
+        RRD(I)=0.d0 
+      ENDDO 
+                                                                        
+      IF(NTARG.NE.15) GO TO 98 
         IF(IPT(38).GT.0) THEN 
           LIST(12)=2 
-          CALL STATE(ET2,LIST,PV,RRD) 
+          CALL STATE(ET2,LIST,PVST,PNUT) 
           DO I=1,6 
-          RRD(I)=PV(I,11) 
+            RRD(I)=PVST(I,11) 
           ENDDO 
           RETURN 
         ELSE 
@@ -488,57 +567,63 @@
 !       SET UP PROPER ENTRIES IN 'LIST' ARRAY FOR STATE CALL            
                                                                         
       DO I=1,2 
-      K=NTARG 
-      IF(I .EQ. 2) K=NCENT 
-      IF(K .LE. 10) LIST(K)=2 
-      IF(K .EQ. 10) LIST(3)=2 
-      IF(K .EQ. 3) LIST(10)=2 
-      IF(K .EQ. 13) LIST(3)=2 
+        K=NTARG 
+        IF(I .EQ. 2) K=NCENT 
+        IF(K .LE. 10) LIST(K)=2 
+        IF(K .EQ. 10) LIST(3)=2 
+        IF(K .EQ. 3) LIST(10)=2 
+        IF(K .EQ. 13) LIST(3)=2 
       ENDDO 
                                                                         
 !       MAKE CALL TO STATE                                              
                                                                         
-      CALL STATE(ET2,LIST,PV,RRD) 
+      CALL STATE(ET2,LIST,PVST,PNUT) 
+                                                                        
+      DO I=1,10 
+        DO J = 1,6 
+          PV(J,I) = PVST(J,I) 
+        ENDDO 
+      ENDDO 
                                                                         
       IF(NTARG .EQ. 11 .OR. NCENT .EQ. 11) THEN 
       DO I=1,6 
-      PV(I,11)=PVSUN(I) 
+        PV(I,11)=PVSUN(I) 
       ENDDO 
       ENDIF 
                                                                         
       IF(NTARG .EQ. 12 .OR. NCENT .EQ. 12) THEN 
-      DO I=1,6 
-      PV(I,12)=0.D0 
-      ENDDO 
+        DO I=1,6 
+          PV(I,12)=0.D0 
+        ENDDO 
       ENDIF 
                                                                         
       IF(NTARG .EQ. 13 .OR. NCENT .EQ. 13) THEN 
-      DO I=1,6 
-      PV(I,13)=PV(I,3) 
-      ENDDO 
+        DO I=1,6 
+          PV(I,13) = PVST(I,3) 
+        ENDDO 
       ENDIF 
                                                                         
       IF(NTARG*NCENT .EQ. 30 .AND. NTARG+NCENT .EQ. 13) THEN 
-      DO I=1,6 
-      PV(I,3)=0.D0 
-      ENDDO 
-      GO TO 99 
+        DO I=1,6 
+          PV(I,3)=0.D0 
+        ENDDO 
+        GO TO 99 
       ENDIF 
                                                                         
       IF(LIST(3) .EQ. 2) THEN 
-      DO I=1,6 
-      PV(I,3)=PV(I,3)-PV(I,10)/(1.D0+EMRAT) 
-      ENDDO 
+        DO I=1,6 
+          PV(I,3)=PVST(I,3)-PVST(I,10)/(1.D0+EMRAT) 
+        ENDDO 
       ENDIF 
                                                                         
       IF(LIST(10) .EQ. 2) THEN 
-      DO I=1,6 
-      PV(I,10)=PV(I,3)+PV(I,10) 
-      ENDDO 
+        DO I=1,6 
+          PV(I,10) = PV(I,3)+PVST(I,10) 
+        ENDDO 
       ENDIF 
                                                                         
    99 DO I=1,6 
-      RRD(I)=PV(I,NTARG)-PV(I,NCENT) 
+        RRD(I)=PV(I,NTARG)-PV(I,NCENT) 
       ENDDO 
                                                                         
       BARY=BSAVE 
@@ -759,17 +844,17 @@
 !                           =11: NUTATIONS IN LONGITUDE AND OBLIQUITY   
 !                           =12: LUNAR LIBRATIONS (IF ON FILE)          
 !                                                                       
-!                                                                       
 !     OUTPUT:                                                           
 !                                                                       
 !          PV   DP 6 X 11 ARRAY THAT WILL CONTAIN REQUESTED INTERPOLATED
-!               QUANTITIES.  THE BODY SPECIFIED BY LIST(I) WILL HAVE ITS
-!               STATE IN THE ARRAY STARTING AT PV(1,I).  (ON ANY GIVEN  
-!               CALL, ONLY THOSE WORDS IN 'PV' WHICH ARE AFFECTED BY THE
-!               FIRST 10 'LIST' ENTRIES (AND BY LIST(12) IF LIBRATIONS A
-!               ON THE FILE) ARE SET.  THE REST OF THE 'PV' ARRAY       
-!               IS UNTOUCHED.)  THE ORDER OF COMPONENTS STARTING IN     
-!               PV(1,I) IS: X,Y,Z,DX,DY,DZ.                             
+!               QUANTITIES (OTHER THAN NUTATION, STOERD IN PNUT).       
+!               THE BODY SPECIFIED BY LIST(I) WILL HAVE ITS             
+!               STATE IN THE ARRAY STARTING AT PV(1,I).                 
+!               (ON ANY GIVEN CALL, ONLY THOSE WORDS IN 'PV' WHICH ARE  
+!                AFFECTED BY THE  FIRST 10 'LIST' ENTRIES, AND BY LIST(1
+!                IF LIBRATIONS ARE ON THE FILE, ARE SET.                
+!                THE REST OF THE 'PV' ARRAYIS UNTOUCHED.)               
+!               THE ORDER OF COMPONENTS STARTING IN PV(1,I) IS: X,Y,Z,DX
 !                                                                       
 !               ALL OUTPUT VECTORS ARE REFERENCED TO THE EARTH MEAN     
 !               EQUATOR AND EQUINOX OF J2000 IF THE DE NUMBER IS 200 OR 
@@ -794,7 +879,6 @@
 !           *   STATEMENT # FOR ERROR RETURN, IN CASE OF EPOCH OUT OF   
 !               RANGE OR I/O ERRORS.                                    
 !                                                                       
-!                                                                       
 !     COMMON AREA STCOMX:                                               
 !                                                                       
 !          KM   LOGICAL FLAG DEFINING PHYSICAL UNITS OF THE OUTPUT      
@@ -817,15 +901,20 @@
                                                                         
       SAVE 
                                                                         
-      DIMENSION ET2(2),PV(6,12),PNUT(4),T(2),PJD(4),BUF(1500),          &
-     & SS(3),CVAL(400),PVSUN(3,2)                                       
+      INTEGER OLDMAX 
+      PARAMETER ( OLDMAX = 400) 
+      INTEGER NMAX 
+      PARAMETER ( NMAX = 1000) 
+                                                                        
+      DIMENSION ET2(2),PV(6,11),PNUT(4),T(2),PJD(4),BUF(1500),          &
+     & SS(3),CVAL(NMAX),PVSUN(6)                                        
                                                                         
       INTEGER LIST(12),IPT(3,13) 
                                                                         
       LOGICAL FIRST 
       DATA FIRST/.TRUE./ 
                                                                         
-      CHARACTER*6 TTL(14,3),CNAM(400) 
+      CHARACTER*6 TTL(14,3),CNAM(NMAX) 
       CHARACTER*80 NAMFIL 
                                                                         
       LOGICAL KM,BARY 
@@ -848,7 +937,7 @@
 ! **********************************************************************
                                                                         
 !        CALL FSIZER1(NRECL,KSIZE,NRFILE,NAMFIL)                        
-        CALL FSIZER2(NRECL,KSIZE,NRFILE,NAMFIL) 
+!        CALL FSIZER2(NRECL,KSIZE,NRFILE,NAMFIL)                        
 !        CALL FSIZER3(NRECL,KSIZE,NRFILE,NAMFIL)                        
                                                                         
       IF(NRECL .EQ. 0) WRITE(*,*)'  ***** FSIZER IS NOT WORKING *****' 
@@ -866,18 +955,21 @@
      &       RECL=IRECSZ,                                               &
      &       STATUS='OLD')                                              
                                                                         
-      READ(NRFILE,REC=1)TTL,CNAM,SS,NCON,AU,EMRAT,                      &
-     & ((IPT(I,J),I=1,3),J=1,12),NUMDE,(IPT(I,13),I=1,3)                
+      READ(NRFILE,REC=1)TTL,(CNAM(K),K=1,OLDMAX),SS,NCON,AU,EMRAT,      &
+     & ((IPT(I,J),I=1,3),J=1,12),NUMDE,(IPT(I,13),I=1,3)                &
+     & ,(CNAM(L),L=OLDMAX+1,NCON)                                       
                                                                         
-      READ(NRFILE,REC=2)CVAL 
+      IF(NCON .LE. OLDMAX)THEN 
+        READ(NRFILE,REC=2)(CVAL(I),I=1,OLDMAX) 
+      ELSE 
+        READ(NRFILE,REC=2)(CVAL(I),I=1,NCON) 
+      ENDIF 
                                                                         
       NRL=0 
                                                                         
       ENDIF 
                                                                         
-                                                                        
 !       ********** MAIN ENTRY POINT **********                          
-                                                                        
                                                                         
       IF(ET2(1) .EQ. 0.D0) RETURN 
                                                                         
@@ -897,7 +989,10 @@
                                                                         
       NR=IDINT((PJD(1)-SS(1))/SS(3))+3 
       IF(PJD(1).EQ.SS(2)) NR=NR-1 
-      T(1)=((PJD(1)-(DBLE(NR-3)*SS(3)+SS(1)))+PJD(4))/SS(3) 
+                                                                        
+        tmp1 = DBLE(NR-3)*SS(3) + SS(1) 
+        tmp2 = PJD(1) - tmp1 
+        T(1) = (tmp2 + PJD(4))/SS(3) 
                                                                         
 !       READ CORRECT RECORD IF NOT IN CORE                              
                                                                         
@@ -919,7 +1014,7 @@
       CALL INTERP(BUF(IPT(1,11)),T,IPT(2,11),3,IPT(3,11),2,PVSUN) 
                                                                         
       DO I=1,6 
-      PVSUN(I,1)=PVSUN(I,1)*AUFAC 
+      PVSUN(I)=PVSUN(I)*AUFAC 
       ENDDO 
                                                                         
 !   CHECK AND INTERPOLATE WHICHEVER BODIES ARE REQUESTED                
@@ -932,7 +1027,7 @@
                                                                         
       DO J=1,6 
        IF(I.LE.9 .AND. .NOT.BARY) THEN 
-       PV(J,I)=PV(J,I)*AUFAC-PVSUN(J,1) 
+       PV(J,I)=PV(J,I)*AUFAC-PVSUN(J) 
        ELSE 
        PV(J,I)=PV(J,I)*AUFAC 
        ENDIF 
@@ -955,10 +1050,10 @@
       RETURN 
                                                                         
    98 WRITE(*,198)ET2(1)+ET2(2),SS(1),SS(2) 
-  198 format(' ***  Requested JED,',f12.2,                              &
+  198 FORMAT(' ***  Requested JED,',f12.2,                              &
      & ' not within ephemeris limits,',2f12.2,'  ***')                  
                                                                         
-      stop 
+      STOP 
                                                                         
    99 WRITE(*,'(2F12.2,A80)')ET2,'ERROR RETURN IN STATE' 
                                                                         
@@ -987,28 +1082,36 @@
                                                                         
       SAVE 
                                                                         
-      CHARACTER*6 NAM(*),TTL(14,3),CNAM(400) 
+      INTEGER NMAX 
+      PARAMETER (NMAX = 1000) 
                                                                         
-      DOUBLE PRECISION VAL(*),SSS(3),SS(3),CVAL(400) 
+      CHARACTER*6 NAM(*),TTL(14,3),CNAM(NMAX) 
                                                                         
-      INTEGER IPT(3,13),DENUM 
+      DOUBLE PRECISION VAL(*),SSS(3),SS(3),CVAL(NMAX),ZIPS(2) 
+      DOUBLE PRECISION PVST(6,11),PNUT(4) 
+      DATA ZIPS/2*0.d0/ 
+                                                                        
+      INTEGER IPT(3,13),DENUM,LIST(12) 
+      logical first 
+      data first/.true./ 
                                                                         
       COMMON/EPHHDR/CVAL,SS,AU,EMRAT,DENUM,NCON,IPT 
       COMMON/CHRHDR/CNAM,TTL 
                                                                         
 !  CALL STATE TO INITIALIZE THE EPHEMERIS AND READ IN THE CONSTANTS     
                                                                         
-      CALL STATE(0.D0,0,0.D0,0.D0) 
+      IF(FIRST) CALL STATE(ZIPS,LIST,PVST,PNUT) 
+      first=.false. 
                                                                         
       N=NCON 
                                                                         
       DO I=1,3 
-      SSS(I)=SS(I) 
+        SSS(I)=SS(I) 
       ENDDO 
                                                                         
       DO I=1,N 
-      NAM(I)=CNAM(I) 
-      VAL(I)=CVAL(I) 
+        NAM(I)=CNAM(I) 
+        VAL(I)=CVAL(I) 
       ENDDO 
                                                                         
       RETURN 

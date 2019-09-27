@@ -1,17 +1,19 @@
 !   twotes                                                              
 !  test derivatives of element functions                                
-SUBROUTINE twotes(m,tau,ioco,el,pos,vel) 
+SUBROUTINE twotes(m,tau,ioco,el,pos,vel,nd) 
   USE orbit_elements
   USE pred_obs
+  USE dyn_param
   IMPLICIT NONE
   INTEGER, INTENT(IN) :: m
   TYPE(orbit_elem), INTENT(IN) :: el
   INTEGER, INTENT(IN), DIMENSION(m) :: ioco
   DOUBLE PRECISION, INTENT(IN), DIMENSION(m) :: tau 
   DOUBLE PRECISION, INTENT(IN), DIMENSION(3,m) :: pos, vel
+  INTEGER,INTENT(IN) :: nd ! number of parameters to be solved
   DOUBLE PRECISION eq(6),eqp(6)
-  DOUBLE PRECISION dade(6),ddde(6), alj, dej, dal, dde, alp, dep, delta
-  DOUBLE PRECISION dadep(6),dddep(6), erdera, erderd
+  DOUBLE PRECISION dade(nd),ddde(nd), alj, dej, dal, dde, alp, dep, delta
+  DOUBLE PRECISION dadep(nd),dddep(nd), erdera, erderd
   INTEGER jj, ider, k
   logical twobo 
   TYPE(orbit_elem) elp
@@ -27,7 +29,7 @@ SUBROUTINE twotes(m,tau,ioco,el,pos,vel)
 !  compute obs, first derivatives                     
 99 CONTINUE
 !  IF(iobs(jj)/1000.eq.1)THEN 
-  call alph_del (el,tau(jj),ioco(jj),pos(:,jj),vel(:,jj),ider,twobo,alj,dej,dade,ddde)
+  call alph_del (el,tau(jj),ioco(jj),pos(:,jj),vel(:,jj),ider,twobo,nd,alj,dej,dade,ddde)
 !      ELSEIF(iobs(jj)/1000.eq.2)THEN 
 !         call rrdot(eq,iobs(jj),t0,tau(jj),ioco(jj),alj,dej,dade,ddde,  &
 !     &        ider,twobo,ddade,dddde)                                   
@@ -43,7 +45,7 @@ SUBROUTINE twotes(m,tau,ioco,el,pos,vel)
 !  compute obs. and first deriv.                                        
      ider=1 
 !  IF(iobs(jj)/1000.eq.1)THEN 
-     call alph_del(elp,tau(jj),ioco(jj),pos(:,jj),vel(:,jj),ider,twobo,alp,dep,dadep,dddep)
+     call alph_del(elp,tau(jj),ioco(jj),pos(:,jj),vel(:,jj),ider,twobo,nd,alp,dep,dadep,dddep)
 !        ELSEIF(iobs(jj)/1000.eq.2)THEN 
 !           call rrdot(eqp,iobs(jj),t0,tau(jj),ioco(jj),alp,dep,dadep,   &
 !     &          dddep,ider,twobo,ddade,dddde)                           

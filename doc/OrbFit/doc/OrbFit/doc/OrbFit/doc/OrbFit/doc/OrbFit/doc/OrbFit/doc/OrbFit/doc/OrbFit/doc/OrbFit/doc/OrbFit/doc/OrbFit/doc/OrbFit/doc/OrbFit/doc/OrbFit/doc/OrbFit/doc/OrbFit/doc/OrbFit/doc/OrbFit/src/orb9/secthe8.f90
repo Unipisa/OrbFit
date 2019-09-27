@@ -72,7 +72,7 @@ SUBROUTINE secthe(t,t0,pm,pa,pni,pg,pl,pmi,ps,pd,nnl,fnl,pninl,phanl)
 ! startup
   INTEGER iflag 
   data iflag/0/ 
-  if(iflag.eq.0)then 
+!  if(iflag.eq.0)then 
 ! time shift to align with LONGSTOP initial time
      deltjd=t0-tlstp 
      deltyr=deltjd/365.25d0 
@@ -153,7 +153,7 @@ SUBROUTINE secthe(t,t0,pm,pa,pni,pg,pl,pmi,ps,pd,nnl,fnl,pninl,phanl)
      ENDDO 
 ! end of startup
      iflag=1 
-  endif
+!  endif
 ! computations to be done at each call of this routine                  
   tc=t+deltyr 
 ! phases of the linear terms, converted to rad

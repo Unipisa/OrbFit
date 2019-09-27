@@ -3,7 +3,7 @@ IMPLICIT NONE
 
 PUBLIC
 ! Max number of bodies in binary ephemeris file
-INTEGER,PARAMETER :: nbepx=5
+INTEGER,PARAMETER :: nbepx=70
 ! Binary (random access) ephemeris
 !
 ! filbep   -  Name of the binary ephemeris file
@@ -38,6 +38,10 @@ DOUBLE PRECISION,DIMENSION(nmassx) :: dmin
 ! Close approach control
 DOUBLE PRECISION dmea,dmoon,dmjup,dmast,dter
 
+! Dynamical Model
+INTEGER ilun,imerc,iplut,irel,icrel,iast,icast,iaber,istat, iclun
+PUBLIC iast ! for selast
+PUBLIC ilun,imerc,iplut,irel,iaber,istat,iclun ! for rmodel
 
 
 END MODULE planet_masses

@@ -13,7 +13,6 @@
 !   wri_tppoint(tp,iunclo,covav)
 !   rea_tppoint(tp,iunclo,covav)
 !   rea_clorectp(iunclo,reqpla,imulcur,va_trace,               &
-!   inclolinctp(iunout,iunclo,despla,vas_trace,no,nox)
 !   arrloadtp(va_tp,rindex) 
 !   rescaltp(va_tp) 
 !        min_poss3tp(va_tp)
@@ -38,11 +37,13 @@
 MODULE tp_trace
 USE output_control
 USE orbit_elements
+USE dyn_param
+USE multi_store
 IMPLICIT NONE
 
 PRIVATE
 
-TYPE tp_point ! trace on TP (extended to 6d) of a close approach
+TYPE tp_point ! trace on TP (extended to Opik elements) of a close approach
      DOUBLE PRECISION  :: tcla         ! Time of close approach 
      DOUBLE PRECISION, DIMENSION(6) :: xytp ! position and velocity on the asymptote
      DOUBLE PRECISION ::  b, d, v, bsd, theta, phi, txi, tze ! auxiliary variables 
@@ -69,6 +70,9 @@ TYPE tp_point ! trace on TP (extended to 6d) of a close approach
                                                            ! false if MTP
      LOGICAL                               :: cov_tp       ! if false only
      INTEGER                               :: iplam        ! planet index
+! added 2013
+     DOUBLE PRECISION                      :: dtpdet(ndimx,2) ! derivatives of TP coordinates with respect to
+                                                           ! orbital elements, possibly dyn.par included, transposed
 END TYPE tp_point
 
 
@@ -109,6 +113,7 @@ TYPE mtp_point ! trace on MTP (extended to 3d) of a close approach
                                                            ! false if MTP
      LOGICAL                               :: cov_tp       ! if false only tcla,rcla,rdotcla,
                                                            ! xcla, vcla are available
+     INTEGER                               :: iplam        ! planet index
                                         ! note: tp_coord could be computed, but it is not
                                         ! in the present strclan3 
 END TYPE mtp_point
@@ -117,29 +122,17 @@ END TYPE mtp_point
 DOUBLE PRECISION, DIMENSION(6), PARAMETER :: zero_6d_vect = &
 &    (/ 0.d0, 0.d0, 0.d0, 0.d0, 0.d0, 0.d0 /)
 
-TYPE(tp_point), PARAMETER :: undefined_tp_point= TP_POINT( &
-&   0.d0 , zero_6d_vect,   &  ! object designation
-&  0.d0, 0.d0, 0.d0, 0.d0, &
-&  0.d0, 0.d0, 0.d0, 0.d0, &
-&undefined_orbit_elem, undefined_orb_uncert, & ! Opik elements
-&  0.d0, 0.d0, 0.d0, 0.d0, 0.d0, &
-&  0.d0, 0.d0, 0.d0, 0.d0, 0.d0, 0.d0, &
-&        .false., .false., 0  )  ! 
+
 ! LIST OF PUBLIC ENTITIES
 ! Derived TYPEs
 PUBLIC :: mtp_point, tp_point
 ! SUBROUTINEs
-PUBLIC :: str_clan, rea_clorec, rea_clorectp, inclolinctp,arrloadtp, wri_tppoint!, fclan2
+PUBLIC :: str_clan, rea_clorec, rea_clorectp, rescaltp, arrloadtp, wri_tppoint!, fclan2
 
 
 ! output on TP
 LOGICAL, PUBLIC :: tpplane ! if true, convert to tp; if false, mtp
 
-! deltasigma, max value of sigma
-DOUBLE PRECISION deltasig, smax
-! index of nominal solution 
-INTEGER imul0
-PUBLIC :: deltasig, smax, imul0
 
 ! common data: former covariance.h
 ! DOUBLE PRECISION gc_store(6,6) ! covariance matrix, to be used by strclan
@@ -150,7 +143,7 @@ LOGICAL, PUBLIC :: covava ! availability flag
 
 ! common data: former close_app_data
 ! storage space for multiple minima/multiple target plane crossing
-INTEGER, PARAMETER, PUBLIC :: njcx=10
+INTEGER, PARAMETER, PUBLIC :: njcx=40
 INTEGER, PUBLIC :: njc
 ! planet approached previously
 INTEGER, PUBLIC :: ipla0
@@ -164,22 +157,61 @@ DOUBLE PRECISION, PUBLIC :: moid0,angmoid
 INTEGER, PARAMETER, PUBLIC :: angx=30
 ! close approach time, relative position and velocity, with 
 ! partial derivatives with respect to cartesian coord, min. distance
-DOUBLE PRECISION, PUBLIC :: tcla(njcx),xcla(21,njcx),vcla(21,njcx),rmin(njcx)
+DOUBLE PRECISION, PUBLIC :: tcla(njcx),xcla(21+3*ndyx,njcx),vcla(21+3*ndyx,njcx),rmin(njcx)
 ! partials of TP coords w.r. to elements
-DOUBLE PRECISION, PUBLIC :: dtpde(2,6,njcx),dtpdet(6,3,njcx)
+DOUBLE PRECISION, PUBLIC :: dtpde(2,ndimx,njcx),dtpdet(ndimx,3,njcx)
 ! new style common data, using tp_point and mtp_point
 TYPE(mtp_point), DIMENSION(njcx), PUBLIC :: mtp_store
 TYPE(tp_point),  DIMENSION(njcx), PUBLIC :: tp_store
 
+LOGICAL, PUBLIC :: scatter_stretch          ! use scatter metrics to compute stretch_lov
+DOUBLE PRECISION, PUBLIC :: vvv_tp(ndimx) ! TP scatter vector (computed by another program)
+
+
 CONTAINS
 
-  SUBROUTINE str_clan(dx1dx0,dx0de) 
+  SUBROUTINE undefined_tp_point(nd,tpp)
+    INTEGER, INTENT(IN) :: nd ! dimension of matrices
+    TYPE(tp_point), INTENT(OUT) :: tpp
+
+    tpp%tcla=0.d0
+    tpp%xytp=zero_6d_vect
+    tpp%b=0.d0
+    tpp%d=0.d0
+    tpp%v=0.d0
+    tpp%bsd=0.d0
+    tpp%theta=0.d0
+    tpp%phi=0.d0
+    tpp%txi=0.d0
+    tpp%tze=0.d0
+    tpp%opik=undefined_orbit_elem
+    CALL undefined_orb_uncert(nd,tpp%unc_opik)
+    tpp%stretch=0.d0
+    tpp%width=0.d0
+    tpp%alpha=0.d0
+    tpp%moid=0.d0
+    tpp%angmoid=0.d0
+    tpp%stretch_lov=0.d0
+    tpp%alpha_lov=0.d0
+    tpp%sigma=0.d0    
+    tpp%minposs=0.d0  
+    tpp%dd2_ds=0.d0   
+    tpp%rindex=0.d0   
+    tpp%tp_conv=.FALSE.
+    tpp%cov_tp=.FALSE. 
+    tpp%iplam=0
+    tpp%dtpdet=0.d0
+  END SUBROUTINE undefined_tp_point
+
+
+  SUBROUTINE str_clan(dx1dx0,nd,dx0de) 
     USE planet_masses
     USE orbit_elements
-!    USE least_squares, ONLY: scaling_lov
-! ============INPUT========================                             
-    DOUBLE PRECISION, INTENT(IN) :: dx1dx0(6,6) ! accumulated state transition matrix 
-    DOUBLE PRECISION, INTENT(IN) :: dx0de(6,6) ! derivatives of init.cartesian wrt elements
+! ============INPUT========================  
+    INTEGER, INTENT(IN)          :: nd          !  number of parameters
+    DOUBLE PRECISION, INTENT(IN) :: dx1dx0(6,nd) ! accumulated state transition matrix, for initial conditions
+                                                 ! and for dynamical parametrs
+    DOUBLE PRECISION, INTENT(IN) :: dx0de(nd,nd) ! derivatives of initial state wrt parameters, including dyn.parameters
 ! ========HIDDEN INPUT======================                            
 ! target plane coordinates and derivatives, moid                        
 ! covariance matrix                                                     
@@ -193,7 +225,7 @@ CONTAINS
 ! =========END INTERFACE===============                                 
 ! partial derivatives                                                   
     INCLUDE 'nvarx.h90' 
-    DOUBLE PRECISION dxdx1(6,6),dxde(6,6),dxdx0(6,6),y2(nvarx) 
+    DOUBLE PRECISION y2(nvarx) 
     INTEGER nv 
 ! basis adapted to MTP                                                  
     INTEGER jc 
@@ -203,7 +235,7 @@ CONTAINS
 ! angle alpha                                                           
     DOUBLE PRECISION cosa,sina 
 ! weak direction                                                        
-    DOUBLE PRECISION wdir(6),sdir
+    DOUBLE PRECISION wdir(ndimx),sdir,units(ndimx)
 ! planet names                                                          
     CHARACTER*30 planam 
     INTEGER lpla,lench 
@@ -214,25 +246,40 @@ CONTAINS
 ! mtp normal                                                            
     DOUBLE PRECISION tpno(3),vc0,v3(3,3),vt3(3,3)
 ! loop indexes                                                          
-    INTEGER i 
+    INTEGER i,j
 ! for MTP -> TP conversion
     TYPE(orbit_elem) :: opik, mtpcar, tpcar
-    DOUBLE PRECISION :: del(6,6),del1(6,6),del2(6,6),dee(6,6)
-    DOUBLE PRECISION :: dtpcarde(3,6), dtpde6(6,6), tmp26(2,6),tmp62(6,2), tmp22(2,2)
+! jacobian of coordinate changes
+    DOUBLE PRECISION, DIMENSION(6,6) :: del(6,6),del1(6,6),del2(6,6)
+! state transition matrix including dyn. parameters
+    DOUBLE PRECISION dx1pdx0p(nd,nd), depdep(nd,nd)
+! derivatives with respect state vector (incond+dyn.par)
+    DOUBLE PRECISION :: dxde(6,nd),dee(6,nd)   
+    DOUBLE PRECISION :: dxdx1(6,nd),dxdx0(6,nd)
+
+    DOUBLE PRECISION :: dtpcarde(6,nd), tmp2nd(2,nd),tmpnd2(nd,2)
+
+    DOUBLE PRECISION :: g(1:nd,1:nd), dtde(1:2,1:nd)
+    DOUBLE PRECISION ::  tmp22(2,2)
     DOUBLE PRECISION :: xpl(3), vpl(3), vv(3), xx(3), dz, xop(3)
     DOUBLE PRECISION :: r1(3,3), r2(3,3), rr(3,3), rop(3,3), ropt(3,3), rrt(3,3)
     DOUBLE PRECISION :: eigval(2), axes(2,2), fv1(2),fv2(2), sig(2), wtp(2)
-    DOUBLE PRECISION :: tpc(3),tpr,cxv,czv,svv,wtpv,wtpr,wtpal,units(6)
+    DOUBLE PRECISION :: eigval1(2), axes1(2,2),sig1(2)
+    DOUBLE PRECISION :: tpc(3),tpr,cxv,czv,svv,wtpv,wtpr,wtpal
     TYPE(tp_point) :: tp
     INTEGER fail_flag1, fail_flag2,ierr
+    LOGICAL :: errnor
 ! ===================================================================== 
+! inizialization of the variable tp
+    CALL undefined_tp_point(nd,tp)
 ! derivative are required: select first minimum always                  
     IF(njc.eq.0)THEN 
 ! close approach ended, but closest approach not recorded; initial close
 !       WRITE(*,*)' initial close app.? iplam=',iplam                   
        RETURN 
     ELSEIF(njc.gt.1)THEN 
-       WRITE(*,*)' multiple minima, njc=',njc,tcla(1),tcla(njc),iplam 
+       WRITE(*,166)njc,tcla(1),rmin(1),tcla(njc),rmin(njc),iplam 
+166    FORMAT(' multiple minima, njc, times, dist',I3,2(1X,F8.1,1X,F7.4),1X,I2)
     ENDIF
 ! if not, do everything for each minimum                                
     DO 1 jc=1,njc 
@@ -241,6 +288,17 @@ CONTAINS
        lpla=lench(planam) 
        call mjddat(tcla(jc),iday,imonth,iyear,hour) 
        write(date,'(i4,a1,i2.2,a1,i2.2,f6.5)') iyear,'/',imonth,'/',iday,hour/24d0  
+! new state transition matrix including dynamical parameters 
+!       dx1pdx0p(1:6,1:6)=dx1dx0
+       dx1pdx0p(1:6,1:nd)=dx1dx0
+       IF(nd.gt.6)THEN
+          dx1pdx0p(7:nd,1:nd)=0.d0
+!          dx1pdx0p(1:6,7:nd)=0.d0
+          DO j=7,nd
+             dx1pdx0p(j,j)=1.d0
+          ENDDO
+       ENDIF
+! choice of target plane: TP, MTP
        IF(tpplane)THEN
 ! use TP with OPiK elements
          mtpcar=undefined_orbit_elem
@@ -249,7 +307,7 @@ CONTAINS
          mtpcar%coord(4:6)=vcla(1:3,jc)
          mtpcar%center=iplam
          mtpcar%t=tcla(jc)
-         tp=undefined_tp_point
+         CALL undefined_tp_point(nd,tp)
 ! Opik elements          
          IF(.not.covava)THEN
             tpcar=tpcar_mtpcar(mtpcar,fail_flag1,tp%bsd)
@@ -262,14 +320,15 @@ CONTAINS
                tp%opik=opik_tpcar(tpcar,fail_flag2)
             ENDIF
          ELSE
-! partials are always available if we are here                          
-            nv =21 
+! partials are always available if we are here 
+            nv=3+3*nd                        
 ! First partial derivatives: rewrap vector into 6x6 matrix              
             DO i=1,nv 
                y2(i)=xcla(i,jc) 
                y2(i+nv)=vcla(i,jc) 
             ENDDO 
-            CALL varwra(y2,dxdx1,nv*2,nv) 
+! partial state transition matrix 6xnd
+            CALL varwra(y2,dxdx1,nd,nv*2,nv) 
             tpcar=tpcar_mtpcar(mtpcar,fail_flag1,tp%bsd,del1)
 ! if conversion to TP has failed....
             IF(fail_flag1.eq.6)THEN
@@ -280,41 +339,93 @@ CONTAINS
                tp%opik=opik_tpcar(tpcar,fail_flag2,del2,vt3)
             ENDIF
             del=MATMUL(del2,del1)
-! Chain rule: we compute dxde=dxdx1*dx1dx0*dx0de                        
-            dxdx0=MATMUL(dxdx1,dx1dx0)
-            dxde=MATMUL(dxdx0,dx0de) 
-! d(opik elements)/de
+! Chain rule: we compute dxde=dxdx1*dx1pdx0p*dx0de (6xnd)=(6xnd)x(ndxnd)x(ndxnd)
+            dxdx0=MATMUL(dxdx1,dx1pdx0p)
+            dxde=MATMUL(dxdx0,dx0de)
+! d(opik elements)/de (6xnd)=(6x6)x(6xnd)
             dee=MATMUL(del,dxde)
-!            dtpde(1:2,1:6,jc)=dee(4:5,1:6)
-            CALL convertunc(unc_store,dee,tp%unc_opik)
-! d(csi,zeta)/de
-            dtpcarde=MATMUL(del1(1:3,1:6),dxde)     
+! new state transition matrix (ndxnd) including dynamical parameters 
+            depdep(1:6,1:nd)=dee
+            IF(nd.gt.6)THEN
+               depdep(7:nd,1:nd)=0.d0
+               DO j=7,nd
+                  depdep(j,j)=1.d0
+               ENDDO
+            ENDIF
+            CALL propagunc(nd,unc_store,depdep,tp%unc_opik)
+! d(position)/de (3xnd)=(3x6)x(6xnd)
+            dtpcarde=MATMUL(del1,dxde)    
+! d(csi,zeta)/de (2xnd)=(2x3)x(3xnd)
 ! WARNING: ignoring the derivatives of vt3 (see Thesis Tommei, pag. 181-182)  
-            dtpde(1:2,1:6,jc)=MATMUL(vt3(2:3,1:3),dtpcarde)
-            tmp26=MATMUL(dtpde(1:2,1:6,jc),unc_store%g)
-            tmp62=TRANSPOSE(dtpde(1:2,1:6,jc))
-            tmp22=MATMUL(tmp26,tmp62)
-! stretching and width: eigenvalues
-!            CALL rs(2,2,tp%unc_opik%g(4:5,4:5),eigval,1,axes,fv1,fv2,ierr) 
+!            dtpde(1:2,1:nd,jc)=MATMUL(vt3(2:3,1:3),dtpcarde(1:3,1:nd))
+! using instead the complete jacobian matrix del2
+            dtpde(1:2,1:nd,jc)=MATMUL(del2(4:5,1:6),dtpcarde)
+! Gamma(csi,zeta) (2x2)=(2xnd)x(ndxnd)x(ndx2)
+            tmp2nd=MATMUL(dtpde(1:2,1:nd,jc),unc_store%g(1:nd,1:nd))
+            tmpnd2=TRANSPOSE(dtpde(1:2,1:nd,jc))
+            tmp22=MATMUL(tmp2nd,tmpnd2)
+! WARNING: only for nd=7, to improve for very large conditioning numbers
+!            g(1:6,1:6)=unc_store%g(1:6,1:6)
+!            g(1:6,7)=unc_store%g(1:6,7)*1.d-5
+!            g(7,1:6)=unc_store%g(7,1:6)*1.d-5
+!            g(7,7)=unc_store%g(7,7)*1.d-10
+!            dtde(1:2,1:6)=dtpde(1:2,1:6,jc)
+!            dtde(1:2,7)=dtpde(1:2,7,jc)*1.d5
+!            tmp2nd=MATMUL(dtde(1:2,1:nd),g(1:nd,1:nd))
+!            tmpnd2=TRANSPOSE(dtde(1:2,1:nd))
+!            tmp22=MATMUL(tmp2nd,tmpnd2)
+! end WARNING; to be reconsidered later (AM, Jan 2013)
+! stretching and width: eigenvalues (two possible ways, apparently results are the same)
+! version using covariance of Opik elements
+!            CALL rs(2,2,tp%unc_opik%g(4:5,4:5),eigval1,1,axes1,fv1,fv2,ierr) 
+!            DO  i=1,2 
+!               IF(eigval1(i).gt.0.d0)THEN 
+!                  sig1(i)=sqrt(eigval1(i)) 
+!               ELSE 
+!                  write(*,*) 'str_clan: non positive eigenvalues ', eigval 
+!                  sig1(i)=0.d0 
+!               ENDIF
+!            ENDDO
+! version using direct computation of Gamma(csi,zeta)
             CALL rs(2,2,tmp22,eigval,1,axes,fv1,fv2,ierr) 
             DO  i=1,2 
                IF(eigval(i).gt.0.d0)THEN 
                   sig(i)=sqrt(eigval(i)) 
                ELSE 
-                  write(*,*) 'str_clan: non positive eigenvalues ', eigval 
+                  WRITE(*,167) eigval
+167               FORMAT( 'str_clan: non positive eigenvalues ', 2(1X,1P,2D10.3))
                   sig(i)=0.d0 
                ENDIF
             ENDDO
             tp%stretch=sig(2)
             tp%width=sig(1)
-! weak direction           
-            CALL weak_dir(unc_store%g,wdir,sdir,-1,coo_store,coord_store,units)
-            wdir=wdir*units
-            wtp(1)=DOT_PRODUCT(dtpde(1,1:6,jc),wdir)*sdir 
-            wtp(2)=DOT_PRODUCT(dtpde(2,1:6,jc),wdir)*sdir 
+
+! derivatives w.r. to initial conditions (and dyn.par)
+            tp%dtpdet(1:nd,1:2)=TRANSPOSE(dtpde(1:2,1:nd,jc))
+            IF(scatter_stretch)THEN 
+               wtp(1)=DOT_PRODUCT(dtpde(1,1:nd,jc),vvv_tp(1:nd))
+               wtp(2)=DOT_PRODUCT(dtpde(2,1:nd,jc),vvv_tp(1:nd))
+            ELSE
+! weak direction, 1-D stretching along LOV  
+               CALL weak_dir(unc_store%g(1:nd,1:nd),wdir(1:nd),sdir,0,coo_store,coord_store,units(1:nd),nd)
+               wdir(1:nd)=wdir(1:nd)*units(1:nd)
+               wtp(1)=DOT_PRODUCT(dtpde(1,1:nd,jc),wdir(1:nd))*sdir 
+               wtp(2)=DOT_PRODUCT(dtpde(2,1:nd,jc),wdir(1:nd))*sdir 
+! WARNING: to improve computation for very high conditioning number, as above
+!              wdir(7)=wdir(7)*1e-5
+!              wtp(1)=DOT_PRODUCT(dtde(1,1:nd),wdir(1:nd))*sdir 
+!              wtp(2)=DOT_PRODUCT(dtde(2,1:nd),wdir(1:nd))*sdir 
+! end WARNING: to be reconsidered later (AM, Jan 2013)
+            ENDIF
             tp%stretch_lov=sqrt(wtp(1)**2+wtp(2)**2) 
-            tp%alpha_lov=atan2(-wtp(1),wtp(2)) 
-! output variables                                                      
+            IF(wtp(1).eq.0.d0.and.wtp(2).eq.0.d0)THEN
+               tp%alpha_lov=0.d0
+               WRITE(*,*)'str_clan: problem in wtp '
+               WRITE(*,*)'wtp=',wtp,' dtpde=',dtpde(:,:,jc) 
+            ELSE
+               tp%alpha_lov=atan2(-wtp(1),wtp(2)) 
+            ENDIF
+! output variable alpha                                                      
             IF(axes(1,2)*wtp(1)+axes(2,2)*wtp(2).lt.0.d0)THEN
                axes(1,2)=-axes(1,2) 
                axes(2,2)=-axes(2,2) 
@@ -332,7 +443,7 @@ CONTAINS
          tp%angmoid=angmoid
          tp%iplam=iplam
          tp%tcla=tcla(jc)
-! theta, phi
+! Opik coordinates theta, phi
          xpl=xplaj(1:3,njc)
          vpl=xplaj(4:6,njc)
          rop(1,1:3)=xpl*(1.d0/vsize(xpl))
@@ -348,6 +459,7 @@ CONTAINS
            tp%phi=atan2(vv(1), vv(3))
          ENDIF
          tp%theta=acos(vv(2)/tp%opik%coord(1))
+! Opik variables csi, zeta (rotation on TP)
          xx=MATMUL(rop,tp%xytp(1:3))
          rr(1,1:3)=vv/vsize(vv)
          rr(2,1:3)=rop(2,1:3)-prscal(rop(2,1:3),rr(1,1:3))*rr(1,1:3)
@@ -360,7 +472,8 @@ CONTAINS
 !         rrt=TRANSPOSE(rr)
 !         xop=MATMUL(rrt,xx)
          IF(abs(xop(1)).gt.1.d-7)THEN
-            WRITE(*,*)' str_clan: eta.ne.0  ', xop
+            WRITE(*,168)xop
+168         FORMAT(' str_clan: eta.ne.0  ',3(1X,1P,D10.3))
          ENDIF         
          tp%txi=xop(3)
          tp%tze=xop(2)  
@@ -401,18 +514,31 @@ CONTAINS
      &           (xcla(i,jc),i=1,3),(vcla(i,jc),i=1,3),tpc(1:3),moid0                 
   100       FORMAT(a,1x,a16,f12.5,1x,f11.8,e11.3,1x,6(1x,f11.8),        &
      &           3(1x,f11.8),1x,f10.6)
+! copy in array  (use MTP in cobweb!)
+            r=vsize(xcla(1,jc))                                       
+            mtp_store(jc)%tcla=tcla(jc) 
+            mtp_store(jc)%rcla=r 
+            mtp_store(jc)%rdotcla=rdot 
+            mtp_store(jc)%xcla=xcla(1:3,jc) 
+            mtp_store(jc)%vcla=vcla(1:3,jc) 
+            mtp_store(jc)%tp_coord(1)=tpc(1)
+            mtp_store(jc)%tp_coord(2)=tpc(2)
+            mtp_store(jc)%tp_coord(3)=tpc(3) 
+            mtp_store(jc)%moid=moid0 
+            mtp_store(jc)%angmoid=angmoid
+            mtp_store(jc)%iplam=iplam 
          ELSE 
-! partials are always available if we are here                          
-            nv =21 
-! First parzial derivatives: rewrap vector into 6x6 matrix              
+! partials are always available if we are here 
+            nv=3+3*nd  
+! First partial derivatives: rewrap vector into 6x6 matrix              
             DO i=1,nv 
                y2(i)=xcla(i,jc) 
                y2(i+nv)=vcla(i,jc) 
             ENDDO 
-            CALL varwra(y2,dxdx1,nv*2,nv) 
-! Chain rule: we compute dxde=dxdx1*dx1dx0*dx0de                        
-            dxdx0=MATMUL(dxdx1,dx1dx0) ! call mulmat(dxdx1,6,6,dx1dx0,6,6,dxdx0) 
-            dxde=MATMUL(dxdx0,dx0de)  ! call mulmat(dxdx0,6,6,dx0de,6,6,dxde) 
+            CALL varwra(y2,dxdx1,nd,nv*2,nv) 
+! Chain rule: we compute dxde=dxdx1*dx1pdx0p*dx0de                        
+            dxdx0=MATMUL(dxdx1,dx1pdx0p) 
+            dxde=MATMUL(dxdx0,dx0de)  
 ! reference system with tpno as first axis,                             
 ! and the projection of the normal to the ecliptic as third axis        
             vc0=vsize(vcla(1,jc)) 
@@ -426,16 +552,17 @@ CONTAINS
 ! obsolete:                                                             
 ! projection of planet velocity on normal plane to tpno as second axis  
 !           CALL mtpref(tpno,xplaj(4,jc),v3,vt3)                        
-! rotation to v3 reference system                                       
+! rotation to v3 reference system                           
+            dtpdet(:,:,jc)=0.d0
             CALL mtp_rot3(.true.,vt3,xcla(1,jc),vcla(1,jc),dxde, &
-     &           unc_store%g,tpc,dtpdet(1,1,jc),sig,           &
+     &           unc_store%g(1:nd,1:nd),tpc,dtpdet(1:6,1:3,jc),sig, &
      &           axes,tpr,svv,cxv,czv) 
-! weak direction           
-            CALL weak_dir(unc_store%g,wdir,sdir,-1,coo_store,coord_store,units)
-            wdir=wdir*units
-            wtp(1)=DOT_PRODUCT(wdir,dtpdet(1:6,1,jc))*sdir 
-            wtp(2)=DOT_PRODUCT(wdir,dtpdet(1:6,2,jc))*sdir 
-            wtpv=DOT_PRODUCT(wdir,dtpdet(1:6,3,jc))*sdir 
+! weak direction         
+            CALL weak_dir(unc_store%g(1:nd,1:nd),wdir,sdir,-1,coo_store,coord_store,units,nd)
+            wdir(1:nd)=wdir(1:nd)*units(1:nd)
+            wtp(1)=DOT_PRODUCT(wdir(1:nd),dtpdet(1:nd,1,jc))*sdir 
+            wtp(2)=DOT_PRODUCT(wdir(1:nd),dtpdet(1:nd,2,jc))*sdir 
+            wtpv=DOT_PRODUCT(wdir(1:nd),dtpdet(1:nd,3,jc))*sdir 
             wtpr=sqrt(wtp(1)**2+wtp(2)**2) 
             wtpal=atan2(-wtp(1),wtp(2)) 
 ! output variables                                                      
@@ -702,6 +829,8 @@ CONTAINS
       END SUBROUTINE wri_clan   
 END SUBROUTINE str_clan
 
+! this routine is wrong for nd>6, cor array has different dimension;
+!  but cor it is not really needed for resret2tp
   SUBROUTINE wri_tppoint(tp,iunclo,covav)
      USE planet_masses
      USE fund_const
@@ -720,7 +849,7 @@ END SUBROUTINE str_clan
      CALL mjddat(tp%tcla,iday,imonth,iyear,hour) 
      WRITE(date,'(i4,a1,i2.2,a1,i2.2,f6.5)') iyear,'/',imonth,'/',iday,hour/24d0
      IF(covav)THEN
-        g=tp%unc_opik%g
+        g=tp%unc_opik%g(1:6,1:6)
         DO j=1,6
           rms(j)=sqrt(g(j,j))
         ENDDO
@@ -731,22 +860,24 @@ END SUBROUTINE str_clan
         ENDDO
         WRITE(iunclo,100)planam,date,tp%tcla,tp%d,tp%v,  tp%opik%coord(4:6), tp%tp_conv,   &
 &        tp%stretch,tp%width,tp%alpha*degrad,tp%moid,tp%angmoid,tp%stretch_lov,tp%alpha_lov*degrad, &
-&        tp%opik%coord(2:3)*degrad,tp%b,tp%opik%coord(1), tp%theta*degrad, tp%phi*degrad, tp%txi, tp%tze, &
-&        tp%xytp,            & 
-&        rms, cor(2:6,1), cor(3:6,2), cor(4:6,3), cor(5:6,4), cor(6,5) 
-100     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f14.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/     &
-&        2(1x,1p,e12.4),1x,0p,f10.5,1x,f10.6,1x,f7.2,1x,1p,e12.4,0p,1x,f10.5/         &
-&        f10.6,1x,f11.6,1x,2(1x,f13.10),1x,f10.6,1x,f11.6,2(1x,f13.10)/6(1x,f12.9)/ &
-&        1p,6(1x,d18.11)/0p,5(1x,f19.16)/5(1x,f19.16)/5(1x,f19.16))
+&        tp%opik%coord(2:3)*degrad,tp%b,tp%opik%coord(1), tp%theta*degrad, tp%phi*degrad,tp%txi, tp%tze,  &
+&        tp%xytp,                                                                         & 
+&        rms,g(4,5) 
+!cor(2:6,1), cor(3:6,2), cor(4:6,3), cor(5:6,4), cor(6,5) 
+100     FORMAT(a10,1x,a16,1x,f12.5,1x,f13.10,1x,f14.9,2(1x,f15.12),1x,1p,d10.3,0p,1x,L1/     &
+&        2(1x,1p,e14.6),1x,0p,f10.5,1x,f10.6,1x,f7.2,1x,1p,e14.6,0p,1x,f10.5/         &
+&        f10.6,1x,f11.6,1x,2(1x,f13.10),1x,f10.6,1x,f11.6,2(1x,f15.12)/6(1x,f12.9)/ &
+&        1p,7(1x,d18.11))
+!/0p,5(1x,f19.16)/5(1x,f19.16)/5(1x,f19.16))
      ELSE
         WRITE(iunclo,101)planam,date,tp%tcla,tp%d,tp%v, tp%opik%coord(4:6), tp%tp_conv,  &
-&        tp%opik%coord(2:3)*degrad,tp%b,tp%opik%coord(1), tp%theta*degrad, tp%phi*degrad, tp%txi, tp%tze,&
-&         tp%xytp
-101     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f14.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/      &
-&              f10.6,1x,f11.6,1x,2(1x,f13.10),1x,f10.6,1x,f11.6,2(1x,f13.10),6(1x,f12.9))  
+&    tp%moid,tp%opik%coord(2:3)*degrad,tp%b,tp%opik%coord(1), tp%theta*degrad, tp%phi*degrad, tp%txi, tp%tze
+101     FORMAT(a10,1x,a16,1x,f13.5,1x,f13.10,1x,f14.9,2(1x,f15.12),1x,1p,d10.3,0p,1x,L1/      &
+&              f10.6,1X,f10.6,1x,f11.6,1x,2(1x,f13.10),1x,f10.6,1x,f11.6,2(1x,f15.12))  
      ENDIF
    END SUBROUTINE wri_tppoint
-
+! this routine is wrong for nd>6, cor array has different dimension;
+!  but cor it is not really needed for resret2tp
    SUBROUTINE rea_tppoint(tp,iunclo,covav)
      USE planet_masses
      USE fund_const
@@ -758,32 +889,38 @@ END SUBROUTINE str_clan
      CHARACTER*30 planam
      CHARACTER*16 date
      INTEGER j,i,le
-     tp=undefined_tp_point
+     CALL undefined_tp_point(6,tp)
      IF(covav)THEN
         READ(iunclo,100)planam,date,tp%tcla,tp%d,tp%v, tp%opik%coord(4:6), tp%tp_conv,   &
 &        tp%stretch, tp%width, tp%alpha, tp%moid, tp%angmoid, tp%stretch_lov, tp%alpha_lov, &
 &        tp%opik%coord(2:3),tp%b, tp%opik%coord(1), tp%theta, tp%phi, tp%txi, tp%tze, tp%xytp,& 
-&        rms, cor(2:6,1), cor(3:6,2), cor(4:6,3), cor(5:6,4), cor(6,5) 
-100     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f14.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/     &
-&        2(1x,1p,e12.4),1x,0p,f10.5,1x,f10.6,1x,f7.2,1x,1p,e12.4,0p,1x,f10.5/         &
-&        f10.6,1x,f11.6,1x,2(1x,f13.10),2(1x,f10.6),2(1x,f13.10)/6(1x,f12.9)/ &
-&        1p,6(1x,d18.11)/0p,5(1x,f19.16)/5(1x,f19.16)/5(1x,f19.16))
+&        rms,g(4,5) 
+!cor(2:6,1), cor(3:6,2), cor(4:6,3), cor(5:6,4), cor(6,5) 
+100     FORMAT(a10,1x,a16,1x,f12.5,1x,f13.10,1x,f14.9,2(1x,f15.12),1x,1p,d10.3,0p,1x,L1/     &
+&        2(1x,1p,e14.6),1x,0p,f10.5,1x,f10.6,1x,f7.2,1x,1p,e14.6,0p,1x,f10.5/         &
+&        f10.6,1x,f11.6,1x,2(1x,f13.10),2(1x,f10.6),2(1x,f15.12)/6(1x,f12.9)/ &
+&        1p,7(1x,d18.11))
+!/0p,5(1x,f19.16)/5(1x,f19.16)/5(1x,f19.16))
+        g=0.d0
+        tp%b=sqrt(tp%opik%coord(4)**2+tp%opik%coord(5)**2)
         DO j=1,6
           g(j,j)=rms(j)**2
         ENDDO
-        DO i=2,6
-          DO j=1,i-1
-            g(i,j)=cor(i,j)*(rms(i)*rms(j))
-            g(j,i)=g(i,j)
-          ENDDO
-        ENDDO
-        tp%unc_opik%g=g
+        g(5,4)=g(4,5) 
+!       DO i=2,6
+!          DO j=1,i-1
+!            g(i,j)=cor(i,j)*(rms(i)*rms(j))
+!            g(j,i)=g(i,j)
+!          ENDDO
+!        ENDDO
+        tp%unc_opik%g(1:6,1:6)=g(1:6,1:6)
      ELSE
         READ(iunclo,101)planam,date,tp%tcla, tp%d,tp%v, tp%opik%coord(4:6), tp%tp_conv,&
-&        tp%opik%coord(2:3),tp%b, tp%opik%coord(1), tp%theta, tp%phi, tp%txi, tp%tze, tp%xytp
-101     FORMAT(a10,1x,a16,f12.5,1x,f13.10,1x,f14.9,2(1x,f13.10),1x,1p,d10.3,0p,1x,L1/      &
-&       f10.6,1x,f11.6,1x,2(1x,f13.10),2(1x,f10.6),2(1x,f13.10),6(1x,f12.9))  
+&     tp%moid,tp%opik%coord(2:3),tp%b, tp%opik%coord(1), tp%theta, tp%phi, tp%txi, tp%tze
+101     FORMAT(a10,1x,a16,1x,f13.5,1x,f13.10,1x,f14.9,2(1x,f15.12),1x,1p,d10.3,0p,1x,L1/      &
+&       f10.6,1X,f10.6,1x,f11.6,1x,2(1x,f13.10),2(1x,f10.6),2(1x,f15.12))  
      ENDIF
+     tp%b=sqrt(tp%opik%coord(4)**2+tp%opik%coord(5)**2)
      tp%theta=tp%theta*radeg
      tp%phi=tp%phi*radeg
      tp%opik%coord(2:3)=tp%opik%coord(2:3)*radeg
@@ -810,48 +947,58 @@ END SUBROUTINE str_clan
 ! REACLORECTP reads the next close approach record of the required planet 
 ! reqpla; if reqpla=' ', then all planets are required                  
 ! ==================================================================    
-   SUBROUTINE rea_clorectp(iunclo,reqpla,imulcur,va_trace,planam,error,eof) 
+   SUBROUTINE rea_clorectp(iunclo,reqpla,imulcur,va_trace,planam,error,eof,no_outcov) 
 ! INPUT                                                                 
 ! required planet                                                       
-     CHARACTER*15 reqpla 
+     CHARACTER*15, INTENT(IN) :: reqpla 
 ! input unit                                                            
-     INTEGER iunclo 
+     INTEGER, INTENT(IN) :: iunclo
+! control on the availability of covariance
+     LOGICAL, INTENT(IN), OPTIONAL :: no_outcov 
 ! OUTPUT                                                                
 ! planet found                                                          
-     CHARACTER*15 planam 
+     CHARACTER*15, INTENT(OUT) ::  planam 
 ! arrays with close approach data
      INTEGER, INTENT(INOUT) ::  imulcur 
      TYPE(tp_point), INTENT(OUT) :: va_trace
 ! error flag, end of file                                               
-     LOGICAl error,eof 
+     LOGICAL, INTENT(OUT) :: error,eof 
 ! end interface                                                         
      CHARACTER*512 record 
      INTEGER ii 
      INTEGER le,le1 
-! ---------------------------                                           
+     LOGICAL outcov
+     CHARACTER*15 :: reqpla1
+! -----------------------------    
+     IF(PRESENT(no_outcov))THEN
+        outcov=.not.no_outcov
+     ELSE
+        outcov=.true.
+     ENDIF
      eof=.false. 
      error=.false. 
 1    READ(iunclo,101,end=2)record 
 101  FORMAT(a) 
-     CALL rmsp(reqpla,le) 
-     ii=index(record,'mult_') 
+     reqpla1=reqpla
+     CALL rmsp(reqpla1,le) 
+     ii=index(record,'va_') 
      IF(ii.ne.0)THEN 
-        READ(record(ii+5:),102)imulcur 
-102     FORMAT(i5) 
+        READ(record(ii+3:),102)imulcur 
+102     FORMAT(I6) 
         GOTO 1
      ELSE
-        ii=index(record,reqpla(1:le)) 
+        ii=index(record,reqpla1(1:le)) 
         !         WRITE(*,*)ii,reqpla, record                                   
         IF(ii.ne.0)THEN 
-           planam=reqpla 
+           planam=reqpla1 
            BACKSPACE(UNIT=iunclo)
-           CALL rea_tppoint(va_trace,iunclo,.true.) 
+           CALL rea_tppoint(va_trace,iunclo,outcov) 
         ELSEIF(le.eq.0)THEN 
            READ(record,103)planam 
            CALL rmsp(planam,le1) 
 103        FORMAT(a15) 
            BACKSPACE(UNIT=iunclo)
-           CALL rea_tppoint(va_trace,iunclo,.true.)
+           CALL rea_tppoint(va_trace,iunclo,outcov)
         ELSE 
            GOTO 1 
         ENDIF
@@ -860,64 +1007,13 @@ END SUBROUTINE str_clan
 2    eof=.true. 
    END SUBROUTINE rea_clorectp
 
-! ================================================                      
-! INCLOLINCTP                                                              
-! input close approach data, with confidence ellipse                    
-! version 2tp, 6 Jan. 2005                                              
-! ================================================                      
-  SUBROUTINE inclolinctp(iunout,iunclo,despla,vas_trace,no,nox)
-! ======================INPUT=================================
-    INTEGER, INTENT(IN)           :: iunout  ! output kog unit
-    INTEGER, INTENT(IN)           :: iunclo  ! input unit
-    CHARACTER(LEN=15), INTENT(IN) :: despla  ! desired planet 
-    INTEGER, INTENT(IN)           :: nox     ! max no close app
-! =====================OUTPUT=================================
-    INTEGER, INTENT(OUT)          ::  no     ! total number close app 
-    TYPE(tp_point), DIMENSION(nox), INTENT(OUT) :: vas_trace
-! ===================END INTERFACE============================== 
-    TYPE(tp_point)    :: va_trace                                                        
-    CHARACTER(LEN=15) :: curpla,planam 
-    INTEGER           :: le,i,j 
-    INTEGER           :: imultot
-    INTEGER           :: imulcur 
-    DOUBLE PRECISION, DIMENSION(3) :: p,v
-    LOGICAL           :: error,eof 
-! ==============================================================                             
-    curpla=despla 
-    no=0 
-    imultot=0 
-! loop on records                                                       
-1   CONTINUE 
-! read next record on desired planet
-    CALL rea_clorectp(iunclo,curpla,imulcur,va_trace,planam,error,eof) 
-    IF(error)THEN 
-       WRITE(*,*)'inclolin; error cloapp ',no,' orbit ', imulcur 
-       STOP
-    ELSEIF(eof)THEN 
-       GOTO 2 
-    ELSE 
-       no=no+1 
-       va_trace%rindex=imulcur 
-       imultot=imultot+1 
-! conversion of angles already done in rea_tppoint
-! rescaling in Re, find minimum possible
-       CALL rescaltp(va_trace)
-       IF(no.gt.nox)THEN
-          WRITE(*,*) ' too many .clo records, max was ', nox, ' to be increased'
-          STOP
-       ENDIF
-       vas_trace(no)=va_trace
-    ENDIF
-    GOTO 1 
-! end of file                                                           
-2   WRITE(iunout,*)' read ',no,' closapp. from ',imultot,' orbits' 
-  END SUBROUTINE inclolinctp
 
 !=================================================================================
-  SUBROUTINE arrloadtp(va_tp,rindex) 
+  SUBROUTINE arrloadtp(va_tp,rindex,sigmaout) 
 !======================OUTPUT======================================================
     TYPE(tp_point), INTENT(OUT)  :: va_tp
     DOUBLE PRECISION, INTENT(IN) :: rindex
+    DOUBLE PRECISION, INTENT(IN), OPTIONAL :: sigmaout
 !====================END INTERFACE=================================================
     DOUBLE PRECISION :: tprmin
     INTEGER :: j,jc 
@@ -938,6 +1034,14 @@ END SUBROUTINE str_clan
     jcsel=jc
     va_tp=tp_store(jcsel)
     va_tp%rindex=rindex
+! value of sigma (parameter along the LOV)                                                    
+    IF(PRESENT(sigmaout))THEN
+! computed by lovinterp3
+       va_tp%sigma=sigmaout
+    ELSE
+! constant step in sigma_lov
+       va_tp%sigma=delta_sigma*(va_tp%rindex-imi0)
+    ENDIF 
     CALL rescaltp(va_tp) 
   END SUBROUTINE arrloadtp
 
@@ -949,7 +1053,6 @@ END SUBROUTINE str_clan
 ! ====================END INTERFACE=======================================
 ! coordinate change to TP                                               
     DOUBLE PRECISION                 :: mu
-!    INTEGER                          :: imul0 
 !========================================================================
 !  rescaling gravitational constant
     mu=gmearth/reau**3 
@@ -966,6 +1069,8 @@ END SUBROUTINE str_clan
     va_tp%width=va_tp%width/reau
     va_tp%moid=va_tp%moid/reau
     va_tp%stretch_lov=va_tp%stretch_lov/reau
+    va_tp%txi=va_tp%txi/reau
+    va_tp%tze=va_tp%tze/reau
 !    va_tp%dvdsigma=va_tp%dvdsigma/reau
 !    va_tp%unc_opik%g(6,6)=va_tp%unc_opik%g(6,6)/reau
     va_tp%cov_tp=.true.
@@ -974,10 +1079,6 @@ END SUBROUTINE str_clan
     va_tp%dd2_ds=2*va_tp%stretch_lov*(-va_tp%opik%coord(4)*  &
      &        sin(va_tp%alpha_lov)+         &
      &        va_tp%opik%coord(5)*cos(va_tp%alpha_lov))              
-! value of sigma (parameter along the LOV)                              
-!    imul0=nmul/2+1 
-!     arrline(25)=(2.d0*smax/nmul)*(xmul-imul0)                         
-    va_tp%sigma=deltasig*(va_tp%rindex-imul0) 
 ! minimum possible, moid_gf                                             
     CALL min_poss3tp(va_tp)
     CONTAINS
@@ -998,17 +1099,17 @@ END SUBROUTINE str_clan
 ! =================================================================
 ! compute gravitational focusing                                        
         r=va_tp%b 
-        vel=va_tp%opik%coord(1)
-        c_opik=gmearth/(vel**2 - 2.d0*gmearth/r) 
+!        vel=va_tp%opik%coord(1)
+!        c_opik=gmearth/(vel**2 - 2.d0*gmearth/r) 
 ! use MOID                                                              
-        dmin=va_tp%moid-smax*va_tp%width 
+        dmin=va_tp%moid-sigma_max*va_tp%width 
         IF(dmin.lt.0.d0)dmin=0.d0 
         dmin=MIN(dmin,r)
 ! check for confidence regions too small to allow to get to the MOID    
         IF(va_tp%dd2_ds.gt.0.d0)THEN 
-           dmin1=va_tp%d-(va_tp%sigma+smax)*va_tp%stretch
+           dmin1=va_tp%b-(va_tp%sigma+sigma_max)*va_tp%stretch
         ELSEIF(va_tp%dd2_ds.lt.0.d0)THEN 
-           dmin1=va_tp%d-(smax-va_tp%sigma)*va_tp%stretch 
+           dmin1=va_tp%b-(sigma_max-va_tp%sigma)*va_tp%stretch 
         ENDIF
         dmin=MAX(dmin,dmin1) 
         va_tp%minposs=dmin 
@@ -1077,7 +1178,7 @@ END SUBROUTINE str_clan
 
    CONTAINS        
        ! ================================================                      
-! REACLAN reads record written by wriclan3, only data part, places in a
+! REACLAN reads record written by wri_clan, only data part, places in a tp_point data type
       SUBROUTINE rea_clan(record,va_trace,error) 
       IMPLICIT NONE 
 ! INPUT                                                                 
@@ -1165,7 +1266,7 @@ SUBROUTINE aftclov(iplam,t0,tcla,v_inf,tbefore,tafter)
 END SUBROUTINE aftclov
 ! ===================================================
 ! velocity at infinity with repect to Earth
-! (circular approx) in AU/day
+! (circular approx) in au/day
 DOUBLE PRECISION FUNCTION v_infty(el0)
   USE fund_const
   USE orbit_elements 
@@ -1200,7 +1301,7 @@ DOUBLE PRECISION FUNCTION v_infty(el0)
   ELSE 
      v_infty=0.d0 
   ENDIF
-! normalization in AU/day by Gauss constant
+! normalization in au/day by Gauss constant
   v_infty=v_infty*gk 
 END FUNCTION v_infty
 

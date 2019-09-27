@@ -204,8 +204,8 @@
    ddnodpdom2=ddnodpdcosom1*dcosom(1,2,2)+ddnodpdcosom2*dcosom(2,2,2)
 ! =====================================================================
 ! Construction of the covariance matrix in COM coordinates
-   gel1=unc1%g
-   gel2=unc2%g
+   gel1=unc1%g(1:6,1:6)
+   gel2=unc2%g(1:6,1:6)
    tjaccomel1=TRANSPOSE(jaccomel1)
    tjaccomel2=TRANSPOSE(jaccomel2)
 ! Covariance matrices

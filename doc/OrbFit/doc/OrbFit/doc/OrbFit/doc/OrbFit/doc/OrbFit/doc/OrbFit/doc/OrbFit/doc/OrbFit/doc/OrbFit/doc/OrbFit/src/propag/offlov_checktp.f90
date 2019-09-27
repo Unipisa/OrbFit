@@ -5,8 +5,10 @@ MODULE offlov_checktp
 PRIVATE
 ! common data  
   DOUBLE PRECISION, PUBLIC :: bsdmin,bsdmax  
+! shrink factor of Earth cross section
+  DOUBLE PRECISION, PUBLIC :: shrinkea
 ! public routines
-  PUBLIC riskchecktp, header_risk
+  PUBLIC riskchecktp, header_risk, header_esa_risk
 
 CONTAINS
 !                 newton_checktp
@@ -17,7 +19,7 @@ CONTAINS
 ! called by riskcheck                                                   
 ! target plane Newton's method to find minimum distance                 
 ! off the LOV
-SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fold)
+SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fold,bad_cond)
   USE obssto
   USE tp_trace
   USE multiple_sol
@@ -26,6 +28,9 @@ SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fol
   USE propag_state 
   USE close_app, ONLY: kill_propag                        
   USE virtual_impactor
+  USE dyn_param
+  USE semi_linear
+  USE multi_store
 !===========================INPUT=======================================
   INTEGER, INTENT(IN)           :: iunnew,iunwarn  ! units for output
   TYPE(tp_point), INTENT(IN)    :: va_tracemin 
@@ -35,7 +40,9 @@ SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fol
   DOUBLE PRECISION, INTENT(OUT) :: distmin
   TYPE(tp_point), INTENT(OUT)   :: va_tracenew
   LOGICAL, INTENT(OUT)          :: fold 
-! ======================END INTERFACE==================================                 
+  INTEGER, INTENT(OUT)          :: bad_cond ! Flag for bad conditioning problems (it comes from slinel<-graha)
+! ======================END INTERFACE==================================       
+  INTEGER :: flag_cond ! Flag for bad conditioning at slinel output
   TYPE(orbit_elem) :: el0          ! elements     
   TYPE(orb_uncert) :: unc0  ! normal and covariance matrices
   LOGICAL                           :: falsok 
@@ -43,16 +50,16 @@ SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fol
   DOUBLE PRECISION :: r,sina,cosa,str,wid,csi,zeta,dq 
   DOUBLE PRECISION, DIMENSION(2) :: dtpc
 !==========correspondent ellipse in orbital elements space=============== 
-  DOUBLE PRECISION, DIMENSION(6,2) :: dtpdt
+  DOUBLE PRECISION, DIMENSION(ndimx,2) :: dtpdt
   DOUBLE PRECISION, DIMENSION(2,2) :: b
-  DOUBLE PRECISION, DIMENSION(4,2) :: ceicel
-  DOUBLE PRECISION, DIMENSION(6,6) :: v 
+  DOUBLE PRECISION, DIMENSION(ndimx-2,2) :: ceicel
+  DOUBLE PRECISION, DIMENSION(ndimx,ndimx) :: v 
 !================corrections for next newton step========================
   DOUBLE PRECISION, DIMENSION(2)   :: del2
-  DOUBLE PRECISION, DIMENSION(4)   :: del4
-  DOUBLE PRECISION, DIMENSION(6)   :: dels,delem,elem 
+  DOUBLE PRECISION, DIMENSION(ndimx-2)   :: del4
+  DOUBLE PRECISION, DIMENSION(ndimx)   :: dels,delem,elem 
   INTEGER :: jj, iunnew0,iunwarn0
-  INTEGER, DIMENSION(6) :: icor
+  INTEGER, DIMENSION(ndimx) :: icor
   INTEGER :: inew,inter,ncor,itsav,iun20m,jcselold 
   LOGICAL :: succ,error,bizarre 
 ! =======================================================================
@@ -64,46 +71,58 @@ SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fol
   DOUBLE PRECISION tafter,tbefore           ! time of the final elements,
                                             ! time too early for close app. 
                                             ! in the same shower 
+  INTEGER nd                                ! no solve for parameters
 !===================new TP data, rescaling in AU==============================
-  DOUBLE PRECISION               :: xnew,rnew,rescov 
+  DOUBLE PRECISION               :: xnew,rnew,rescov,sigmaout
   DOUBLE PRECISION, DIMENSION(2) :: dtpf,dtpcau
   INTEGER, PARAMETER :: nfoldx=10           ! max no of folds to give up
   INTEGER  :: it, nfold                     ! iteration control,fold counter
   INTEGER, PARAMETER :: itnewmax=12 
-  INTEGER  :: i,j                           ! loops
+  INTEGER  :: i,j,k                          ! loops
   LOGICAL  :: batch                         ! batch control
 ! ============================================================================
   va_tracenew=va_tracemin
-  fold=.false. 
-  stored_vi=.false.
-  iunnew0=abs(iunnew)
-  iunwarn0=abs(iunwarn)
+  fold=.FALSE. 
+  bad_cond=0
+  stored_vi=.FALSE.
+  iunnew0=ABS(iunnew)
+  iunwarn0=ABS(iunwarn)
+  nd=6+nls
 ! nominal rms
   csinor=csinom(imi0)
 ! if already a VI, nothing to do                                        
   IF(va_tracenew%b.lt.b_e*1.01d0)THEN 
 ! return with collision                                                 
      distmin=va_tracenew%b 
-! get the initial conditions used in the last run                       
-     CALL lovinterp(va_tracenew%rindex,deltasig,el,uncnew,falsok)
+! get the initial conditions used in the last run 
+     IF(prob_sampl)THEN
+        CALL lovinterp3(va_tracenew%rindex,sigmaout,el,uncnew,falsok)
+     ELSE                      
+        CALL lovinterp(va_tracenew%rindex,delta_sigma,el,uncnew,falsok)
+     ENDIF
 ! store information to document the VI found 
      curr_vi%ele=el
      curr_vi%tp=va_tracenew
      curr_vi%unc=uncnew
+     curr_vi%dyn=dyn
      stored_vi=.true.
      RETURN 
   ENDIF
 ! count folds
   nfold=0
-! get the initial conditions used in the last run                       
-  CALL lovinterp(va_tracenew%rindex,deltasig,el0,unc0,falsok) 
+! get the initial conditions used in the last run  
+  IF(prob_sampl)THEN
+     CALL lovinterp3(va_tracenew%rindex,sigmaout,el0,unc0,falsok)
+  ELSE 
+     CALL lovinterp(va_tracenew%rindex,delta_sigma,el0,unc0,falsok) 
+  ENDIF
   uncnew=unc0
   DO 1 it=1,itnewmax 
 ! check for cases in which we are already inside the Earth cross section
      r=va_tracenew%b 
-! current radius, displacement required to get to b_e                   
-     dtpc(1)=-va_tracenew%opik%coord(4)*(r-b_e)/r 
-     dtpc(2)=-va_tracenew%opik%coord(5)*(r-b_e)/r 
+! current radius, displacement required to get to b_e  
+     dtpc(1)=-va_tracenew%opik%coord(4)*(r-b_e*shrinkea)/r 
+     dtpc(2)=-va_tracenew%opik%coord(5)*(r-b_e*shrinkea)/r 
      sina=sin(va_tracenew%alpha) 
      cosa=cos(va_tracenew%alpha) 
      str=va_tracenew%stretch 
@@ -113,52 +132,75 @@ SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fol
      IF(iunwarn.lt.0)  WRITE(*,*)' dq ', dq                   
      WRITE(iunwarn0,*)' dq ', dq 
 ! compute ellipse in the elements space 
-     dtpdt=TRANSPOSE(dtpde(1:2,1:6,jcsel))                                
-! WARNING!!!! should use uncnew%g, uncnew%c ????
-!     CALL slinel(dtpdt,unc0%g,unc0%c,ceicel,b,v)
+     dtpdt(1:nd,1:2)=TRANSPOSE(dtpde(1:2,1:nd,jcsel))                                
 ! the one below should be better
-     CALL slinel(dtpdt,uncnew%g,uncnew%c,ceicel,b,v)
-! WARNING ??????????????????????????????????????
+     CALL slinel(dtpdt(1:nd,1:2),uncnew%g(1:nd,1:nd),uncnew%c(1:nd,1:nd),ceicel(1:nd-2,1:2),b,v(1:nd,1:nd),nd,flag_cond)
+     IF(flag_cond.NE.0)THEN
+        IF(iunwarn.LT.0)WRITE(*,*) ' bad conditioning, stop offlov_check (1)'
+        IF(iunnew.LT.0)WRITE(*,*) ' bad conditioning, stop offlov_check (1)'
+        WRITE(iunwarn0,*) ' bad conditioning, stop offlov_check (1)'
+        WRITE(iunnew0,*) ' bad conditioning, stop offlov_check (1)'
+        fold=.FALSE.
+        bad_cond=flag_cond
+        distmin=r 
+        RETURN
+     END IF
 ! dtpc needs to be rescaled back into AU!!! 
      dtpcau(1)=dtpc(1)*reau 
      dtpcau(2)=dtpc(2)*reau 
 ! find corresponding orbital elements at epoch                          
      del2=MATMUL(b,dtpcau) 
-     del4=MATMUL(ceicel,del2) 
+     del4(1:nd-2)=MATMUL(ceicel(1:nd-2,1:2),del2) 
      dels(1:2)=del2 
-     DO jj=1,4 
+     DO jj=1,nd-2 
         dels(2+jj)=-del4(jj) 
      ENDDO
-     delem=MATMUL(v,dels) 
+     delem(1:nd)=MATMUL(v(1:nd,1:nd),dels(1:nd)) 
      el=el0 
-     el%coord=el0%coord+delem 
+     el%coord=el0%coord+delem(1:6)
+! if there are nongrav parameters, correct also them
+     IF(nd.gt.6)THEN
+        DO k=7,nd
+           dyn%dp(ls(k-6))=dyn%dp(ls(k-6))+delem(k)
+        ENDDO
+     ENDIF
      IF(iunwarn.lt.0)THEN
         WRITE(*,200)delem 
-200     FORMAT('change in els ',1P,6D12.4) 
+200     FORMAT('change in els ',1P,10D12.4) 
         WRITE(*,201)el%coo,el%coord 
-201     FORMAT(' new elements ',A3,1x,1P,6D12.4)
+201     FORMAT(' new elements ',A3,1x,1P,10D12.4)
      ENDIF
      WRITE(iunwarn0,200)delem
      WRITE(iunwarn0,201)el%coo,el%coord
      IF(bizarre(el,ecc))THEN 
-        IF(iunwarn.lt.0)WRITE(*,*)' fold found, bizarre orbit'
-        IF(iunnew.lt.0)WRITE(*,*)' fold found, bizarre orbit' 
+        IF(iunwarn.LT.0)WRITE(*,*)' fold found, bizarre orbit'
+        IF(iunnew.LT.0)WRITE(*,*)' fold found, bizarre orbit' 
         WRITE(iunwarn0,*)' fold found, bizarre orbit' 
         WRITE(iunnew0,*)' fold found, bizarre orbit'
-        fold=.true. 
+        fold=.TRUE. 
         distmin=r 
         RETURN 
      ENDIF
 ! solve for all elements                                                
      inter=0 
-     CALL whicor(inter,icor,ncor,inew) 
+     CALL whicor(inter,nd,icor(1:nd),ncor,inew) 
 ! zero iterations differential corrections, batch mode                  
      itsav=itmax 
      itmax=0 
      iun20m=-1 
      batch=.true.
-! differential corrections       
-     CALL diff_cor(m_m,obs_m,obsw_m,el,icor,iun20m,el,uncnew,csinew,delnew,succ)
+! differential corrections 
+     CALL diff_cor(m_m,obs_m,obsw_m,el,icor,iun20m,el,uncnew,csinew,delnew,succ,nd)
+     IF(.NOT.uncnew%succ)THEN
+        IF(iunwarn.LT.0) WRITE(*,*) ' bad conditioning, stop offlov_check (2)'
+        IF(iunnew.LT.0) WRITE(*,*) ' bad conditioning, stop offlov_check (2)'
+        WRITE(iunwarn0,*) ' bad conditioning, stop offlov_check (2)'
+        WRITE(iunnew0,*) ' bad conditioning, stop offlov_check (2)'
+        fold=.FALSE.
+        bad_cond=1
+        distmin=r 
+        RETURN
+     END IF
      itmax=itsav 
 ! time up to which to search for close approaches                       
      v_infi=v_infty(el) 
@@ -168,9 +210,27 @@ SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fol
 ! reset storage of close encounters                                     
      njc=0 
      iplam=0 
-! propagation to search for new target plane point                      
+! propagation to search for new target plane point 
      CALL pro_ele(el,tafter,el1,uncnew,unc1)
-! check that TP has been achieved, at the right time                    
+     !-----------------------------------------------------------------!
+     ! ADV, 2017/01/20                                                 !
+     ! The control below has been removed, because it created          !
+     ! problems.  Even if unc1%g and the s.t.m. are badly conditioned, !
+     ! and therefore unc1%c is not numerically computable, the         !
+     ! algorithm can produce a VI.                                     !
+     ! WARNING: carefully analyze the bad conditioned cases!           !
+     !-----------------------------------------------------------------!
+     !IF(.NOT.unc1%succ)THEN
+     !   IF(iunwarn.LT.0) WRITE(*,*) ' bad conditioning, stop offlov_check (3)'
+     !   IF(iunnew.LT.0) WRITE(*,*) ' bad conditioning, stop offlov_check (3)'
+     !   WRITE(iunwarn0,*) ' bad conditioning, stop offlov_check (3)'
+     !   WRITE(iunnew0,*) ' bad conditioning, stop offlov_check (3)'
+     !   fold=.FALSE.
+     !   bad_cond=1
+     !   distmin=r 
+     !   RETURN
+     !END IF
+     ! check that TP has been achieved, at the right time                    
      csi=va_tracenew%opik%coord(4) 
      zeta=va_tracenew%opik%coord(5)
 ! check presence of target plane                                        
@@ -189,9 +249,13 @@ SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fol
         distmin=r 
         RETURN 
      ENDIF
-! get data on TP analysys of the new close approach                     
-     CALL arrloadtp(va_tracenew,va_tracemin%rindex) 
-     IF(.not.va_tracenew%tp_conv)THEN
+! get data on TP analysys of the new close approach 
+     IF(prob_sampl)THEN
+        CALL arrloadtp(va_tracenew,va_tracemin%rindex,sigmaout)
+     ELSE
+        CALL arrloadtp(va_tracenew,va_tracemin%rindex)
+     ENDIF
+     IF(.NOT.va_tracenew%tp_conv)THEN
         WRITE(iunwarn0,*)' elliptic encounter, no TP '
         WRITE(iunnew0,*)'  elliptic encounter, no TP '
         fold=.true. 
@@ -251,6 +315,7 @@ SUBROUTINE newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fol
         curr_vi%ele=el
         curr_vi%tp=va_tracenew
         curr_vi%unc=uncnew
+        curr_vi%dyn=dyn
         stored_vi=.true.
         RETURN 
      ELSE 
@@ -271,7 +336,7 @@ END SUBROUTINE newton_checktp
 ! RISKCHECKTP compute risk and write risk file if necessary               
 ! ==========================================================================
 SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
-     &     iunnew,iunwarn,iunrisk,riskfile)
+     &     iunnew,iunwarn,iunrisk,riskfile,riskesafile)
   USE multiple_sol, ONLY: lovmagn
   USE planet_masses 
   USE tp_trace 
@@ -282,7 +347,7 @@ SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
   CHARACTER(LEN=7), INTENT(IN)    :: type 
   DOUBLE PRECISION, INTENT(IN)    :: t0
   INTEGER, INTENT(IN)             :: iunnew,iunwarn 
-  CHARACTER(LEN=*), INTENT(IN),OPTIONAL    :: riskfile
+  CHARACTER(LEN=*), INTENT(IN),OPTIONAL    :: riskfile, riskesafile
   INTEGER, INTENT(IN), OPTIONAL   :: iunrisk
 ! =======================OUTPUT============================================
   INTEGER, INTENT(INOUT)            :: no_risk 
@@ -292,11 +357,17 @@ SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
   DOUBLE PRECISION  :: rel_prob,ps,prob, prob_1dim
   DOUBLE PRECISION  :: tcl,sigma,deltat,sigimp
   DOUBLE PRECISION  :: chi,fact,p_imp1 
-  INTEGER           :: le, iunrisk0,iunrisk1,iunnew0,iunwarn0
+  INTEGER           :: le, iunrisk0,iunrisk1,iunnew0,iunwarn0, lee, iunesarisk
   CHARACTER(LEN=14) :: calend             ! calendar date 
   TYPE(tp_point)    :: va_tracenew        ! for newton_check     
   DOUBLE PRECISION  :: distmin,vvvv,rrrr,mu
   LOGICAL           :: fold 
+  INTEGER           :: year, month, dayint, hour, minute
+  DOUBLE PRECISION  :: day
+  CHARACTER (LEN=2) :: monthch,daych,hourch,minutech
+  CHARACTER (LEN=17):: impactdate
+  INTEGER           :: ts
+  INTEGER           :: bad_cond ! Flag for bad conditioning case
 ! ==========================================================================
   dcur=va_tracemin%b 
   width=va_tracemin%width 
@@ -338,17 +409,46 @@ SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
      &           mass,v_imp,energy,e_tilde,fb,rel_prob,iunwarn)         
 ! calendar date                                                         
         CALL calendwri(tcl,calend)
+ ! write calendar date in ESA format
+        READ(calend(1:14),'(I4,1X,I2,1X,F6.3)') year, month, day
+        dayint=FLOOR(day)
+        hour=FLOOR((day-dayint)*24d0)
+        minute=NINT(((day-dayint)*24d0-hour)*60d0)
+        IF(month.lt.10) THEN 
+           WRITE(monthch,'(a1,I1)')'0',month
+        ELSE
+           WRITE(monthch,'(I2)')month
+        ENDIF
+        IF(dayint.lt.10) THEN 
+           WRITE(daych,'(a1,I1)')'0',dayint
+        ELSE
+           WRITE(daych,'(I2)')dayint
+        ENDIF
+        IF(hour.lt.10) THEN 
+           WRITE(hourch,'(a1,I1)')'0',hour
+        ELSE
+           WRITE(hourch,'(I2)')hour
+        ENDIF
+        IF(minute.lt.10) THEN 
+           WRITE(minutech,'(a1,I1)')'0',minute
+        ELSE
+           WRITE(minutech,'(I2)')minute
+        ENDIF
+        WRITE(impactdate,'(1X,I4,2(A1,A2),2(1X,A2))')year,'-',monthch,'-',daych,hourch,minutech
         sigimp=MAX((abs(csi1)-b_e)/width,0.d0)
 ! before writing, check for spurious VI due to interrupted              
         WRITE(iunwarn0,*)' checking for risk of type ',type 
-        CALL newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fold)
+        CALL newton_checktp(iunnew,iunwarn,va_tracemin,b_e,distmin,va_tracenew,fold,bad_cond)
         IF(fold)THEN 
            RETURN 
+        ELSEIF(bad_cond.NE.0)THEN
+           WRITE(*,*) ' riskchecktp: bad conditioning case, return'
+           RETURN
         ELSEIF(va_tracemin%b.eq.distmin)THEN 
-! nothing to change                                                     
+           ! nothing to change                                                     
            p_imp1=p_imp 
         ELSE 
-! correct probability for value of chi**2                               
+           ! correct probability for value of chi**2                               
            chi=va_tracenew%sigma 
            fact=exp(-0.5d0*(chi**2-sigma**2-sigimp**2)) 
            p_imp1=p_imp*fact 
@@ -387,23 +487,36 @@ SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
            WRITE(*,*)'riskchecktp: missing output optional arguments'
            STOP
         ENDIF
+        IF(PRESENT(riskesafile))THEN
+           CALL rmsp(riskesafile,lee) 
+           iunesarisk=49 
+           OPEN(UNIT=iunesarisk, FILE=riskesafile(1:lee),POSITION='APPEND')
+        END IF
         IF(iunrisk1.le.0) CALL header_risk(0)
-        IF(width.ge.1.0d4)THEN 
-           IF(iunrisk1.lt.0)WRITE(*,200)calend,tcl,sigma,sigimp,dcur,          &
-     &              width,stretch,p_imp1,e_tilde,ps
-           WRITE(iunrisk0,200)calend,tcl,sigma,sigimp,dcur,          &
-     &              width,stretch,p_imp1,e_tilde,ps                     
+! storing corresponding vi
+        CALL store_vi()
+        ts=torino(p_imp1,(e_tilde/p_imp1))
+        IF(PRESENT(riskesafile))THEN
+           WRITE(iunesarisk,50) impactdate,p_imp1,ps,ts, v_imp
+50         FORMAT(a17,2X,1p,e9.2,4X,0p,f6.2,5X,I2,6X,f7.2)
+        END IF
+        IF(va_tracenew%width.ge.1.0d4)THEN 
+           IF(iunrisk1.lt.0)WRITE(*,200)calend,tcl,sigma,sigimp,va_tracenew%b,          &
+     &              va_tracenew%width,stretch,p_imp1,e_tilde,ps
+           WRITE(iunrisk0,200)calend,tcl,sigma,sigimp,va_tracenew%b,          &
+     &              va_tracenew%width,stretch,p_imp1,e_tilde,ps                     
 200        FORMAT(a14,1x,f10.3,1x,f7.3,1x,f5.3,1x,f7.2,' +/- ',      &
      &              f8.2,1x,1p,e9.2,1x,e9.2,1x,e9.2,1x,0p,f6.2)         
         ELSE
-           IF(iunrisk1.lt.0)WRITE(*,100)calend,tcl,sigma,sigimp,dcur,          &
-     &              width,stretch,p_imp1,e_tilde,ps
-           WRITE(iunrisk0,100)calend,tcl,sigma,sigimp,dcur,          &
-     &              width,stretch,p_imp1,e_tilde,ps                     
+           IF(iunrisk1.lt.0)WRITE(*,100)calend,tcl,sigma,sigimp,va_tracenew%b,          &
+     &              va_tracenew%width,stretch,p_imp1,e_tilde,ps
+           WRITE(iunrisk0,100)calend,tcl,sigma,sigimp,va_tracenew%b,          &
+     &              va_tracenew%width,stretch,p_imp1,e_tilde,ps                     
 100        FORMAT(a14,1x,f10.3,1x,f7.3,1x,f5.3,1x,f7.2,' +/- ',      &
      &              f8.3,1x,1p,e9.2,1x,e9.2,1x,e9.2,1x,0p,f6.2)         
         ENDIF
         IF(PRESENT(riskfile))CLOSE(iunrisk0) 
+        IF(PRESENT(riskesafile))CLOSE(iunesarisk) 
      ENDIF
   ENDIF
 
@@ -420,6 +533,14 @@ INTEGER, INTENT(IN) :: iunrisk ! output unit
 200 FORMAT(a42,a56) 
 END SUBROUTINE header_risk
   
+SUBROUTINE header_esa_risk(iunesarisk)
+INTEGER, INTENT(IN) :: iunesarisk ! output unit
+  WRITE(iunesarisk,200) '    time UT          Impact     Palermo  Torino      Impact       '
+  WRITE(iunesarisk,200) ' YYYY-MM-DD HH MM  Probability   Scale   Scale   Velocity (km/s)  '
+  WRITE(iunesarisk,200) '------------------------------------------------------------------'
+200 FORMAT(a66) 
+END SUBROUTINE header_esa_risk
+
   SUBROUTINE big_vitp(tptrail, lre, tpmin, t0,nvai, nbigrisk,iunnew,iunwarn,riskfile)
     USE planet_masses, ONLY: gmearth
     USE tp_trace

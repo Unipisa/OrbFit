@@ -188,7 +188,7 @@ SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fai
 14   ENDDO
 ! remove spurious root
      IF(rhs.eq.1)THEN
-        spurious_dist=0.01D0 ! Hill's sphere of the Earth
+        spurious_dist=0.001D0 ! Hill's sphere of the Earth
         r_scal=roots(ir) ! output message in AU
         rho_scal=rho(2) ! output message in AU
      ELSEIF(rhs.eq.2)THEN

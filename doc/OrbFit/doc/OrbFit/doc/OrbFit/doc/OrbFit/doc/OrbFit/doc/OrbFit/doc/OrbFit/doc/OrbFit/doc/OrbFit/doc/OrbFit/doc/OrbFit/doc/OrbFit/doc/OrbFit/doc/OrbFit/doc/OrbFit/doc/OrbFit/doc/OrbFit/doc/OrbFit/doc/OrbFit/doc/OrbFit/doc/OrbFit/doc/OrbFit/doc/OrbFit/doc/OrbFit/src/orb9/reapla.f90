@@ -108,7 +108,7 @@ SUBROUTINE reapla(iunin,iunbar,iunou,ibar,iprqua,                 &
   endif
 ! =======================output headers======================           
 !  column headers for equinoctal elements and numbers                   
-  colhea='  a(AU)      h      k      p      q     lambda  nrev  gam' 
+  colhea='  a(au)      h      k      p      q     lambda  nrev  gam' 
 !  sampled elements, only for iprq even, unit 11 and 21                 
   if(mod(iprqua,2).eq.0)then 
      open(11,file='vpla.dat',status='unknown') 

@@ -100,7 +100,7 @@ END FUNCTION vsize
 SUBROUTINE prodmv(y,a,x) 
   IMPLICIT NONE 
   DOUBLE PRECISION, INTENT(IN) :: a(3,3)
-  DOUBLE PRECISION, INTENT(INOUT) :: x(3),y(3)
+  DOUBLE PRECISION :: x(3),y(3)
   DOUBLE PRECISION s, z(3)
   INTEGER j,l 
   z=x                                                                     
@@ -132,7 +132,7 @@ subroutine rotmt(alpha,r,k)
   double precision alpha,r(3,3) 
   double precision cosa,sina 
   integer k,i1,i2,i3 
-  if(k.lt.1.or.k.gt.3)stop' **** ROTMT: k = ??? ****' 
+  if(k.lt.1.or.k.gt.3)stop ' **** ROTMT: k = ??? ****' 
   cosa=cos(alpha) 
   sina=sin(alpha) 
   i1=k 
@@ -165,8 +165,8 @@ END subroutine rotmt
 !  ***************************************************************      
 SUBROUTINE prodmm(a,b,c) 
   IMPLICIT NONE 
-  DOUBLE PRECISION, INTENT(INOUT) :: b(3,3),c(3,3)
-  DOUBLE PRECISION, INTENT(INOUT) :: a(3,3)
+  DOUBLE PRECISION :: b(3,3),c(3,3)
+  DOUBLE PRECISION :: a(3,3)
   DOUBLE PRECISION w(3,3),z(3,3),s 
   INTEGER j,k,l
   z=c
@@ -258,6 +258,39 @@ END subroutine lincom
 ! =========================================================== 
 ! GENERAL LINEAR ALGEBRA
 ! =========================================================== 
+!  VERSOR
+  SUBROUTINE versor(n,a,epsi,b,vl,ize)  
+    integer n,i 
+    logical ize 
+    double precision a(n),b(n),epsi,vl 
+    vl=sqrt(DOT_PRODUCT(a,a)) 
+    if(vl.lt.epsi)then 
+       ize=.true. 
+    else 
+       ize=.false. 
+       do  i=1,n 
+          b(i)=a(i)/vl 
+       enddo
+    endif
+  END  SUBROUTINE versor
+!  VERSOR_Q
+  SUBROUTINE versor_q(n,a,epsi,b,vl,ize)  
+    USE fund_const, ONLY: qkind
+    IMPLICIT NONE
+    INTEGER n,i 
+    LOGICAL ize 
+    REAL(KIND=qkind) a(n),b(n),epsi,vl 
+    vl=sqrt(DOT_PRODUCT(a,a)) 
+    if(vl.lt.epsi)then 
+       ize=.true. 
+    else 
+       ize=.false. 
+       do  i=1,n 
+          b(i)=a(i)/vl 
+       enddo
+    endif
+  END  SUBROUTINE versor_q
+
 ! ================================================                      
 !                                                                       
 !  ***************************************************************      
@@ -417,6 +450,7 @@ double precision function bilin(v1,v2,nv,w,nx,n)
      do 10 j=1,n 
 10      bilin=bilin+v1(i)*w(i,j)*v2(j) 
 END function bilin                                               
+
 ! ===================================================================== 
 ! inverse of a 2x2 matrix
 ! warning: this can give NaN if deta=0
@@ -433,6 +467,24 @@ subroutine inv22(a,b,deta)
   b(1,2)=-a(1,2)/deta 
   b(2,1)=-a(2,1)/deta 
 END subroutine inv22
+
+! ===================================================================== 
+! inverse of a 2x2 matrix
+! warning: this can give NaN if deta=0
+SUBROUTINE inv22_q(a,b,deta) 
+  USE fund_const, ONLY: qkind
+  IMPLICIT NONE
+  REAL(KIND=qkind), INTENT(in) :: a(2,2)
+  REAL(KIND=qkind), INTENT(out) :: b(2,2),deta 
+  deta=a(1,1)*a(2,2)-a(1,2)*a(2,1) 
+  if(deta.eq.0.d0)then 
+     write(*,*)' deta is zero ' 
+  endif
+  b(1,1)=a(2,2)/deta 
+  b(2,2)=a(1,1)/deta 
+  b(1,2)=-a(1,2)/deta 
+  b(2,1)=-a(2,1)/deta 
+END SUBROUTINE inv22_q
 !
 ! =========================================================== 
 ! LEAST SQUARES
@@ -621,6 +673,196 @@ END subroutine tchinv
       enddo
    enddo 
  END subroutine inver      
+
+
+! ===========================================================           
+! T C H I N V _Q
+! Cholewski method for inversion                                        
+! requires a workspace vector, but does not have dimension limits       
+! ======================================================                
+subroutine tchinv_q(c,n,cinv,ws,indp) 
+  USE fund_const, ONLY: qkind
+  USE output_control
+  implicit none 
+! input: dimension of input matrix c                                    
+  integer, intent(in) :: n 
+  REAL(KIND=qkind), intent(in) :: c(n,n) 
+! output: possible degeneracy (0=no, else row where pivot is too small) 
+  integer, intent(out)::  indp 
+  REAL(KIND=qkind), intent(out) :: cinv(n,n) 
+! workspace                                                             
+  REAL(KIND=qkind), intent(out) :: ws(n) 
+! end interface                                                         
+  integer i
+  REAL(KIND=qkind) err,omax,omin,cond 
+! =========================================                             
+  cinv=c ! call mcopy(n,n,c,cinv) 
+  err=epsilon(1.q0)*1.q10 
+! matrix factorized by Tcholesky method:                                
+  call tchol_q(cinv,n,n,indp,err) 
+  if(indp.ne.0.and.verb_matrix.gt.9)then 
+     write(*,*)' indp=',indp,' in tchol' 
+  endif
+! ===========================================================           
+! Control of conditioning number and inversion of matrix                
+  omax=cinv(1,1) 
+  omin=cinv(1,1) 
+  DO i=2,n 
+     if (cinv(i,i).gt.omax) then 
+        omax=cinv(i,i) 
+     endif
+     if (cinv(i,i).lt.omin) then 
+        omin=cinv(i,i) 
+     endif
+  ENDDO
+  cond=(omax/omin)**2 
+  IF(cond.gt.1.d12.and.verb_matrix.gt.9)write(*,111)n,n,cond 
+111 format(' Conditioning of ',i2,'x',i2,'matrix=',d12.4) 
+! ===========================================================           
+! inversion                                                             
+  call inver_q(cinv,ws,n,n) 
+END subroutine tchinv_q
+! ===========================================================           
+!                                                                       
+!                            t c h o l _ q 
+!                                                                       
+!      Tcholesky factorization of a positive-defined matrix             
+!                                                                       
+!             originally written by prof. Luigi Mussio                  
+!         Istituto di Topografia del Politecnico di Milano              
+!                                                                       
+! ===========================================================           
+!                                                                       
+!    warning: only the upper triangle of the matrix is processed        
+!                                                                       
+!                                                                       
+! input:    a(nmax,nmax)   - matrix to be processed                     
+!           nmax           - first dimension of a as declared in the dim
+!                            statement of the calling program           
+!           n              - actual dimension of a                      
+!           err            - control on pivot (if <0, control is automat
+!                                                                       
+!                                                                       
+! output:   a              - contains the tcholesky factorization of the
+!                            matrix (to be supplied to subroutine inver)
+!           indp           - if it is different from zero, the input mat
+!                            was not positive defined and the algorithm 
+!                            does not work                              
+!                                                                       
+ subroutine tchol_q(a,nmax,n,indp,err) 
+   USE fund_const, ONLY: qkind
+   implicit none 
+   integer, intent(in) :: n, nmax
+   REAL(KIND=qkind), intent(in) :: err
+   integer, intent(out) :: indp 
+   REAL(KIND=qkind), intent(inout) :: a(nmax,n)
+   REAL(KIND=qkind) :: errrel
+! ========END INTERFACE=========================                        
+   REAL(KIND=qkind) as,errloc,s 
+   integer i,k,ii,l,j 
+   as=0.d0 
+   do  i=1,n 
+      do k=1,i 
+         as=max(as,abs(a(k,i)))
+      enddo
+   enddo 
+! in this version we are not checking the roundoff value                
+! of the machine, because the control err is assumed to hve
+! already BEEN compared with the rounding off; 
+! thus err must be positive                                             
+   IF(err.le.0.d0)THEN
+      indp=1
+      RETURN
+   ELSE
+      errrel=err*as
+   ENDIF 
+   do 40 i=1,n 
+      l=i-1 
+      s=0.d0 
+      if(l.eq.0) goto 15 
+      do  k=1,l 
+         s=s+a(k,i)*a(k,i) 
+      enddo
+15    a(i,i)=a(i,i)-s 
+      if(a(i,i).le.errrel)then 
+         indp=i 
+         return 
+      endif
+      a(i,i)=sqrt(a(i,i)) 
+      if(i.eq.n) goto 40 
+      ii=i+1 
+      DO 30 j=ii,n 
+         s=0.d0 
+         if(l.eq.0)goto 25 
+         do  k=1,l 
+            s=s+a(k,i)*a(k,j) 
+         enddo
+25       a(i,j)=(a(i,j)-s)/a(i,i) 
+30    ENDDO
+40 ENDDO
+   indp=0 
+   return 
+ END subroutine tchol_q
+! ===========================================================           
+!                                                                       
+!                            i n v e r _ q                                 
+!                                                                       
+!              inversion of a positive-defined matrix                   
+!                                                                       
+!                  written by prof. luigi mussio                        
+!         istituto di topografia del politecnico di milano              
+!                                                                       
+!                                                                       
+! input:    a(nmax,nmax)   - input matrix, previously factorized by     
+!                            subroutine tchol                           
+!           v(nmax)        - work area                                  
+!           nmax           - first dimension of a as declared in the dim
+!                            statement of the calling program           
+!           n              - actual dimension of a                      
+!                                                                       
+!                                                                       
+! output:   a              - inverse of input matrix                    
+!                                                                       
+!                                                                       
+ subroutine inver_q(a,v,nmax,n)
+   USE fund_const, ONLY: qkind
+   implicit none 
+   integer, INTENT(IN) :: nmax,n 
+   REAL(KIND=qkind), INTENT(INOUT) :: a(nmax,n),v(n) 
+! ==========END INTERFACE=========                                      
+   integer i,l,k,j 
+   REAL(KIND=qkind) s 
+! ================================                                      
+   do 8 i=n,1,-1 
+      l=i+1 
+      if(i.eq.n)goto 4 
+      do 3 j=n,l,-1 
+         s=0.d0 
+         do 2 k=n,l,-1 
+            if(j.lt.k)goto 1 
+            s=s+a(i,k)*a(k,j) 
+            goto 2 
+1           s=s+a(i,k)*a(j,k) 
+2        ENDDO
+         v(j)=-s/a(i,i) 
+3     enddo
+4     s=0.d0 
+      if(i.eq.n)goto 7 
+      do  k=n,l,-1 
+         s=s+a(i,k)*v(k) 
+      enddo
+      do  j=n,l,-1 
+         a(i,j)=v(j) 
+      enddo
+7     a(i,i)=(1.d0/a(i,i)-s)/a(i,i) 
+8  ENDDO
+   do  i=2,n 
+      do  j=1,i-1 
+        a(i,j)=a(j,i)
+      enddo
+   enddo 
+ END subroutine inver_q      
+
 !====================================================                   
  subroutine qr_inv(a,b,n,izer,det,aval) 
    implicit none 
@@ -645,7 +887,7 @@ END subroutine tchinv
    dstar=0.d0 
    det=1.d0 
    izer=0 
-   do 70 i=1,6 
+   do 70 i=1,n 
       det=det*aval(i) 
       if (aval(i).gt.0.d0) then 
          dstar(i,i)=1.d0/aval(i) 
@@ -700,42 +942,83 @@ DOUBLE PRECISION FUNCTION snormd(v,a,n,nused)
 END FUNCTION snormd
 ! =========================================================== 
 ! CONVERTCOV, CONVERTNOR
-! conversion by similarity of covarainace and normal matrix
+! conversion by similarity of covariance and normal matrix
 ! ===========================================================  
-! conversion of covariance matrix                                       
-SUBROUTINE convertcov(g0,derpar,gk) 
+! conversion of covariance matrix, version nd x nd
+                            
+SUBROUTINE convertcov(nd,g0,derpar,gk) 
   IMPLICIT NONE 
 ! input: g0=covariance matrix in elements E, derpar=\partial X/\partial E
-! output: gk covariance matrix in elements X                            
-  DOUBLE PRECISION, INTENT(IN) :: g0(6,6),derpar(6,6)
-  DOUBLE PRECISION, INTENT(INOUT) :: gk(6,6) ! to allow for g0=gk
+! output: gk covariance matrix in elements X
+  INTEGER, INTENT(IN) :: nd                            
+  DOUBLE PRECISION, INTENT(IN) :: g0(nd,nd),derpar(nd,nd)
+  DOUBLE PRECISION, INTENT(INOUT) :: gk(nd,nd) ! to allow for g0=gk
 ! workspace                                                             
-  DOUBLE PRECISION tmp6(6,6),derpart(6,6) 
+  DOUBLE PRECISION tmp6(nd,nd),derpart(nd,nd) 
 ! compute normal and covariance matrix for keplerian elements           
   tmp6=MATMUL(derpar,g0) 
   derpart=TRANSPOSE(derpar) 
   gk=MATMUL(tmp6,derpart) 
-  RETURN 
 END SUBROUTINE convertcov
-                                                                        
-! conversion of normal matrix                                           
-SUBROUTINE convertnor(c0,derpar,ck) 
+
+! version for nd x nd matrices with 6 x 6 jacobian
+SUBROUTINE convertcovdp(nd,g0,derpar,gk) 
   IMPLICIT NONE 
-! input: c0=normal matrix in elements E, derpar=\partial E/\partial X   
-! output: ck= normal matrix in elements X                               
-  DOUBLE PRECISION, INTENT(IN) ::  c0(6,6),derpar(6,6)
-  DOUBLE PRECISION, INTENT(INOUT) :: ck(6,6) 
+! input: g0=covariance matrix in elements E, derpar=\partial X/\partial E
+! output: gk covariance matrix in elements X 
+  INTEGER, INTENT(IN) :: nd                           
+  DOUBLE PRECISION, INTENT(IN) :: g0(nd,nd),derpar(6,6)
+  DOUBLE PRECISION, INTENT(INOUT) :: gk(nd,nd) ! to allow for g0=gk
 ! workspace                                                             
   DOUBLE PRECISION tmp6(6,6),derpart(6,6) 
 ! compute normal and covariance matrix for keplerian elements           
-  derpart=TRANSPOSE(derpar) ! CALL transp(derpar,6,6,derpart) 
-  tmp6=MATMUL(derpart, c0)  ! CALL mulmat(derpart,6,6,c0,6,6,tmp6) 
-  ck=MATMUL(tmp6,derpar)    ! CALL mulmat(tmp6,6,6,derpar,6,6,ck) 
-  RETURN 
+  tmp6=MATMUL(derpar,g0(1:6,1:6)) 
+  derpart=TRANSPOSE(derpar) 
+  gk(1:6,1:6)=MATMUL(tmp6,derpart)
+  IF(nd.eq.6) RETURN
+  gk(7:nd,7:nd)=g0(7:nd,7:nd)
+  gk(7:nd,1:6)=MATMUL(g0(7:nd,1:6),derpart)
+  gk(1:6,7:nd)=TRANSPOSE(gk(7:nd,1:6)) 
+END SUBROUTINE convertcovdp
+                                                                        
+! conversion of normal matrix nd x nd                      
+SUBROUTINE convertnor(nd,c0,derpar,ck) 
+  IMPLICIT NONE 
+! input: c0=normal matrix in elements E, derpar=\partial E/\partial X   
+! output: ck= normal matrix in elements X
+  INTEGER, INTENT(IN) :: nd                               
+  DOUBLE PRECISION, INTENT(IN) ::  c0(nd,nd),derpar(nd,nd)
+  DOUBLE PRECISION, INTENT(INOUT) :: ck(nd,nd) 
+! workspace                                                             
+  DOUBLE PRECISION tmp6(nd,nd),derpart(nd,nd) 
+! compute normal and covariance matrix for keplerian elements           
+  derpart=TRANSPOSE(derpar) 
+  tmp6=MATMUL(derpart, c0)  
+  ck=MATMUL(tmp6,derpar)    
 END SUBROUTINE convertnor
 
+! conversion of normal matrix  nd x nd with jacobian 6 x 6                    
+SUBROUTINE convertnordp(nd,c0,derpar,ck) 
+  IMPLICIT NONE 
+! input: c0=normal matrix in elements E, derpar=\partial E/\partial X   
+! output: ck= normal matrix in elements X
+  INTEGER, INTENT(IN) :: nd                                
+  DOUBLE PRECISION, INTENT(IN) ::  c0(nd,nd),derpar(6,6)
+  DOUBLE PRECISION, INTENT(INOUT) :: ck(nd,nd) 
+! workspace                                                             
+  DOUBLE PRECISION tmp6(6,6),derpart(6,6) 
+! compute normal and covariance matrix for keplerian elements           
+  derpart=TRANSPOSE(derpar) 
+  tmp6=MATMUL(derpart, c0(1:6,1:6))  
+  ck(1:6,1:6)=MATMUL(tmp6,derpar)    
+  IF(nd.eq.6) RETURN
+  ck(7:nd,7:nd)=c0(7:nd,7:nd)
+  ck(7:nd,1:6)=MATMUL(c0(7:nd,1:6),derpar)
+  ck(1:6,7:nd)=TRANSPOSE(ck(7:nd,1:6))   
+END SUBROUTINE convertnordp
+
 ! Copyright (C) 1998 by Mario Carpino (carpino@brera.mi.astro.it)       
-! Version: August 2003, A. Milani                                              
+! Version: November 2009 AMC, GT, DF                                           
 ! --------------------------------------------------------------------- 
 !                                                                       
 !  *****************************************************************    
@@ -753,30 +1036,51 @@ END SUBROUTINE convertnor
 ! OUTPUT:   NOR2      -  Normal matrix (X2 coord.) =                    
 !                           = JAC'^(-1) NOR1 JAC^(-1)                   
 !           ERROR     -  Error flag (singular Jacobian matrix)          
-!                                                                       
-SUBROUTINE norprs(nor1,jac,n,nor2,error) 
+!                
+
+! version for nd x nd matrices with 6 x 6 jacobian
+SUBROUTINE norprsdp(nor1,jac,nd,nor2,error) 
   IMPLICIT NONE
-  INTEGER, INTENT(IN) ::  n 
-  DOUBLE PRECISION, INTENT(IN) :: nor1(n,n),jac(n,n) 
-  DOUBLE PRECISION, INTENT(INOUT) :: nor2(n,n) ! to allow for nor1=nor2
+  INTEGER, INTENT(IN) ::  nd 
+  DOUBLE PRECISION, INTENT(IN) :: nor1(nd,nd),jac(6,6) 
+  DOUBLE PRECISION, INTENT(INOUT) :: nor2(nd,nd) ! to allow for nor1=nor2
   LOGICAL, INTENT(OUT) ::  error 
 ! END INTERFACE
-  INTEGER nx 
-  PARAMETER (nx=10) 
   INTEGER ising 
-  DOUBLE PRECISION jacinv(nx,nx),jacinvt(nx,nx),det 
-  IF(n.GT.nx) STOP '**** norprs: n > nx ****' 
+  DOUBLE PRECISION jacinv(6,6),det 
 ! Inversion of Jacobian matrix                                          
-  jacinv(1:6,1:6)=jac(1:6,1:6) 
-  CALL matin(jacinv,det,n,0,nx,ising,1) 
+  jacinv=jac
+  CALL matin(jacinv,det,6,0,6,ising,1) 
   error=(ising.NE.0) 
   IF(error) THEN 
-     nor2(1:n,1:n)=0.d0 
+     nor2(1:nd,1:nd)=0.d0 
      RETURN 
   END IF
-  CALL convertnor (nor1,jacinv(1:n,1:n),nor2)          
+  CALL convertnordp(nd,nor1,jacinv(1:6,1:6),nor2)
+END SUBROUTINE norprsdp
+
+! version for nd x nd matrices        
+SUBROUTINE norprs(nor1,jac,nd,nor2,error) 
+  IMPLICIT NONE
+  INTEGER, INTENT(IN) ::  nd 
+  DOUBLE PRECISION, INTENT(IN) :: nor1(nd,nd),jac(nd,nd) 
+  DOUBLE PRECISION, INTENT(INOUT) :: nor2(nd,nd) ! to allow for nor1=nor2
+  LOGICAL, INTENT(OUT) ::  error 
+! END INTERFACE
+  INTEGER ising 
+  DOUBLE PRECISION jacinv(nd,nd),det 
+! Inversion of Jacobian matrix                                          
+  jacinv=jac 
+  CALL matin(jacinv,det,nd,0,nd,ising,1) 
+  error=(ising.NE.0) 
+  IF(error) THEN 
+     nor2(1:nd,1:nd)=0.d0 
+     RETURN 
+  END IF
+  CALL convertnor(nd,nor1,jacinv,nor2)
 END SUBROUTINE norprs
-                                        
+
+                             
 !  ***************************************************************      
 !  LINFI3                                                               
 !      linear fit to a real function, with residuals                    
@@ -1124,5 +1428,3 @@ integer function truncat(flt,eps)
   truncat=flt 
   if(abs(truncat-flt).ge.one) truncat=nint(flt) 
 END function truncat
-                                    
-

@@ -28,7 +28,7 @@
       CHARACTER(3) coox, sysx, unitx, uniy 
       CHARACTER(6) refx 
 ! names and locations in input file                                     
-      CHARACTER(4) num (nplx) 
+      CHARACTER(9) num (nplx) 
       DIMENSION iast (nplx) 
 ! labels                                                                
       CHARACTER ylab * 80, xlab * 80, xlab1 * 80, title * 80 
@@ -60,9 +60,9 @@
          CALL reastr (4, 'postfi', postfi) 
          CALL reaint (4, 'isou', isou) 
       ELSE 
-         CALL prompt(' plot title?', title) 
-         CALL prompt(' postfix for output files ?', postfi) 
-         CALL prompt(' x ax label 1=o8v 2=time 3=each plot 0=no', &
+         title=' ';CALL prompt(' plot title?', title) 
+         postfi=' ';CALL prompt(' postfix for output files ?', postfi) 
+         CALL prompt(' x ax label 1=orbit9 2=time 3=each plot 0=no', &
               isou, 0, 3) 
       ENDIF 
 ! open session log file                                                 
@@ -71,8 +71,8 @@
       OPEN (10, file = outfile (1:len) , status = 'unknown') 
 ! x axis labels                                                         
       IF (isou.eq.1) then 
-         xlab = 'Time (y) - Orbit8v integration' 
-         xlab1 = 'Period (y) - Orbit8v integration' 
+         xlab = 'Time (y) - Orbit9 integration' 
+         xlab1 = 'Period (y) - Orbit9 integration' 
       ELSEIF (isou.eq.2) then 
          xlab = 'Time (years)' 
          xlab1 = 'Period (years)' 

@@ -1060,7 +1060,7 @@ END SUBROUTINE input_int_opt
 SUBROUTINE input_log_opt(progna,nameopt,optval,ireq,found,comment,iunout)
   IMPLICIT NONE
   CHARACTER*6, INTENT(IN) :: progna ! name of the .mop file
-  CHARACTER*(*), INTENT(IN) :: nameopt ! charcater option to be found
+  CHARACTER*(*), INTENT(IN) :: nameopt ! character option to be found
   LOGICAL, INTENT(INOUT) :: optval ! value of the option; 
          ! inout because it could have a preassigned default value
   LOGICAL, INTENT(IN) :: ireq ! required or optional?

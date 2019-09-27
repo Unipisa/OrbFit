@@ -18,4 +18,3 @@ nondistclean:
 	-(cd neodys; make distclean)
 	-(cd panst; make distclean)
 	-(cd lostPHAs; make distclean)
-	-(cd debris; make distclean)

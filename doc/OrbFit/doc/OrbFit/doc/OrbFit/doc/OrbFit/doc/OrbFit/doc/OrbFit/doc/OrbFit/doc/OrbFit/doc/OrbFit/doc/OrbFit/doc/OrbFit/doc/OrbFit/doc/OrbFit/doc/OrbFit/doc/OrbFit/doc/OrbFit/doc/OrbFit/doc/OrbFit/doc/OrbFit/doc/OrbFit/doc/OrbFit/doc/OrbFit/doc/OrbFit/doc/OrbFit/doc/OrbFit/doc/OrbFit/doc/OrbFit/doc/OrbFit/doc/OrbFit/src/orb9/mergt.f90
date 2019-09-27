@@ -4,22 +4,25 @@
 PROGRAM mergt
   IMPLICIT NONE
   CHARACTER*1 a1,comcha
-  CHARACTER*10 name,name1,name2,tmp
+  CHARACTER*9 name,name1,name2
+  CHARACTER*10 tmp
   DOUBLE PRECISION a(8),b(8),c(8)
   INTEGER int,i,lr,ipc,l
   ! open the file with magnitudes
-  !        OPEN(6,file='allnum.cat',status='old')
-  OPEN(6,file='ufitobs.cat',status='old')
+  !    OPEN(6,file='allnum.cat',status='old')
+      OPEN(6,file='ufitobs.cat',status='old')
   ! skip the header
   DO i=1,6
      READ(6,400)a1
   ENDDO
 400 FORMAT(a1)
   ! open files with proper elements
-  OPEN(7,file='tro4prt.pro',status='old')
-  OPEN(8,file='tro4eprt.pro',status='old')
-  !        OPEN(9,file='numbtro.pro',status='unknown')
-  OPEN(9,file='multtro.pro',status='unknown')
+  !      OPEN(7,file='tro_5.pro',status='old')
+  !      OPEN(8,file='tro_50.pro',status='old')
+   OPEN(7,file='trom_5.pro',status='old')
+   OPEN(8,file='trom_50.pro',status='old')
+  !      OPEN(9,file='numbtro.pro',status='unknown')
+   OPEN(9,file='multtro.pro',status='unknown')
   ! beginning of the read loop
 1 READ(8,100,end=2) name,a
   CALL rmsp(name,l)
@@ -44,10 +47,10 @@ PROGRAM mergt
            STOP
         ENDIF
      ENDIF
-     IF(name.eq.name2) THEN
+      IF(name.eq.name2) THEN
         WRITE(9,101)name,c(8),a,int
      ELSE
-        GOTO 13
+         GOTO 13
      ENDIF
   ELSE
      int=5
@@ -76,14 +79,20 @@ PROGRAM mergt
      GOTO 2
   ENDIF
   GOTO 1
-100 FORMAT(a10,f6.4,f7.2,f7.3,f6.4,f8.2,f6.4,f8.2,2i3)
-101 FORMAT(a10,f6.2,2x,f6.4,f7.2,f7.3,2x,f6.4,f8.2,2x,f6.4,f8.2,2i4)
+! format for numbered
+!100 FORMAT(1x,a9,f6.4,f7.2,f7.3,f6.4,f8.2,f6.4,f8.2,2i3)
+!101 FORMAT(a9,f6.2,2x,f6.4,f7.2,f7.3,2x,f6.4,f8.2,2x,f6.4,f8.2,2i4)
+!format for multiopposition
+100 FORMAT(1x,a9,f6.4,f7.2,f7.3,f6.4,f8.2,f6.4,f8.2,2i3)
+101 FORMAT(a9,f6.2,2x,f6.4,f7.2,f7.3,2x,f6.4,f8.2,2x,f6.4,f8.2,2i4)
 99 CLOSE (7)
   CLOSE (8)
   CLOSE (9)
-  OPEN(7,file='tro4prt.sig',status='old')
-  OPEN(8,file='tro4eprt.sig',status='old')
-  !        OPEN(9,file='numbtro.sig',status='unknown')
+!         OPEN(7,file='tro_5.sig',status='old')
+!         OPEN(8,file='tro_50.sig',status='old')
+  OPEN(7,file='trom_5.sig',status='old')
+  OPEN(8,file='trom_50.sig',status='old')
+!         OPEN(9,file='numbtro.sig',status='unknown')
   OPEN(9,file='multtro.sig',status='unknown')
 3 READ(8,200,end=4) name,a
   IF(a(8).eq.-999.99d0)THEN
@@ -106,13 +115,19 @@ PROGRAM mergt
      GOTO 4
   ENDIF
   GOTO 3
+!format for numbered
+!200 FORMAT(1x,a9,f7.5,f8.3,f8.4,f7.5,f9.3,f7.5,f9.3,f6.2)
+!201 FORMAT(1x,a9,2x,f7.5,f8.3,f8.4,2x,f7.5,f9.3,2x,f7.5,f9.3,f6.2,i4)
+!format for multiopposition
 200 FORMAT(a10,f7.5,f8.3,f8.4,f7.5,f9.3,f7.5,f9.3,f6.2)
 201 FORMAT(a10,2x,f7.5,f8.3,f8.4,2x,f7.5,f9.3,2x,f7.5,f9.3,f6.2,i4)
 98 CLOSE (7)
   CLOSE (8)
   CLOSE (9)
-  OPEN(7,file='tro4prt.del',status='old')
-  OPEN(8,file='tro4eprt.del',status='old')
+  !        OPEN(7,file='tro_5.del',status='old')
+  !        OPEN(8,file='tro_50.del',status='old')
+  OPEN(7,file='trom_5.del',status='old')
+  OPEN(8,file='trom_50.del',status='old')
   !        OPEN(9,file='numbtro.del',status='unknown')
   OPEN(9,file='multtro.del',status='unknown')
 5 READ(8,300,end=6) name,a
@@ -136,9 +151,13 @@ PROGRAM mergt
      GOTO 6
   ENDIF
   GOTO 5
+!format for numbered
+!300 FORMAT(1x,a9,f7.5,f8.3,f8.4,f7.5,f9.3,f7.5,f9.3,f6.2)
+!301 FORMAT(1x,a9,2x,f7.5,f8.3,f8.4,2x,f7.5,f9.3,2x,f7.5,f9.3,f6.2,i4)
+!format for multiopposition
 300 FORMAT(a10,f7.5,f8.3,f8.4,f7.5,f9.3,f7.5,f9.3,f6.2)
 301 FORMAT(a10,2x,f7.5,f8.3,f8.4,2x,f7.5,f9.3,2x,f7.5,f9.3,f6.2,i4)
   ! format allnum.cat
-500 FORMAT(a1,a10,f16.6,6e25.16e3,f6.2)
+500 FORMAT(a1,a10,f16.6,6e25.16,f6.2)
 97 CONTINUE
 END PROGRAM mergt

@@ -6,6 +6,7 @@ MODULE force9d
 ! shared data
 
 INTEGER, PUBLIC :: irelj2 ! flag for J2 and relativistic perturbations 
+
 ! public routines
 PUBLIC force9, reord, stack
 
@@ -20,6 +21,8 @@ CONTAINS
 ! **********************************************************            
 SUBROUTINE force9(x,v,t,f,nd,idc,xxpla,ips,imem) 
   USE planet_masses, ONLY: dmin
+  USE yark_pert, ONLY:  sec_nong9
+  USE dyn_param, ONLY: iyark
   INCLUDE 'comnbo.h90' 
 !  INCLUDE 'comdis.h90' 
 ! **********************************************************            
@@ -39,12 +42,13 @@ SUBROUTINE force9(x,v,t,f,nd,idc,xxpla,ips,imem)
   INTEGER, INTENT(OUT) :: idc 
   DOUBLE PRECISION, INTENT(OUT) :: xxpla(6) 
 ! END INTERFACE
-  DOUBLE PRECISION dy(3),dyy(3,norbx),s(3),dd3(norbx),d2(norbx) 
+  DOUBLE PRECISION dy(3),dyy(3,norbx),dd3(norbx),d2(norbx)
+  DOUBLE PRECISION, DIMENSION(3):: s, sv, xb, vb, secacc
 ! variables added for J2 and relativistic computation                   
   DOUBLE PRECISION dr3(norbx),z2,x2y2,dr4,cj2r2,x2,y2,cj2r9,sc2r6,r6 
   DOUBLE PRECISION d2udx(3,3) 
 ! indexes for addresses                                                 
-  INTEGER nvar,nvar2,norb,nvz1,nvz2,ia,iv,jad,ja,j1,j 
+  INTEGER nvar,nvar2,norb,nvz1,nvz2,ia,iv,jad,ja,j1,j,jj 
 ! scalar temporaries                                                    
   DOUBLE PRECISION sum,st,d5,st1,d3 
 ! address precomputations                                               
@@ -69,6 +73,12 @@ SUBROUTINE force9(x,v,t,f,nd,idc,xxpla,ips,imem)
   DO j=1,nbod-1 
      s(1:3)=s(1:3)-rm(j)*x(3*j-2:3*j) 
   ENDDO 
+  IF(iyark.eq.3)THEN
+     sv=0.d0 
+     DO j=1,nbod-1 
+        sv(1:3)=sv(1:3)-rm(j)*v(3*j-2:3*j) 
+     ENDDO
+  ENDIF 
 ! acceleration from the sun                                             
 !  $$f^\circ_j=\frac{G m_1}{|x_j-x_1|^3}(x_1-x_j) $$                    
 ! (nbod-1+na)(8 M + 5 S + 1 SQRT)  unrolled inner loop                  
@@ -90,6 +100,16 @@ SUBROUTINE force9(x,v,t,f,nd,idc,xxpla,ips,imem)
      f(3*j-1)=dd3(j)*dyy(2,j) 
      f(3*j)=dd3(j)*dyy(3,j) 
 33 ENDDO
+! Yarkovsky effect
+  IF(iyark.eq.3.or.iyark.eq.4)THEN
+     DO jj=1,na
+        j=nbod+jj-1 ! loop on asteroid only
+        xb=x(3*j-2:3*j)
+        vb=v(3*j-2:3*j)
+        CALL sec_nong9(xb,vb,s,sv,secacc,iyark,dadt9(jj))
+        f(3*j-2:3*j)=f(3*j-2:3*j)+secacc
+     ENDDO
+  ENDIF
   IF(irelj2.gt.0)THEN
 ! J2 and relativistic corrections                                       
 ! from Nobili et al., A&A 1989 vol. 210 pag313-336; page 316            

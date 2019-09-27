@@ -45,6 +45,7 @@ MODULE propag_state
 
 USE fund_const
 USE output_control
+USE dyn_param
 IMPLICIT NONE
 
 PRIVATE
@@ -105,15 +106,16 @@ SUBROUTINE pro_ele(el0,t1,el1,unc0,unc1,obscod0,twobo)
   TYPE(orb_uncert), INTENT(INOUT), OPTIONAL ::  unc1 
 ! ============END INTERFACE=============================================
 ! interface with propag
-  double precision xastr(6),xear(6),dxde(6,6)
+  double precision xastr(6),xear(6),dxdpar(6,ndimx)
   INTEGER ider 
 ! interface with coo_cha
   TYPE(orbit_elem) :: el2
   INTEGER fail_flag, obscode
 ! derivatives of cartesian w.r. elelments, new elements w.r. to cartesian,
 !  new elements w.r. old
-  double precision de1dx(6,6),dxde0(6,6), de1de0(6,6)
+  double precision de1dx(6,6), de1de0(ndimx,ndimx)
   LOGICAL error, twobo1
+  INTEGER j, nd ! for variable dimension covariance
 ! static memory not required                                          
 ! ===================================================================== 
   IF((PRESENT(unc0).and..not.PRESENT(unc1)).or.     &
@@ -137,7 +139,12 @@ SUBROUTINE pro_ele(el0,t1,el1,unc0,unc1,obscod0,twobo)
   ENDIF
 ! ===================================================================== 
 ! call private propagation routine, requiring derivatives               
-  CALL propag(el0,t1,xastr,xear,ider,dxde0,TWOBO=twobo1) 
+  IF(PRESENT(unc0))THEN
+     nd=unc0%ndim
+  ELSE
+     nd=6+nls
+  ENDIF
+  CALL propag(el0,t1,xastr,xear,ider,nd,dxdpar,TWOBO=twobo1)
   IF(kill_propag)RETURN
 ! compute new elements, with partial derivatives  
   el2=el0
@@ -149,10 +156,17 @@ SUBROUTINE pro_ele(el0,t1,el1,unc0,unc1,obscod0,twobo)
      IF(fail_flag.ne.0)THEN
         WRITE(*,*)'pro_ele: coord ', el0%coo, ' fail_flag=',fail_flag
      ENDIF
-! chain rule to obtain d(east1)/d(east0)                                
-     de1de0=MATMUL(de1dx,dxde0) 
+! chain rule to obtain d(east1)/d(east0)
+     de1de0(1:6,1:nd)=MATMUL(de1dx,dxdpar(1:6,1:nd))
+     IF(nd.GT.6)THEN
+        de1de0(7:nd,1:nd)=0.d0
+        DO j=7,nd
+           de1de0(j,j)=1.d0
+        ENDDO
+     ENDIF 
 ! covariance/normal matrix propagated by similarity transformation   
-     CALL convertunc(unc0,de1de0,unc1)
+     CALL propagunc(nd,unc0,de1de0(1:nd,1:nd),unc1)
+!     CALL convertunc(unc0,de1de0,unc1)
      IF(.not.unc1%succ)THEN 
         WRITE(*,*)'pro_ele: this should not happen' 
      ENDIF
@@ -195,16 +209,14 @@ END SUBROUTINE pro_ele
 !             this argument not present
 !
 ! ================INTERFACE===========================================  
-SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
+SUBROUTINE propag(el,t2,xast,xea,ider,nd,dxdpar,twobo)
   USE force_model
-  USE yark_pert, ONLY: iyark
   USE force_sat
-  USE perturbations, ONLY: irad
   USE orbit_elements
   USE fund_const
   USE ever_pitkin, ONLY: fser_propag,fser_propag_der
   USE close_app, ONLY: kill_propag
-  USE planet_masses, ONLY: gmearth
+  USE planet_masses
 ! ===============INPUT==============================
 ! elements, including epoch, target epoch (MJD)      
   TYPE(orbit_elem),INTENT(IN) :: el
@@ -214,8 +226,9 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
   LOGICAL, INTENT(IN), OPTIONAL :: twobo
 ! ===============OUTPUT=============================
 ! cartesian coord., at time t2, of the asteroid, of the Earth, derivative
-  DOUBLE PRECISION, intent(OUT) :: xast(6), xea(6)
-  DOUBLE PRECISION, INTENT(OUT) :: dxde(6,6) 
+  DOUBLE PRECISION, INTENT(OUT) :: xast(6), xea(6)
+  INTEGER, INTENT(IN) :: nd ! number of parameters in variational equation, .ge.6
+  DOUBLE PRECISION, INTENT(OUT), OPTIONAL :: dxdpar(6,nd) ! d(pos,vel)/d(incond,param)
 ! ===========END INTERFACE===========================================   
   INCLUDE 'nvarx.h90' ! max dimensions for propagated state vector
 ! =============STATE VECTOR AND DERIVATIVES======================       
@@ -225,8 +238,11 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
 ! matrices of partial derivatives         
 ! derivatives of initial cartesian with respect to elements
 ! cartesian with respect to initial cartesian
+  DOUBLE PRECISION :: dx0de(6,6), dxdxp0(6,ndimx)
+! jacobian of all solve for parameters with respect to initial state, in elements and in cartesian
+  DOUBLE PRECISION, DIMENSION(ndimx,ndimx):: dxp0dep0,dxpdxp0 
 ! other used in 2-body case
-  DOUBLE PRECISION, DIMENSION(6,6) :: dx0de,dxdx0,dxda,dxdx
+  DOUBLE PRECISION, DIMENSION(6,6) :: dxda,dxdx
   DOUBLE PRECISION det
   INTEGER ising
 ! =============RESTART CONTROL=========================       
@@ -245,21 +261,22 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
 !  DOUBLE PRECISION texit 
 ! ===================================================         
 ! stepsize: as given by selste, maximum alowed, current, previous  
-  double precision hgiv,hmax,h,hs 
-  double precision ecc,q,qg,enne ! eccentricity, perielion, aphelion, m.mot 
-  DOUBLE PRECISION gmcur ! current central body mass (depends upon rhs)
+  DOUBLE PRECISION :: hgiv,hmax,h,hs 
+  DOUBLE PRECISION :: ecc,q,qg,enne ! eccentricity, perielion, aphelion, m.mot 
+  DOUBLE PRECISION :: gmcur ! current central body mass (depends upon rhs)
 ! =============       
 ! integers for dimensions       
-  INTEGER nv,nv1,nvar,nvar2 
+  INTEGER :: nv,nv1,nvar,nvar2 
 ! time step for attributables file is fixed submultiple  
-  INTEGER nn 
+  INTEGER :: nn 
 ! store previous time for Earth coordinates
-  DOUBLE PRECISION t2old,xea1(6)
+  DOUBLE PRECISION :: t2old,xea1(6)
 ! initialisation control (to have dummy initial conditions), old ider
-  INTEGER lflag,ider0 
-  LOGICAl twobo1
-  DOUBLE PRECISION ddxde(3,6,6) ! 2nd derivatives of cart. w. r. elements
-! **************************************  
+  INTEGER :: lflag,ider0
+  LOGICAL :: twobo1
+  DOUBLE PRECISION :: ddxde(3,6,6) ! 2nd derivatives of cart. w. r. elements
+  INTEGER :: j ! loop index
+! ************************************** 
 ! static memory allocation      
   save 
 ! initialization control    
@@ -307,24 +324,25 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
   ENDIF
   IF(twobo1)THEN
      IF(rhs.eq.1)THEN
-!        CALL masjpl
         gmcur=gms
      ELSEIF(rhs.eq.2)THEN
-!        CALL eamoon_mass
         gmcur=gmearth
      ELSEIF(rhs.eq.3)THEN
-!        CALL masjpl
         gmcur=gms ! not used
      ENDIF
 ! two body propagation  
      IF(el%coo.eq.'EQU')THEN
 ! use old style 2-body propagator with Kepler's equation
-        CALL prop2b(el%t,el%coord,t2,xast,gmcur,ider,dxde,ddxde) 
+        CALL prop2b(el%t,el%coord,t2,xast,gmcur,ider,dxdpar,ddxde) 
         RETURN
      ELSEIF(el%coo.eq.'CAR')THEN
 ! ready for f-g series propagation
         IF(ider.eq.1) CALL eye(6,dxda)
      ELSE
+        IF(nd.gt.6)THEN
+           WRITE(*,*)' propag: non-grav with two body: ', nd,twobo1
+           STOP
+        ENDIF               
 ! convert to cartesian
         IF(ider.eq.1)THEN
            CALL coo_cha(el,'CAR',eleq,fail_flag,dxda) ! the matrix is d(car)/de 
@@ -346,7 +364,7 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
         CALL fser_propag(el%coord(1:3),el%coord(4:6),el%t,t2,gmcur,xast(1:3),xast(4:6))
      ELSE
         CALL fser_propag_der(el%coord(1:3),el%coord(4:6),el%t,t2,gmcur,xast(1:3),xast(4:6),dxdx)
-        dxde=MATMUL(dxdx,dxda)
+        dxdpar(1:6,1:6)=MATMUL(dxdx,dxda)
      ENDIF
      RETURN
   ENDIF
@@ -362,7 +380,14 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
 ! ===================================================================== 
 ! Compute asteroid cartesian elements at epoch time
      CALL coo_cha(el,'CAR',elcar,fail_flag,dx0de)
-!     CALL prop2b(el%t,el%coord,el%t,xast,gmcur,1,dx0de,ddxde)
+     dxp0dep0(1:6,1:6)=dx0de
+     IF(nd.gt.6)THEN
+        dxp0dep0(7:nd,1:nd)=0.d0
+        dxp0dep0(1:6,7:nd)=0.d0
+        DO j=7,nd
+          dxp0dep0(j,j)=1.d0
+        ENDDO     
+     ENDIF
 !  need new clotest using coo_cha
      CALL clo_test(elcar,iplamloc) 
      elsave=el 
@@ -394,6 +419,7 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
      else 
         icmet=imet 
         icrel=irel
+        iclun=ilun
      endif
 ! read masses from JPL header (stored in a module)         
 ! alignement of masses might have changed, because of different list of 
@@ -412,10 +438,15 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
         velo_req=.true. 
      elseif(icrel.ge.1)then 
         velo_req=.true.
-     elseif(irad.ge.2.or.iyark.ge.3)THEN
+     elseif(dyn%active(2))THEN
         velo_req=.true.
      else 
         velo_req=.false.
+        if(icrel.ge.1)then 
+           velo_req=.true.
+        elseif(dyn%active(2))THEN
+           velo_req=.true.
+        endif
      endif
 ! *************************************** 
 ! selection of an appropriate stepsize    
@@ -450,7 +481,7 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
      nv=3 
      if(ider.ge.1)then 
 ! Variational equations: 3 X 6 components 
-        nv1=18 
+        nv1=18+3*nls 
      else 
         nv1=0 
      endif
@@ -465,7 +496,8 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
      if(ider.ge.1)then 
 ! in this case the vector y1 contain also the matrices        
 ! of partial derivatives; then we need to 
-! initialise the  variation matrix as the 6 X 6 identity      
+! initialise the  variation matrix as the 6 X 6 identity plus zeros
+! for derivatives w.r. to dynamical parameters     
         CALL inivar(y1,nvar2,nvar) 
      endif
 ! ===================================================================== 
@@ -507,7 +539,7 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
 ! ===================================================================== 
 ! propagator to compute asteroid and planets orbits
   IF(t1.ne.t2)THEN 
-     call propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
+     CALL propin(nfl,y1,t1,t2,y2,h,nvar,nd,dxp0dep0(1:nd,1:nd))
   ELSE
      y2=y1
   ENDIF
@@ -518,11 +550,11 @@ SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
   xast(4:6)=y2(nvar2+1:nvar2+3) 
   if(ider.ge.1)then 
 ! if partial derivative are required      
-! rewrap vector into 6x6 matrix    
-     CALL varwra(y2,dxdx0,nvar,nvar2) 
+! rewrap vector into (6 x nd) matrix    
+     CALL varwra(y2,dxdxp0(1:6,1:nd),nd,nvar,nvar2) 
 ! ===================================================================== 
-! Chain rule: we compute dxde=dxdx0*dx0de 
-     dxde=MATMUL(dxdx0,dx0de)
+! Chain rule: we compute dxdpar=dxdxp0*dxp0dep0 6 x nd=(6 x nd) (nd x nd) 
+     dxdpar=MATMUL(dxdxp0(1:6,1:nd),dxp0dep0(1:nd,1:nd))
   endif
   return 
 END SUBROUTINE propag         
@@ -609,14 +641,14 @@ SUBROUTINE inipro
 !   initialize multistep and implicit Runge-Kutta-Gauss       
 ! ********************************************************************  
 !  input coefficients for Runge-Kutta     
-  if(imet.ne.3)then 
+!  if(imet.ne.3)then 
      call legnum(isrk,isfl) 
      if(isfl.ne.0)then 
         write(*,997)isrk,isfl 
 997     format(' required isrk=',i4,'  found only up to ',i4) 
         stop 
      endif
-  endif
+ ! endif
 ! ********************************************************************  
 !   calcolo coefficienti multistep        
 !   cambio notazione-nell'input iord=m nell'art. cel.mech.    
@@ -712,12 +744,12 @@ SUBROUTINE intein(iun,dtin,aa,enne,ecc,norb,norbx)
      STOP
   ENDIF
   icmet=imet
-  IF(imet.eq.3)THEN
+!  IF(imet.eq.3)THEN
      hev=hmax
      lit1_r=lit1
      lit2_r=lit2
      eprk_r=eprk
-  ENDIF
+!  ENDIF
   call reaint(iun,'iusci',iusci) 
   call reaint(iun,'icha',icha) 
   call reaint(iun,'ll',llev) 
@@ -826,149 +858,160 @@ END SUBROUTINE intein
 ! ===================================================================== 
 SUBROUTINE sel_met_sat(ecc,q,qg,hmax)
   USE force_model
+  USE planet_masses
 ! satellite  eccentricity, perielion, aphelion 
   DOUBLE PRECISION, INTENT(IN) :: ecc,q,qg 
   DOUBLE PRECISION, INTENT(OUT) :: hmax
   hmax=1.d0 
+!  IF(ecc.gt.0.3d0) icmet=3
 END SUBROUTINE sel_met_sat
-! version 3.1 A. Milani Aug 2003  
-! =====================================================================      
-! *** SEL_MET ***
-! Choice of numerical integration method  
-! 
-! This routine is called from propag only if  imet=0
-! in 'namerun'.top.   
-!            INPUT: eccentricity, pericenter, apocenter 
-!            OUTPUT : icmet etc. stored in model.h  
-! ===================================================================== 
+
+!=====================================================================!
+! SEL_MET                                                             !
+!=====================================================================!
+! Choice of numerical integration method and of the dynamical model.  !
+!---------------------------------------------------------------------!
+! Version 3.1: A. Milani, Aug. 2003                                   !
+!=====================================================================!
 SUBROUTINE sel_met(ecc,q,qg,hmax) 
   USE runge_kutta_gauss
   USE ra15_mod
   USE force_model
-! asteroid  eccentricity, perielion, aphelion 
-  DOUBLE PRECISION, INTENT(IN) :: ecc,q,qg 
-  DOUBLE PRECISION, INTENT(OUT) :: hmax 
-! END INTERFACE
-  integer iord,iork 
-! controls to define a main belt asteroid 
-  double precision qmin,qgmax,eccmax 
-  INTEGER j ! loop index       
-!  static memory not needed !?!      
-! ========================================
-! selection of minimum perihelion: all NEO
-  qmin=1.4d0 
-! selection of maximum aphelion: almost Jupiter crossing      
-  qgmax=4.3d0 
-! selection of maximum eccentricity for multistep   
-  eccmax=0.25d0 
-! =========================================
-! a priori setup
-! relativity flag set to the choice done in the option file 
-  icrel=irel 
-! lunar flag set to  the choice done in the option file
-  iclun=ilun
-! if there are radar data, the dynamical model is always the same       
-! and the integrator must be radau anyway 
-  IF(radar)THEN 
-     icrel=2 
-     iclun=1 
-     imerc=1 
-     llev=12 
-     iast=3 
-     icmet=3 
-! ==========================
-! asteroids
-  ELSEIF(qg.lt.5.d0)THEN 
-! pluto is irrelevant anyway
-     iplut=0 
-! mercury is required
-     imerc=1 
-! main belt case
-     if(q.gt.qmin.and.qg.lt.qgmax.and.ecc.lt.eccmax)then 
-! physical model
-! numerical integration method: multistep
-        icmet=1 
-        iord=8 
-        mms=iord-2 
-        iork=8 
-        isrk=iork/2 
-! non mainbelt: NEA, Mars crosser, high eccentricity, Jupiter crossing  
-     else 
-! physical model      
-        if(q.lt.qmin)then
-           icrel=1 
-        endif
-! Moon as separate body
-        if(q.lt.qmin)then 
-           iclun=1 
-        endif
-! numerical integration method  
-        icmet=3 
-     endif
-  ELSEIF(q.lt.qmin)THEN
-! short periodic comet/comet like asteroids
-     icrel=1 
-     iclun=1 
-     icmet=3 
-! EKO       
-  ELSEIF(qg.gt.32.d0.and.q.gt.20.d0.and.ecc.lt.eccmax)THEN 
-! physical model      
-     iplut=0 
-     icrel=0 
-     imerc=0 
-! numerical integration method  
-     icmet=1 
-     iord=8 
-     mms=iord-2 
-     iork=8 
-     isrk=iork/2 
-! Trojans
-  elseif(q.gt.4.d0.and.qg.lt.7.d0)then 
-! physical model
-     iplut=0 
-     icrel=0 
-     imerc=0 
-! numerical integration method
-     icmet=1 
-     iord=8 
-     mms=iord-2 
-     iork=8 
-     isrk=iork/2 
-     epms= 1.0d-12 
-     lit1= 10 
-     lit2= 4 
-! centaurs, comets (Hildas?)
-  else 
-     icmet=3 
-     icrel=0 
-     iplut=0
-     imerc=1 
-  endif
-! control on stepsize to avoid instability due to Mercury
-  IF(imerc.eq.1)THEN
-     hmax=hmax_me
+  USE planet_masses
+  !==============================================================================================
+  DOUBLE PRECISION, INTENT(IN)  :: ecc  ! Eccentricity
+  DOUBLE PRECISION, INTENT(IN)  :: q    ! Perihelion
+  DOUBLE PRECISION, INTENT(IN)  :: qg   ! Aphelion
+  DOUBLE PRECISION, INTENT(OUT) :: hmax ! Maximum stepsize
+  !==============================================================================================
+  INTEGER          :: iord   ! Multistep order
+  INTEGER          :: iork   ! Runge-Kutta order
+  DOUBLE PRECISION :: qmin   ! Minimum value for the perihelion
+  DOUBLE PRECISION :: qgmax  ! Maximum value for the aphelion
+  DOUBLE PRECISION :: eccmax ! Maximum for the eccentricity
+  INTEGER          :: j      ! Loop index
+  !==============================================================================================
+  !----------------!
+  ! MBA definition !
+  !----------------!
+  qmin   = 1.4d0  ! All NEO
+  qgmax  = 4.3d0  ! Almost Jupiter crossing
+  eccmax = 0.25d0 ! For the multistep activation
+  !--------------------------!
+  ! Storage from the options !
+  !--------------------------!
+  icrel=irel ! Relativity flag
+  iclun=ilun ! Lunar flag
+
+  !****************************************************************!
+  ! SELECTION OF THE DYNAMICAL MODEL AND OF THE INTEGRATION METHOD !
+  !****************************************************************!
+  IF(radar)THEN
+     !----------------------------------------------!
+     ! Radar data: same dyn. model and Radau anyway !
+     !----------------------------------------------!
+     icrel = 2 
+     iclun = 1 
+     imerc = 1 
+     llev  = MAX(12,llev) 
+     icmet = 3 
+     !iast   = MAX(iast,3) 
+     !iatrue = iast
+  ELSEIF(qg.LT.5.d0)THEN 
+     !------------------------!
+     ! Asteroids (NEA or MBA) !
+     !------------------------!
+     iplut = 0 ! Pluto is irrelevant anyway
+     imerc = 1 ! Mercury is required
+     IF(q.GT.qmin .AND. qg.LT.qgmax .AND. ecc.LT.eccmax)THEN 
+        !----------------!
+        ! Main Belt case !
+        !----------------!
+        icmet = 1 ! Multistep
+        iord  = 8 
+        mms   = iord-2 
+        iork  = 8 
+        isrk  = iork/2 
+     ELSE 
+        !-----------------------------------------------------------------!
+        ! Non MBA: NEA, Mars crosser, high eccentricity, Jupiter crossing !
+        !-----------------------------------------------------------------!
+        IF(q.LT.qmin)THEN
+           icrel = 2 ! Before it was MAX(irel,1), now always set to 2, ADV 25/01/2017 
+           iclun = 1 ! Moon as separate body
+        END IF
+        icmet=3 ! Radau method
+     ENDIF
+  ELSEIF(q.LT.qmin)THEN
+     !-------------------------------------------!
+     ! Short periodic comet/comet like asteroids !
+     !-------------------------------------------!
+     icrel = 1 
+     iclun = 1 
+     icmet = 3 
+  ELSEIF(qg.GT.32.d0 .AND. q.GT.20.d0 .AND. ecc.LT.eccmax)THEN 
+     !-----!
+     ! EKO !
+     !-----!
+     iplut = 0 
+     icrel = 1 
+     imerc = 1 
+     ! Multistep integration method  
+     icmet = 1
+     iord  = 8 
+     mms   = iord-2 
+     iork  = 8 
+     isrk  = iork/2 
+     ! Trojans
+  ELSEIF(q.GT.4.d0 .AND. qg.LT.7.d0)THEN
+     !---------!
+     ! Trojans !
+     !---------!
+     iplut = 0 
+     icrel = 1 
+     imerc = 1 
+     ! Multistep integration method
+     icmet = 1 
+     iord  = 8 
+     mms   = iord-2 
+     iork  = 8 
+     isrk  = iork/2 
   ELSE
-     hmax=hms
+     !----------------------------------------------!
+     ! Everything else: Centaurus, comets (Hildas?) !
+     !----------------------------------------------!
+     icmet = 3 
+     icrel = 1 
+     iplut = 0
+     imerc = 1 
+  ENDIF
+  !---------------------------------------------------------!
+  ! Control on stepsize to avoid instability due to Mercury !
+  !---------------------------------------------------------!
+  IF(imerc.EQ.1)THEN
+     hmax = hmax_me
+  ELSE
+     hmax = hms
   ENDIF
   DO  j=1,mms+1 
-     c_ms(j)=c_ms0(j) 
-     f_ms(j)=f_ms0(j)
-     a_ms(j)=a_ms0(j) 
-     b_ms(j)=b_ms0(j)
-     c_ms(j+mms+1)=c_ms0(j) 
-     f_ms(j+mms+1)=f_ms0(j)
-     a_ms(j+mms+1)=a_ms0(j) 
-     b_ms(j+mms+1)=b_ms0(j)    
+     c_ms(j)       = c_ms0(j) 
+     f_ms(j)       = f_ms0(j)
+     a_ms(j)       = a_ms0(j) 
+     b_ms(j)       = b_ms0(j)
+     c_ms(j+mms+1) = c_ms0(j) 
+     f_ms(j+mms+1) = f_ms0(j)
+     a_ms(j+mms+1) = a_ms0(j) 
+     b_ms(j+mms+1) = b_ms0(j)    
   ENDDO
-! write option selected         
-  IF(verb_pro.gt.10)THEN 
-     write(ipirip,*) 'e,q,Q= ',ecc,q,qg,' icmet=',icmet 
-     write(ipirip,*) 'hms,epms,eprk,deltos,error, mms,isrk',        &
-     &        'lit1,lit2,iusci,llev,hev'       
-     write(ipirip,*) hms,epms,eprk,deltos,error, mms,isrk &
-     &        ,lit1,lit2,iusci,llev,hev        
-     write(ipirip,*)'Force: ilun,imerc,iplut,irel,iast,iaber,istat' 
-     write(ipirip,*) ilun,imerc,iplut,irel,iast,iaber,istat 
+  ! Write the selected/forced option
+  IF(verb_pro.GT.10)THEN 
+     WRITE(ipirip,*) 'e,q,Q = ',ecc,q,qg,' icmet =',icmet 
+     WRITE(ipirip,*) 'hms, epms, eprk, deltos, error, mms, isrk, ',&
+          & 'lit1, lit2, iusci, llev, hev'       
+     WRITE(ipirip,*) hms,epms,eprk,deltos,error,mms,isrk, &
+          & lit1,lit2,iusci,llev,hev        
+     WRITE(ipirip,*) 'Forced: ilun, imerc, iplut, irel, iast, iaber, istat' 
+     WRITE(ipirip,*) ilun,imerc,iplut,irel,iast,iaber,istat 
   ENDIF
 END SUBROUTINE sel_met
    
@@ -984,7 +1027,8 @@ END SUBROUTINE sel_met
 !      t2: final time 
 !      h: stepsize (only if it is fixed; ra15 uses hev as initial step)  
 !      nvar: length(y1)     !      nvar2: nvar/2     
-!      dx0de: derivatives of initial cartesian with respect to elements 
+!      dx0pdep: derivatives of initial cartesian with respect to elements,
+!               including dynamical parameters  
 !  output:  
 !      t2: time to which y2 refers (different by .lt.deltos from input) 
 !      y2: state vector at time t2        
@@ -1014,20 +1058,24 @@ END SUBROUTINE sel_met
 !  al primo ordine quanto fornito da force)         
 !   codice indici : i=1,nvar, j=1,isrk    
 ! **********************************************************  
-SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de) 
+SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,nd,dxp0dep0) 
   USE runge_kutta_gauss
   USE ra15_mod
   USE tp_trace, ONLY: str_clan
+  USE surf_trace, ONLY: str_surfan
   USE force_model
+  USE planet_masses
   USE force_sat
   USE force9d
-  USE close_app, ONLY: kill_propag,min_dist
+  USE close_app, ONLY: kill_propag,min_dist,surf_stop
 ! INPUT
-  double precision, intent(inout) :: h ! times, stepsize
-! derivatives of initial cartesian with respect to elements
-  DOUBLE PRECISION, INTENT(IN), OPTIONAL :: dx0de(6,6)
   integer, intent(in) ::  nfl ! restart control 
   integer, intent(in) ::  nvar! actual dimension of y1,y2
+  integer, intent(in) ::  nd  ! number of parameters being solved
+  double precision, intent(inout) :: h ! times, stepsize
+! derivatives of state vector with respect to initial state vector,
+! including dynamical parameters (if any)
+  DOUBLE PRECISION, INTENT(IN), OPTIONAL :: dxp0dep0(nd,nd)
 ! INPUT/OUTPUT
   INCLUDE 'nvarx.h90'
   double precision, intent(in) :: t2 ! final time
@@ -1053,8 +1101,8 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
 ! integers  
   integer lflag, idc,j,j1,n,lf,it,lit,i,m 
   integer nclass ! type of equation for ra15
-! arrays to store state transition matrix 
-  DOUBLE PRECISION stm(6,6),stmout(6,6),stm0(6,6),tcur
+! arrays to store state transition matrix (initial conditions only)
+  DOUBLE PRECISION stm(6,nd),stmout(6,nd),stm0(6,nd),tcur
 ! test for need of velocity at each step
 !  LOGICAL, EXTERNAL ::  velocity_req 
 ! name of right hand side routine         
@@ -1090,6 +1138,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
      y2(1:nvar)=y1(1:nvar) 
      RETURN 
   ENDIF
+! Radau 15
   if(icmet.eq.3)then 
 !  everhart method (propagates to exact time):      
      if(velo_req)then 
@@ -1097,49 +1146,74 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
      else 
         nclass=-2 
      endif
-     IF(PRESENT(dx0de))THEN
-! accumulate state transition matrix      
+! This IF separates the case of OrbFit, call from propag_state.mod, from
+! The one of orbit9, call fromn orbit9.f90 and similar
+     IF(PRESENT(dxp0dep0))THEN
+! accumulate state transition matrix (for initial conditions, but also
+! for dynamical parameters if any)
         IF(nvar.gt.6)THEN 
-           CALL vawrxv(y1,y1(nvar2+1),stm0,nvar2) 
+           CALL vawrxv(y1,y1(nvar2+1),stm0,nvar2,nd) 
            CALL invaxv(y1,y1(nvar2+1),nvar2) 
         ENDIF
      ENDIF
 666  CONTINUE 
-     call ra15(y1,y1(nvar2+1),t1,t2,tcur,nvar2,nclass,idc) 
+     CALL ra15(y1,y1(nvar2+1),t1,t2,tcur,nvar2,nclass,idc) 
      IF(tcur.eq.t2)THEN 
 !  current time and state is the final one;         
-        IF(PRESENT(dx0de))THEN
+        IF(PRESENT(dxp0dep0))THEN
            IF(nvar.gt.6)THEN 
 !  but the accumulated state    
-!  transition matrix stm0 has to be used: stmout=stm*stm0     
-              CALL vawrxv(y1,y1(nvar2+1),stm,nvar2) 
-              stmout=MATMUL(stm,stm0)  
-              CALL varunw(stmout,y1,y1(nvar2+1),nvar2) 
+!  transition matrix stm0 has to be used:     
+              CALL vawrxv(y1,y1(nvar2+1),stm,nvar2,nd) 
+! for derivatives w.r. to intiial conditions
+              stmout(1:6,1:6)=MATMUL(stm(1:6,1:6),stm0(1:6,1:6))
+! for derivatives w.r. to parameters
+              IF(nd.gt.6)THEN
+                 DO j=7,nd
+                    stmout(1:6,j)=MATMUL(stm(1:6,1:6),stm0(1:6,j))+stm(1:6,j)
+                 ENDDO
+              ENDIF
+! if the end is at the required time, but a close approach to Earth is still
+! going on, the output mtp/tp trace must be available anyway: str_clan shall decide
+     !         IF(min_dist) CALL str_clan(stm0,nd,dxp0dep0)
+!
+! the partials with respect to the dyn.parameters
+! are already renormalized; they are left as they are
+              CALL varunw(stmout,y1,y1(nvar2+1),nd,nvar2) 
            ENDIF
         ENDIF
         y2(1:nvar)=y1(1:nvar) 
         t1=t2 
+! the propagation with Radau15 is terminated
         RETURN
      ELSE 
 ! write message      
 !       WRITE(*,*)'end close approach to planet',idc,tcur       
 ! propagation has been interrupted because of a close approach
-        IF(PRESENT(dx0de))THEN
+        IF(PRESENT(dxp0dep0))THEN
            IF(nvar.gt.6)THEN 
 ! setup the close approach record with derivatives  
-              IF(min_dist) CALL str_clan(stm0,dx0de) 
+              IF(min_dist) CALL str_clan(stm0,nd,dxp0dep0) 
+! Store information for IC center
+              IF(surf_stop.AND.kill_propag) CALL str_surfan(stm0,nd,dxp0dep0) 
 ! multiply the accumulated state transition matrix          
-              CALL vawrxv(y1,y1(nvar2+1),stm,nvar2) 
-              stmout=MATMUL(stm,stm0) 
+              CALL vawrxv(y1,y1(nvar2+1),stm,nvar2,nd) 
+! for derivatives w.r. to intiial conditions
+              stmout(1:6,1:6)=MATMUL(stm(1:6,1:6),stm0(1:6,1:6))
+! for derivatives w.r. to parameters
+              IF(nd.gt.6)THEN
+                 DO j=7,nd
+                    stmout(1:6,j)=MATMUL(stm(1:6,1:6),stm0(1:6,j))+stm(1:6,j)
+                 ENDDO
+              ENDIF
               stm0=stmout
               CALL invaxv(y1,y1(nvar2+1),nvar2)
            ELSE
-! setup the close approach record without derivatives
-!          WRITE(*,*)' calling str_clan, t=', tcur
-              IF(min_dist) CALL str_clan(stm0,dx0de)
+              ! setup the close approach record without derivatives
+              IF(min_dist) CALL str_clan(stm0,nd,dxp0dep0)
            ENDIF
            IF(kill_propag)THEN
-              IF(verb_pro.gt.9) WRITE(*,*)' propin: returning because of kill_propag, t=',tcur
+              IF(verb_pro.gt.9.AND.(.NOT.surf_stop)) WRITE(*,*)' propin: returning because of kill_propag, t=',tcur 
               RETURN
            ENDIF
         ENDIF
@@ -1195,7 +1269,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
 !  runge kutta implicito fa un solo passo       
 24   continue 
 !  passo iniziale?      
-     if(nrk.le.0)then 
+     IF(nrk.le.0)THEN 
 !  passo iniziale: store secondo membro  
         IF(rhs.eq.1)THEN       
            CALL force(y1,y1(nvar2+1),t1,delta(1,m+1),nvar2,idc,xxpla,0,1)
@@ -1210,19 +1284,19 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
 !  passo iniziale: inizializzazione di ck a zero
         ck=0.d0 
         lit=lit1 
-     else 
+     ELSE 
 !  passo non iniziale : interpolazione dei ck   
         ck1(1:isrk,1:nvar)=ck(1:isrk,1:nvar) 
         call kintrp(ck1,ck,isrk,nvar) 
         lit=lit2 
-     endif
+     ENDIF
 !  un passo del rk      
 22   call rkimp(t1,h,y1,dery,ck,isrk,y2,lit,nvar,eprk,ep,lf,ndim)
 !     WRITE(*,*)t1,h,npas,nrk,m
 !  controllo di avvenuta convergenza
      if(lf.le.0)then 
 !  caso di non convergenza          
-!           call camrk(ep,npas,nrk,lf) 
+!           call camrk(ep,npas,nrk,lf)
 ! WARNING: quick fix for strange orbits resulting in RKG divergence  
         IF(rhs.eq.2)THEN      
            kill_propag=.true.
@@ -1246,7 +1320,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
      endif
      if(icmet.lt.2)then 
 !  preparazione per il multistep   
-        IF(rhs.eq.1)THEN       
+        IF(rhs.eq.1)THEN      
            CALL force(y1,y1(nvar2+1),t1,delta(1,m+1-npas),nvar2,idc,xxpla,0,1)
 ! close approach control
            CALL clocms(idc,t1,y1(1:3),y1(nvar2+1:nvar2+3),xxpla) 
@@ -1630,7 +1704,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de)
    IF(np.eq.0) np=nbod-1
    n=(idc-np)/(nbod-1)
    if(idc.ne.0)then
-      write(*,*)'t =',tt,' close approach of ',ida(n),' to planet ',nompla(np)
+!      write(*,*)'t =',tt,' close approach of ',ida(n),' to planet ',nompla(np)
       write(iuncla,*)'t =',tt,' close approach of ',ida(n),' to planet ',nompla(np)
    endif
  END SUBROUTINE clocms9
@@ -1893,25 +1967,46 @@ SUBROUTINE zed(e,m,f,eps,i,igr)
   DOUBLE PRECISION, INTENT(IN) :: e,eps ! ecc, control convergence of series
   DOUBLE PRECISION, INTENT(OUT) :: f ! Z(e,m)
   INTEGER, PARAMETER :: imax=20
-  DOUBLE PRECISION x,adf,ri,cie,sie,c2ie,s2ie,sum,df,vadf
+  DOUBLE PRECISION x,adf,ri,cie,sie,c2ie,s2ie,sum,df,vadf,ff
   f=0.d0 
   adf=0.d0 
-  if(e.gt.0.2d0)then 
-     f=1.d6 
-     IF(verb_pro.gt.10)THEN
-        write(ipirip,*)' with e>0.2 select the stepsize by hand'
-     ENDIF 
-     return 
-  elseif(e.gt.0.3d0)then 
-     f=1.d6 
-     write(ipirip,*)' with e>0.3 you should not use the multistep' 
-     return 
-  endif
+ ! IF(e.gt.0.27d0.and.e.lt.0.582d0)THEN 
+ !    f=1.d6 
+ !    i=imax+1
+ !    igr=imax
+ !    IF(verb_pro.gt.10)THEN
+ !       WRITE(ipirip,*)' with e>0.27 flat stepsize'
+ !    ENDIF
+ !    RETURN 
+ ! ELSEIF(e.ge.0.582d0.and.e.lt.0.8d0)THEN 
+ !    ff=sqrt(1.d0-e**2)/(1.d0-e)**2
+ !    f=ff**(m+1)
+ !    i=imax+1
+ !    igr=imax
+ !    WRITE(ipirip,*)' with e>0.582 true anomaly at pericenter' 
+ !    RETURN 
+ ! ELSEIF(e.ge.0.8d0)THEN
+ !    ff=sqrt(1.d0-0.8d0**2)/(1.d0-0.8d0)**2
+ !    f=ff**(m+1)
+ !    i=imax+1
+ !    igr=imax
+ !    IF(verb_pro.gt.10)THEN
+ !       WRITE(ipirip,*)' with e>0.8 flat stepsize'
+ !    ENDIF
+ !    RETURN 
+ ! ENDIF
+  ff=sqrt(1.d0-e**2)/(1.d0-e)**2
+  f=ff**(m+1)
+  IF(f.gt.1.d6)THEN
+     i=imax+1
+     igr=imax
+     RETURN
+  ENDIF
   do 1 i=1,imax 
      x=i*e 
      ri=i 
-     cie=(bessel(i-1,x)-bessel(i+1,x))/i 
-     sie=(bessel(i-1,x)+bessel(i+1,x))/i 
+     cie=(bessel_jn(i-1,x)-bessel_jn(i+1,x))/i 
+     sie=(bessel_jn(i-1,x)+bessel_jn(i+1,x))/i 
      c2ie=cie*cie 
      s2ie=sie*sie 
      sum=(c2ie+s2ie)/2.d0 
@@ -1930,11 +2025,11 @@ SUBROUTINE zed(e,m,f,eps,i,igr)
   f=1.d6 
 END SUBROUTINE zed   
 !********************************************************************** 
-!  {\bf bessel}  ORB8V           
+!  {\bf bessel_jn}  ORB8V           
 ! Function che calcola la funzione di Bessel J(i,x).       
 ! imax numero massimo di iterazioni (dato 20) 
 !********************************************************************** 
-double precision function bessel(i,x) 
+double precision function bessel_jn(i,x) 
   INTEGER, INTENT(IN) :: i
   DOUBLE PRECISION, INTENT(IN) :: x
   INTEGER, PARAMETER :: imax=20
@@ -1952,13 +2047,13 @@ double precision function bessel(i,x)
   jfat=1 
   jpifat=1 
   ifl=1 
-  bessel=0.d0 
+  bessel_jn=0.d0 
   do 2 j=1,imax 
      dbess=x2p*ifl/ifat 
      dbess=dbess/jfat 
      dbess=dbess/jpifat 
 !c      write(*,*)dbess          
-     bessel=bessel+dbess 
+     bessel_jn=bessel_jn+dbess 
 !c      write(*,*)i,j,ifat,jfat,jpifat        
      if(dabs(dbess).lt.epbs)return 
      jpifat=jpifat*(i+j) 
@@ -1967,18 +2062,19 @@ double precision function bessel(i,x)
      x2p=x2p*x2*x2 
 2 ENDDO
   write(ipirip,101)j-1,dbess 
-101 format('bessel: non convergence; last term=',i5,d18.6) 
-END function bessel
+101 format('bessel_jn: non convergence; last term=',i5,d18.6) 
+END function bessel_jn
 ! ================================            
 ! invaxv            
 !      
-! initialise the  variation matrix as the 6 X 6 identity   
+! initialise the  variation matrix as the 6 X 6 identity  
+! plus columns of zeros for the derivatives w.r. to dynamical parameters 
 ! ================================            
 SUBROUTINE invaxv(x,v,nvar2) 
   INTEGER, INTENT(IN) :: nvar2 
   DOUBLE PRECISION, INTENT(INOUT) ::  x(nvar2),v(nvar2) 
 ! end interfface    
-  INTEGER i,j,iii,ij 
+  INTEGER i,j,iii,ij,nd
   iii=3 
   do 7 j=1,6 
      do  i=1,3 
@@ -1992,30 +2088,58 @@ SUBROUTINE invaxv(x,v,nvar2)
         endif
      enddo
 7 ENDDO
+! case of additional parameters to be solved
+  IF(nvar2.gt.21)THEN
+! initialize array of zeros as derivatives of state with respect to
+! dynamical parameters
+     nd=(nvar2-3)/3
+     DO j=7,nd
+       DO i=1,3
+         ij=i+3*(j-1)
+         x(iii+ij)=0.d0 
+         v(iii+ij)=0.d0 
+       ENDDO
+     ENDDO
+  ENDIF
 ENDSUBROUTINE invaxv
-
+!======================================
 ! inivar            
 !      
-! initialise the  variation matrix as the 6 X 6 identity   
+! initialise the  variation matrix as the 6 X 6 identity
+! plus columns of zeros for the derivatives w.r. to dynamical parameters   
 ! ================================            
 SUBROUTINE inivar(y1,nvar2,nvar) 
   INTEGER,INTENT(IN) ::  nvar,nvar2 
   DOUBLE PRECISION, INTENT(INOUT) ::  y1(nvar) 
 ! end interfface    
-  INTEGER i,j,iii,ij 
+  INTEGER i,j,iii,ij,nd 
+! case of initial conditions as only parameters to be solved
   iii=3 
-  do 7 j=1,6 
-     do  i=1,3 
+  DO j=1,6 
+     DO i=1,3 
         ij=i+3*(j-1) 
         y1(iii+ij)=0.d0 
         y1(iii+ij+nvar2)=0.d0 
-        if(i.eq.j)then 
+        IF(i.eq.j)THEN 
            y1(iii+ij)=1.d0 
-        elseif(j.eq.i+3)then 
+        ELSEIF(j.eq.i+3)THEN 
            y1(iii+ij+nvar2)=1.d0 
-        endif
-     enddo
-7 ENDDO
+        ENDIF
+     ENDDO
+  ENDDO
+! case of additional parameters to be solved
+  IF(nvar2.gt.21)THEN
+! initialize array of zeros as derivatives of state with respect to
+! dynamical parameters
+     nd=(nvar2-3)/3
+     DO j=7,nd
+       DO i=1,3
+         ij=i+3*(j-1)
+         y1(iii+ij)=0.d0 
+         y1(iii+ij+nvar2)=0.d0 
+       ENDDO
+     ENDDO
+  ENDIF
 END SUBROUTINE inivar
 ! ====================================================                  
 ! CLOTEST                                                               
@@ -2090,15 +2214,21 @@ END SUBROUTINE set_restart
 ! ====================================================     
 ! varwra            
 !      
-! First parzial derivatives: rewrap vector into 6x6 matrix 
+! First parzial derivatives: rewrap vector into 6xnd matrix 
 ! ====================================================     
-SUBROUTINE varwra(y2,dxdx0,nvar,nvar2) 
+SUBROUTINE varwra(y2,dxdx0,nd,nvar,nvar2) 
   IMPLICIT NONE 
-  INTEGER,INTENT(IN) :: nvar,nvar2 
+  INTEGER,INTENT(IN) :: nvar,nvar2,nd 
   DOUBLE PRECISION, INTENT(INOUT) ::  y2(nvar) 
-  DOUBLE PRECISION, INTENT(OUT) ::  dxdx0(6,6) 
-  INTEGER i,j,ij 
-! ====================================================     
+  DOUBLE PRECISION, INTENT(OUT) ::  dxdx0(6,nd) 
+  INTEGER i,j,ij
+! ==================================================== 
+! check dimensions
+  IF(nvar2.ne.3+3*nd)THEN
+     WRITE(*,*)' varwra: nd,nvar2 ', nd,nvar2
+     STOP
+  ENDIF
+! portion of the state transition matrix about initial conditions
   DO j=1,3 
      DO  i=1,3 
         ij=i+3*(j-1)+3 
@@ -2108,18 +2238,33 @@ SUBROUTINE varwra(y2,dxdx0,nvar,nvar2)
         dxdx0(i+3,j+3)=y2(ij+9+nvar2) 
      ENDDO
   ENDDO
+! portion about dynamical parameters
+  IF(nd.gt.6)THEN
+     DO j=7,nd
+        DO i=1,3
+          ij=i+3*(j-1)+3       
+          dxdx0(i,j)=y2(ij)
+          dxdx0(i+3,j)=y2(ij+nvar2)
+        ENDDO
+     ENDDO
+  ENDIF
 END  SUBROUTINE varwra
 ! ====================================================     
 ! varunw            
 !      
 ! First parzial derivatives: unwrap 6x6 matrix into vector 
 ! ====================================================     
-SUBROUTINE varunw(dxdx0,x,v,nvar2) 
-  INTEGER, INTENT(IN) :: nvar2 
-  DOUBLE PRECISION, INTENT(IN) :: dxdx0(6,6)
+SUBROUTINE varunw(dxdx0,x,v,nd,nvar2) 
+  INTEGER, INTENT(IN) :: nvar2,nd 
+  DOUBLE PRECISION, INTENT(IN) :: dxdx0(6,nd)
   DOUBLE PRECISION, INTENT(INOUT) :: x(nvar2),v(nvar2) 
-  INTEGER i,j,ij 
-! ====================================================     
+  INTEGER i,j,ij
+! ==================================================== 
+! check dimensions
+  IF(nvar2.ne.3+3*nd)THEN
+     WRITE(*,*)' varunw: nd,nvar2 ', nd,nvar2
+     STOP
+  ENDIF
   DO j=1,3 
      DO  i=1,3 
         ij=i+3*(j-1)+3 
@@ -2129,6 +2274,16 @@ SUBROUTINE varunw(dxdx0,x,v,nvar2)
         v(ij+9)=dxdx0(i+3,j+3) 
      ENDDO
   ENDDO
+! portion about dynamical parameters
+  IF(nd.gt.6)THEN
+     DO j=7,nd
+        DO i=1,3
+          ij=i+3*(j-1)+3       
+          x(ij)=dxdx0(i,j)
+          v(ij)=dxdx0(i+3,j)
+        ENDDO
+     ENDDO
+  ENDIF
 END SUBROUTINE varunw
 
 ! ====================================================     
@@ -2136,12 +2291,18 @@ END SUBROUTINE varunw
 !            
 ! First parzial derivatives: rewrap vector into 6x6 matrix 
 ! ====================================================     
-SUBROUTINE vawrxv(x,v,dxdx0,nvar2) 
-  INTEGER, INTENT(IN) ::  nvar2 
+SUBROUTINE vawrxv(x,v,dxdx0,nvar2,nd) 
+  INTEGER, INTENT(IN) ::  nvar2, nd
   DOUBLE PRECISION, INTENT(IN) :: x(nvar2),v(nvar2) 
-  DOUBLE PRECISION, INTENT(OUT) ::  dxdx0(6,6)
+  DOUBLE PRECISION, INTENT(OUT) ::  dxdx0(6,nd)
+!  DOUBLE PRECISION, INTENT(OUT) ::  dxdx0(6,6)
   INTEGER i,j,ij 
 ! ====================================================     
+! check dimensions
+  IF(nvar2.ne.3+3*nd)THEN
+     WRITE(*,*)' vawrxv: nd,nvar2 ', nd,nvar2
+     STOP
+  ENDIF
   DO j=1,3 
      DO  i=1,3 
         ij=i+3*(j-1)+3 
@@ -2151,5 +2312,15 @@ SUBROUTINE vawrxv(x,v,dxdx0,nvar2)
         dxdx0(i+3,j+3)=v(ij+9) 
      ENDDO
   ENDDO
+! portion about dynamical parameters
+  IF(nd.gt.6)THEN
+     DO j=7,nd
+        DO i=1,3
+           ij=i+3*(j-1)+3       
+           dxdx0(i,j)=x(ij)
+           dxdx0(i+3,j)=v(ij)
+        ENDDO
+     ENDDO
+  ENDIF
 END SUBROUTINE vawrxv
 

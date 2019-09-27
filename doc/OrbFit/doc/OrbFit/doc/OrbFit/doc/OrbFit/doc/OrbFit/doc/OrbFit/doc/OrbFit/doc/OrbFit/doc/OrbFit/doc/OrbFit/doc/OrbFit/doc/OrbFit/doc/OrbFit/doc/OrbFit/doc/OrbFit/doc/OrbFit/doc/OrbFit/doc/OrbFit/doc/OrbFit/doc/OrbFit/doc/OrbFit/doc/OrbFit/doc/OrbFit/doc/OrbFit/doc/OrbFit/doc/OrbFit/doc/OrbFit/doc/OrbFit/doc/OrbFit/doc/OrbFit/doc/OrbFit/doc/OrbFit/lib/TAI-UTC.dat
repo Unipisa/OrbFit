@@ -3,8 +3,8 @@ The leap second is introduced at the beginning of the day reported.
 The last value of the file is not used; the corresponding date defines the
 limit of validity of the file.
 WARNING: this file should be updated periodically by the user, for instance
-by consulting http://hpiers.obspm.fr/webiers/general/communic/publi/PUBLI.html
-The present version of the file is updated through Bulletin C17 (Jan 28, 1999)
+by consulting http://hpiers.obspm.fr/iers/bul/bulc/bulletinc.dat
+The present version of the file is updated through Bulletin C52 (Jul 06, 2016)
 Day, month, year, TAI-UTC (s)
 ---------------------------------------------------
  1  1  1972    10
@@ -32,4 +32,7 @@ Day, month, year, TAI-UTC (s)
  1  1  1999    32
  1  1  2006    33
  1  1  2009    34
- 1  1  2100    34
+ 1  7  2012    35
+ 1  7  2015    36
+ 1  1  2017    37
+ 1  1  2200    37

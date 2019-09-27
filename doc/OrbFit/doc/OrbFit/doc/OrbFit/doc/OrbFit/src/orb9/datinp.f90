@@ -234,7 +234,7 @@
       CHARACTER(3) coox, sysx, unitx, uniy 
       CHARACTER(6) refx 
       CHARACTER(60) commen, comme1 
-      CHARACTER(6) number (nplx), numbin (nplx), num, nnum, num1 
+      CHARACTER(9) number (nplx), numbin (nplx), num, nnum, num1 
       CHARACTER colhea * 100 
       DIMENSION gm (nplx) 
       LOGICAL error

@@ -27,11 +27,11 @@ testo9:
 	mv orb9.opt orb9.opt.tmp
 	cp -p testout/orb9.opt .
 	time orbit9.x
-	-(diff vast.dat testout)
-	-(diff vpla.dat testout)
-	-(diff vast.fil testout)
-	-(diff vpla.fil testout)
-	-(diff orb9.out testout)
+	-(diff vast.dat testout/vast.dat)
+	-(diff vpla.dat testout/vpla.dat)
+	-(diff vast.fil testout/vast.fil)
+	-(diff vpla.fil testout/vpla.fil)
+	-(diff orb9.out testout/orb9.out)
 	mv orb9.opt.tmp orb9.opt
 
 testo9t:
@@ -41,7 +41,8 @@ testo9t:
 
 clean:
 	-(rm orb9.dma orb9.dmp orb9.num orb9.out v*.fil v*.dat orb9.clo)
-	-(rm v9* giffv.gnu giffv.tmp out.* gmon.out *~)
+	-(rm v9* giffv.gnu giffv.tmp out.* gmon.out *~ *.done)
 	-(rm barmerxx.inc pvenexx.inc allplmxx.inc barsunxx.inc allplaxx.inc planxx.inc epsi.out)
+	-(rm vprt* libcenter.dat orb9t.sum orb9t.out)
 
 distclean: clean

@@ -25,10 +25,13 @@ MODULE io_elems
   CHARACTER*4 dfrsty,rectyp,deltyp
   CHARACTER*10 dfrsep
   LOGICAL deft0,nxtend
+  CHARACTER*20 oef_vers
   PUBLIC orbunt,orbnr,iicorb,orbfn,depstr,dept0,dfrsty,rectyp,deltyp, &
-  &      dfrsep,deft0,nxtend
+  &      dfrsep,deft0,nxtend,oef_vers
 ! dirty fix for passing the obscode (for ATT elelemnts) from rdorb without changing interface 
   CHARACTER*3, PUBLIC ::  obscod
+
+  !PUBLIC :: oefdet, oporbf, clorbf, fixcnm
 
 END MODULE io_elems
 
@@ -48,151 +51,14 @@ END MODULE io_elems
 ! outele	verbose output of a set orbital elements to a report file      
 ! wro1lh	writes the header of an orbital element file (1L format)       
 ! wro1lr	writes an orbital element record in an orbital element file (1L
+! wro1lr_ngr    writes a record of dyn parameters in 1L catalog
 ! wromlh	writes the header of an orbital element file (ML format)       
-! wromlr	writes an orbital element record in an orbital element file (ML
+!
 !  CONVERSIONS                                                                     
 ! mpcdat	computes MJD from MPC-style packed dates   
 ! fixcnm	generates normal matrix from covariance matrix or viceversa   
 
-! Copyright (C) 1997-2003 by Mario Carpino (carpino@brera.mi.astro.it), 
-!                            Andrea Milani (milani@dm.unipi.it),        
-!                            Zoran Knezevic (zoran@aob.aob.bg.ac.yu)    
-! Version: 12 August 2003                                            
-! --------------------------------------------------------------------- 
-!                                                                       
-!  *****************************************************************    
-!  *                                                               *    
-!  *                         R D E L E M                           *    
-!  *                                                               *    
-!  *          Read orbital elements for a list of objects          *    
-!  *                     from a list of files                      *    
-!  *                                                               *    
-!  *****************************************************************    
-!                                                                       
-! INPUT:    UNIT      -  Output FORTRAN unit (report file)              
-!           OBJNAM    -  Object names                                   
-!           NOBJ      -  Number of objects                              
-!           INFILS    -  Input files                                    
-!           NFIL      -  Number of input files                          
-!           DEFORB    -  Is the orbit already defined?                  
-!                                                                       
-! OUTPUT:   DEFORB    -  Was the orbit found?                           
-!           DEFCN     -  Tells whether covariance/normal matrices       
-!                            are defined                                
-!           ELTYPE    -  Type of orbital elements (EQU/KEP/CAR)         
-!           TELEM     -  Epoch of orbital elements (MJD, TDT)           
-!           ELEM      -  Orbital elements (ECLM J2000)                  
-!           COVE      -  Covariance matrix of orbital elements          
-!           NORE      -  Normal matrix of orbital elements              
-!           MASS      -  Mass (solar masses)                            
-!           HMAG      -  H absolute magnitude (if <-100, missing)       
-!           GMAG      -  G slope parameter                              
-!           COMELE    -  Comment on orbital elements                    
-!                                                                       
-! WARNING: the routine is designed to allow multiple calls on           
-!          different lists of files/objects: for this reason,           
-!          orbital elements of objects which have already an            
-!          orbit defined (DEFORB=.true.) ARE NOT modified.              
-!          For this reason, the user must define suitably DEFORB        
-!          BEFORE calling RDELEM                                        
-!                                                                       
-SUBROUTINE rdelem(unit,objnam,nobj,infils,nfil,deforb,defcn,      &
-     &                  eltype,telem,elem,cove,nore,                    &
-     &                  mass,h,g,comele)                                
-  IMPLICIT NONE 
-  INTEGER nfilx 
-  PARAMETER(nfilx=20) 
-  INTEGER unit,nobj,nfil 
-  DOUBLE PRECISION telem(nobj),elem(6,nobj),cove(6,6,nobj) 
-  DOUBLE PRECISION nore(6,6,nobj),mass(nobj),h(nobj),g(nobj) 
-  CHARACTER*(*) objnam(nobj),infils(nfil),eltype(nobj),comele(nobj) 
-  LOGICAL deforb(nobj),defcn(nobj) 
-                                                                        
-  INTEGER i,lf,is1,lfo,uniin,n 
-  CHARACTER form*10,infil1*100 
-  LOGICAL opened 
-                                                                        
-  INTEGER lench 
-  EXTERNAL lench 
-                                                                        
-! Number of input files                                                 
-  IF(nfil.GT.nfilx) STOP '**** rdelem: nfil > nfilx ****' 
-                                                                        
-! Nothing to do                                                         
-  IF(nfil.LE.0) RETURN 
-                                                                        
-! Loop on files                                                         
-  DO 2 i=1,nfil 
-     lf=lench(infils(i)) 
-     opened=.false. 
-                                                                        
-! Understand file format, if given in the argument infils(i)
-     is1=index(infils(i)(1:lf),'[') 
-     IF(is1.GT.0 .AND. infils(i)(lf:lf).EQ.']') THEN 
-        form=infils(i)(is1+1:lf-1) 
-        lf=is1-1 
-        infil1=infils(i)(1:lf) 
-     ELSE 
-        infil1=infils(i) 
-        form=' ' 
-        CALL filopn(uniin,infil1(1:lf),'OLD') 
-        opened=.true. 
-        CALL oefdet(uniin,infil1(1:lf),form) ! SELF-DETECT FILE FORMAT 
-        REWIND(uniin) 
-     END IF
-     lfo=lench(form) 
-     IF(form.NE.' ') WRITE(*,102) infil1(1:lf),form(1:lfo) 
-102  FORMAT('Scanning file "',A,'" (format: ',A,')') 
-                                                                        
-! Reading file                                                          
-     IF(form.EQ.'OEF') THEN 
-        IF(.NOT.opened) CALL filopn(uniin,infil1,'OLD') 
-        CALL rdoef(uniin,infil1,objnam,nobj,deforb,defcn,eltype,telem,&
-     &               elem,cove,nore,mass,h,g,comele)                    
-        CALL clorbf 
-     ELSEIF(form.EQ.'BA1') THEN 
-        WRITE(*,*)' rdelem: obsolete Lowell format pre-1999'
-        STOP
-!        IF(.NOT.opened) CALL filopn(uniin,infil1,'OLD') 
-!        CALL rdast1(uniin,infil1,objnam,nobj,deforb,defcn,            &
-!     &                eltype,telem,elem,cove,nore,mass,h,g,comele)      
-!        CALL filclo(uniin,' ') 
-      ELSEIF(form.EQ.'BA2') THEN 
-          IF(.NOT.opened) CALL filopn(uniin,infil1,'OLD') 
-          CALL rdast2(uniin,infil1,objnam,nobj,deforb,defcn,            &
-     &                eltype,telem,elem,cove,nore,mass,h,g,comele)      
-          CALL filclo(uniin,' ') 
-      ELSEIF(form.EQ.'MPC-A') THEN 
-          IF(.NOT.opened) CALL filopn(uniin,infil1,'OLD') 
-          CALL rdmpca(uniin,infil1,objnam,nobj,deforb,defcn,            &
-     &                eltype,telem,elem,cove,nore,mass,h,g,comele)      
-          CALL filclo(uniin,' ') 
-      ELSEIF(form.EQ.' ') THEN 
-          WRITE(*,120) infil1(1:lf) 
-          STOP '**** rdelem: abnormal end ****' 
-      ELSE 
-          WRITE(*,121) form(1:lfo),infil1(1:lf) 
-          STOP '**** rdelem: abnormal end ****' 
-      END IF 
-  120 FORMAT('ERROR: unknown format type for file "',A,'"') 
-  121 FORMAT('ERROR: unsupported format "',A,'" for file "',A,'"') 
-! set default for magnitude data                                        
-      DO n=1,nobj 
-        IF(deforb(n))THEN
-           IF(h(n).lt.-1.d6)THEN 
-! leave it                                                              
-           ENDIF
-           IF(g(n).lt.-1.d6)THEN 
-              g(n)=0.15d0 
-           ENDIF
-        ENDIF
-      ENDDO 
-! End of loop on files                                                  
-2 END DO
-                                                                        
-!   30 CONTINUE 
-                                                                        
-END SUBROUTINE rdelem
+
 ! Copyright (C) 1997-1999 by Mario Carpino (carpino@brera.mi.astro.it)  
 !                            Andrea Milani (milani@dm.unipi.it)         
 !                                                                       
@@ -269,7 +135,7 @@ SUBROUTINE oefdet(unit,filnam,form)
                   CALL strcnt(tmp,tmp1,tmp2,error) 
                   IF(error) THEN 
                      poss(1)=.false. 
-                  ELSEIF(tmp1.NE.'OEF1.1') THEN 
+                  ELSEIF(tmp1.NE.'OEF1.1'.AND.tmp1.NE.'OEF2.0') THEN 
                      poss(1)=.false. 
                   END IF
                END IF
@@ -695,164 +561,7 @@ SUBROUTINE rdmpca3(unit,filnam,objnam,nobjx,nobj,defcn,           &
   defcn=.false. 
   eltype='KEP' 
 END SUBROUTINE rdmpca3                           
-! Copyright (C) 1998 by Mario Carpino (carpino@brera.mi.astro.it),      
-! Version: June 19, 1998
-! --------------------------------------------------------------------- 
-!                                                                       
-!  *****************************************************************    
-!  *                                                               *    
-!  *                          R D O E F                            *    
-!  *                                                               *    
-!  *          Read orbital elements for a list of objects          *    
-!  *         from a file written in internal ORBFIT format         *    
-!  *                                                               *    
-!  *****************************************************************    
-!                                                                       
-! INPUT:    UNIIN     -  Input unit (file is already opened)            
-!           FILE      -  Input file name (for error messages only)      
-!           OBJNAM    -  Object names (without embedded blanks)         
-!           NOBJ      -  Number of objects                              
-!                                                                       
-! OUTPUT:   DEFORB    -  Tells whether orbital elements are defined     
-!           DEFCN     -  Tells whether covariance/normal matrices       
-!                            are defined                                
-!           ELTYPE    -  Type of orbital elements (EQU/KEP/CAR/COM?ATT)         
-!           TELEM     -  Epoch of orbital elements (MJD, TDT)           
-!           ELEM      -  Orbital elements (ECLM J2000)                  
-!           COVE      -  Covariance matrix of orbital elements          
-!           NORE      -  Normal matrix of orbital elements              
-!           MASS      -  Mass (solar masses)                            
-!           H         -  H absolute magnitude (if <-100, missing)       
-!           G         -  G slope parameter                              
-!           COMELE    -  Comment on orbital elements                    
-!                                                                       
-! WARNING: the routine assumes that objects having DEFORB=.true.        
-!          have already orbital elements defined (possibly from another 
-!          input file) and does not overwrite them                      
-!                                                                       
-SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
-     &                 elem,cove,nore,mass,h,g,comele)                  
-  USE fund_const
-  USE reference_systems
-  USE name_rules 
-  IMPLICIT NONE 
-  INTEGER, INTENT(IN) :: uniin 
-  INTEGER nobj 
-  DOUBLE PRECISION telem(nobj),elem(6,nobj),cove(6,6,nobj) 
-  DOUBLE PRECISION nore(6,6,nobj),mass(nobj),h(nobj),g(nobj) 
-  CHARACTER*(*) file,objnam(nobj),eltype(nobj),comele(nobj) 
-  LOGICAL deforb(nobj),defcn(nobj) 
-  CHARACTER*(20) filedum 
-                                                                        
-  INTEGER kr,k,j1,j2,lf,ln,lc,lc1,nrem 
-  DOUBLE PRECISION t1,gmsun,gma,gma1,enne,h1,g1,m1 
-  DOUBLE PRECISION rot(3,3) 
-  DOUBLE PRECISION elem1(6),xv(6),cove1(6,6),cove2(6,6) 
-  DOUBLE PRECISION de(6,6),nore1(6,6),nore2(6,6) 
-  CHARACTER eltyp1*3,rsys*10,epoch*10,krc*10 
-  LOGICAL defcov,defnor,end,error 
-  CHARACTER*(idnamvir_len) name1,nc1
-  INTEGER lench 
-  EXTERNAL lench 
-                                                                        
-  gmsun=gms 
-                                                                        
-! Number of remaining object (orbit not yet found)                      
-  nrem=0 
-  DO 1 k=1,nobj 
-     IF(.NOT.deforb(k)) nrem=nrem+1 
-1 END DO
-  IF(nrem.LE.0) RETURN 
-                                                                        
-  CALL oporbf(file,uniin) 
-  lf=lench(file) 
-                                                                        
-3 CONTINUE 
-  CALL rdorb(name1,elem1,eltyp1,t1,cove1,defcov,nore1,defnor,       &
-     &           h1,g1,m1,rsys,epoch,kr,end)                            
-  IF(end) GOTO 20 
-! Name match is performed disregarding embedded blanks                  
-  nc1=name1 
-  CALL rmsp(nc1,lc1) 
-  IF(lc1.LE.0) GOTO 3 
-                                                                        
-  DO 4 k=1,nobj 
-     IF(deforb(k)) GOTO 4 
-     IF(nc1(1:lc1).EQ.objnam(k)) THEN 
-        deforb(k)=.true. 
-        IF(rsys.EQ.'ECLM' .AND. epoch.EQ.'J2000') THEN 
-           DO 14 j1=1,6 
-              elem(j1,k)=elem1(j1) 
-              DO  j2=1,6 
-                 cove(j1,j2,k)=cove1(j1,j2) 
-                 nore(j1,j2,k)=nore1(j1,j2) 
-              ENDDO
-14         ENDDO
-           eltype(k)=eltyp1 
-        ELSE 
-           gma=gmsun*m1 
-           gma1=gma+gmsun 
-           IF(defcov.OR.defnor) THEN 
-! Transformation in cartesian coordinates                               
-              CALL cooder(elem1,eltyp1,gma1,xv,'CAR',enne,de) 
-              IF(defcov) CALL convertcov(cove1,de,cove2) ! covprs(cove1,de,6,cove2) 
-              IF(defnor) THEN 
-                 CALL norprs(nore1,de,6,nore2,error) 
-                 IF(error) THEN 
-                    ln=lench(name1) 
-                    WRITE(*,120) file(1:lf),name1(1:ln) 
-                    defnor=.false. 
-                 END IF
-              END IF
-! Transformation of reference system                                    
-              CALL rotpn(rot,rsys,epoch,t1,'ECLM','J2000',0.d0) 
-              CALL prodmv(elem(1,k),rot,xv(1)) 
-              CALL prodmv(elem(4,k),rot,xv(4)) 
-              DO j1=1,3 
-                 DO j2=1,3 
-                    de(j1,j2)=rot(j1,j2) 
-                    de(j1+3,j2)=0 
-                    de(j1,j2+3)=0 
-                    de(j1+3,j2+3)=rot(j1,j2) 
-                 ENDDO
-               ENDDO
-               IF(defcov) CALL convertcov(cove2,de,cove(1:6,1:6,k)) ! covprs(cove2,de,6,cove(1,1,k)) 
-               IF(defnor) THEN 
-                  CALL norprs(nore2,de,6,nore(1,1,k),error) 
-                  IF(error) THEN 
-                     ln=lench(name1) 
-                     WRITE(*,120) file(1:lf),name1(1:ln) 
-                     defnor=.false. 
-                  END IF
-               END IF
-            ELSE 
-               CALL coocha(elem1,eltyp1,gma1,xv,'CAR',enne) 
-               CALL rotpn(rot,rsys,epoch,t1,'ECLM','J2000',0.d0) 
-               CALL prodmv(elem(1,k),rot,xv(1)) 
-               CALL prodmv(elem(4,k),rot,xv(4)) 
-            END IF
-            eltype(k)='CAR' 
-         END IF
-         telem(k)=t1 
-         CALL fixcnm(defcov,defnor,defcn(k),cove(1,1,k),nore(1,1,k)) 
-         mass(k)=m1 
-         h(k)=h1 
-         g(k)=g1 
-         WRITE(krc,101) kr 
-         CALL rmsp(krc,lc) 
-         comele(k)='read from file "'//file(1:lf)//                    &
-     &              '" at record '//krc(1:lc)                           
-         nrem=nrem-1 
-         IF(nrem.LE.0) GOTO 20 
-      END IF
-  101 FORMAT(I6) 
-  120 FORMAT(' rdoef: error in transforming normal matrix'/             &
-     &       '        (file "',A,'", object "',A,'")')                  
-4  END DO
-   GOTO 3 
-20 CONTINUE 
-                                                                        
- END SUBROUTINE rdoef
+
                                  
 ! Copyright (C) 1997-1998 by Mario Carpino (carpino@brera.mi.astro.it)  
 ! Version: June 21, 1998                                                
@@ -877,17 +586,17 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
    INTEGER, INTENT(IN) :: inunit 
    INTEGER kr,lf,mjd,mjde,nn 
    LOGICAL first,found,end 
-   CHARACTER form*20,scale*3,rec*200 
+   CHARACTER scale*3,rec*200 
    DOUBLE PRECISION sec,sece 
    SAVE first    
    INTEGER lench,nitchs 
    EXTERNAL lench,nitchs                                                       
-   DATA first/.true./                                                   
+   DATA first/.true./ 
    IF(first) THEN 
       orbunt=0 
       orbfn=' ' 
       first=.false. 
-   END IF                                              
+   END IF      
    IF(orbunt.NE.0) STOP '**** oporbf: error (01), second OEF file ****' 
    orbfn=file 
    IF(inunit.gt.0)THEN 
@@ -899,10 +608,10 @@ SUBROUTINE rdoef(uniin,file,objnam,nobj,deforb,defcn,eltype,telem,&
    CALL rdfnam(orbunt,orbfn,orbnr) 
    lf=lench(orbfn)
 ! Format                                                                
-   CALL rdfcha(orbunt,'format',.true.,form,found,kr) 
-   IF(form.NE.'OEF1.1') THEN 
+   CALL rdfcha(orbunt,'format',.true.,oef_vers,found,kr) 
+   IF(oef_vers.NE.'OEF1.1'.and.oef_vers.NE.'OEF2.0') THEN 
       WRITE(*,100) orbfn(1:lf) 
-100   FORMAT('ERROR: unsupported format in file ',A)      
+100   FORMAT(' ERROR: unsupported format in file ',A)
       STOP '**** oporbf: wrong file format ****' 
    END IF
 ! Record type and default orbital element type                          
@@ -1252,7 +961,7 @@ SUBROUTINE wro1lh(unit,rsys,epoch,eltype)
   WRITE(unit,100) comcha,comcha,eltype(1:l3),comcha,                &
      &                rsys(1:l1),epoch(1:l2),                           &
      &                bl(1:nb),comcha                                   
-100 FORMAT('format  = ''OEF1.1''       ',A,' file format'/            &
+100 FORMAT('format  = ''OEF2.0''       ',A,' file format'/            &
      &       'rectype = ''1L''           ',A,' record type (1L/ML)'/    &
      &       'elem    = ''',A,'''          ',A,                         &
      &                   ' type of orbital elements'/                   &
@@ -1279,15 +988,81 @@ SUBROUTINE wro1lh(unit,rsys,epoch,eltype)
 206  FORMAT(A,' Name, Epoch(MJD), R.A., DEC, R.A.dot, DECdot, r, rdot,')
   END IF
 END SUBROUTINE wro1lh
-! Copyright (C) 1997-1998 by Mario Carpino (carpino@brera.mi.astro.it)  
-! Version: June 21, 1998                                                
-! Version December 18, 1998 Steven Chesley (chesley@dm.unipi.it)        
-! Added ELTYPE, Changed time field to F13.4 to handle jpleph406         
+
+!  *****************************************************************    
+!  *                                                               *    
+!  *                         W R O 1 L H _ M A T L A B             *    
+!  *                                                               *    
+!  *       Writes the header of an orbital element file            *    
+!  *   (single-line format, different epochs, keplerian elements)  *    
+!  *                                                               *    
+!  *****************************************************************    
+!                                                                       
+! INPUT:   UNIT      -  Output FORTRAN unit                            
+!           RSYS      -  Reference system type (EQUM/EQUT/ECLM)         
+!           EPOCH     -  Reference system epoch (J2000/OFDATE)          
+!           ELTYPE    -  Type of orbital elements (EQU/KEP/CAR)         
+!                                                                       
+SUBROUTINE wro1lh_matlab(unit,rsys,epoch,eltype) 
+  IMPLICIT NONE
+  INTEGER unit 
+  CHARACTER*(*) rsys,epoch,eltype
+  INCLUDE 'parcmc.h90'                                                  
+  INTEGER l1,l2,l3,nb 
+  CHARACTER*100 bl
+  INTEGER lench 
+  EXTERNAL lench                                                          
+  l1=lench(rsys) 
+  l2=lench(epoch) 
+  l3=lench(eltype) 
+  nb=MAX(14-l1-l2,1) 
+  bl=' '                                                                
+  WRITE(unit,100) comcha,comcha,eltype(1:l3),comcha,                &
+     &                rsys(1:l1),epoch(1:l2),                           &
+     &                bl(1:nb),comcha                                   
+100 FORMAT('%format  = ''OEF2.0''       ',A,' file format'/            &
+     &       '%rectype = ''1L''           ',A,' record type (1L/ML)'/    &
+     &       '%elem    = ''',A,'''          ',A,                         &
+     &                   ' type of orbital elements'/                   &
+     &       '%refsys  = ',A,1X,A,A,A,' default reference system'/       &
+     &       '%END_OF_HEADER')                                           
+                                                                        
+  IF(eltype.EQ.'KEP') THEN 
+     WRITE(unit,201) comcha 
+201  FORMAT('%',A,' Name, Epoch(MJD), a, e, i, long. node,',' arg. peric., mean anomaly, H mag, NGR, chi, RMS, &
+          &connected component') 
+  ELSEIF(eltype.EQ.'CAR') THEN 
+     WRITE(unit,202) comcha 
+202  FORMAT('%',A,' Name, Epoch(MJD), cartesian position and velocity',' vectors')
+  ELSEIF(eltype.EQ.'EQU') THEN 
+     WRITE(unit,203) comcha 
+203  FORMAT('%',A,' Name, Epoch(MJD), a, e*sin(LP), e*cos(LP),',' tan(i/2)*sin(LN), tan(i/2)*cos(LN), mean long.')
+  ELSEIF(eltype.EQ.'COM') THEN
+     WRITE(unit,204) comcha 
+204  FORMAT('%',A,'Name       Epoch(MJD)     a (AU)                   q (AU)                   e                        &
+          &i (deg)                  long. node (deg)         arg. peric. (deg)       peric. time  &
+          &H      NGR  chi          RMS         conn. comp.')
+  ELSEIF(eltype.EQ.'COT') THEN
+     WRITE(unit,205) comcha 
+205  FORMAT('%',A,' Name, Epoch(MJD), q, e, i, long. node,',' arg. peric., true anomaly')
+  ELSEIF(eltype.eq.'ATT')THEN
+     WRITE(unit,206) comcha 
+206  FORMAT('%',A,' Name, Epoch(MJD), R.A., DEC, R.A.dot, DECdot, r, rdot,')
+  END IF
+END SUBROUTINE wro1lh_matlab
+
+! Version May 20, 2015 Federica Spoto (spoto@mail.dm.unipi.it)
+! 1 line catalogs for non-grav parameters
+! The catalog contains:
+! - the name of the asteroid (or VA)
+! - the dynamical model used
+! - the number of parameters in use
+! - the values of the parameters
 ! --------------------------------------------------------------------- 
 !                                                                       
 !  *****************************************************************    
 !  *                                                               *    
-!  *                         W R O 1 L R                           *    
+!  *                 W R O 1 L R _ N G R                           *    
 !  *                                                               *    
 !  *  Writes an orbital element record in an orbital element file  *    
 !  *   (single-line format, different epochs, keplerian elements)  *    
@@ -1295,81 +1070,49 @@ END SUBROUTINE wro1lh
 !  *                                                               *    
 !  *****************************************************************    
 !                                                                       
-! OUTPUT:   UNIT      -  Output FORTRAN unit                            
-!           NAME      -  Name of planet/asteroid/comet                  
-!           ELEM(6)   -  Orbital element vector (keplerian elements)    
-!           ELTYPE    -  Type of orbital elements (KEP/EQU/CAR)         
-!           T0        -  Epoch of orbital elements (MJD, TDT)           
-!           H         -  H absolute magnitude (if <-100, missing)       
-!           G         -  G slope parameter                              
-!                                                                       
 ! WARNING: the routine does not write the header of the file: this      
-!          must be generated by calling subroutine wro1lh               
+!          must be generated by calling subroutine wro1lh2_ngr               
 !                                                                       
-SUBROUTINE wro1lr(unit,name,elem,eltype,t0,h,g) 
+
+SUBROUTINE wro1lr_ngr(unit,name,n_mod,n_dp,ngr_par)
   USE fund_const
   IMPLICIT NONE
-  INTEGER unit 
-  DOUBLE PRECISION elem(6),t0,h,g 
-  CHARACTER*(*) name,eltype 
+! Begin interface
+  INTEGER,          INTENT(IN) :: unit 
+  CHARACTER*(*),    INTENT(IN) :: name
+  INTEGER,          INTENT(IN) :: n_mod, n_dp
+  DOUBLE PRECISION, INTENT(IN) :: ngr_par(n_dp)
+! End interface
 ! Expected max length of name                                           
   INTEGER, PARAMETER :: namtl=12 
-  DOUBLE PRECISION cnvele(6), princ                                         
-  INTEGER ln,nb,i 
-  CHARACTER*(namtl) blanks
-  INTEGER lench 
+  INTEGER            ::ln,nb,i 
+  CHARACTER*(namtl)  :: blanks
+  INTEGER            ::lench 
   EXTERNAL lench 
-  CHARACTER*80 elefmt 
+!============================================================
 ! Name                                                                  
   ln=MAX(1,lench(name)) 
   nb=MAX(1,namtl-ln) 
   blanks=' ' 
-! Convert to degrees 
-  cnvele=elem 
-  IF(eltype .eq. 'CAR')THEN 
-     elefmt='('''''''',A,'''''''',A,1x,F13.6,'//                    &
-     &        '6(1x,F17.13),'//                                     &
-     &        '2F6.2)'                                                  
-  ELSEIF(eltype .eq. 'KEP')THEN 
-     cnvele(3:6)=cnvele(3:6)*degrad 
-     elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
-     &        '1p,6(e25.16),'//                                     &
-     &        '0p,2F6.2)'                                               
-!        elefmt='('''''''',A,'''''''',A,F13.6,'//                       
-!    +        'F16.12,1x,F12.10,4(1x,F12.7),'//                         
-!    +        '2F6.2)' 
-  ELSEIF(eltype .eq. 'COM')THEN 
-     cnvele(3:5)=cnvele(3:5)*degrad 
-     elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
-     &        '1p,5(e25.16),0p,f14.6,'//                            &
-     &        '0p,2F6.2)'                             
-  ELSEIF(eltype .eq. 'COT')THEN 
-     cnvele(3:6)=cnvele(3:6)*degrad 
-     elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
-     &        '1p,6(e25.16),0p,2F6.2)'
-  ELSEIF(eltype .eq. 'EQU')THEN 
-     cnvele(6)=princ(cnvele(6))
-     cnvele(6)=cnvele(6)*degrad 
-     elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
-     &        'F16.12,4(1x,f12.9),1x,F12.7,'//                      &
-     &        '2F6.2)'                                                  
-  ELSEIF(eltype.eq.'ATT')THEN
-     WRITE(*,*)' wro1lr: warning, the ATT elelments in  this format have no station code '
-     cnvele(1:4)=cnvele(1:4)*degrad
-     elefmt='('''''''',A,'''''''',A,F13.6,'//                       &
-     &        '1p,6(e25.16),'//                                     &
-     &        '0p,2F6.2)'  
-  ELSE 
-     WRITE(*,*)'*** wro1lr: unsupported coordinate type', eltype
-     STOP '*** wro1lr: unsupported coordinate type' 
-  ENDIF
-! Write                                                                 
-  IF(h.GT.-100.d0) THEN 
-     WRITE(unit,elefmt) name(1:ln),blanks(1:nb),t0,cnvele,h,g 
-  ELSE 
-     WRITE(unit,elefmt) name(1:ln),blanks(1:nb),t0,cnvele 
-  ENDIF                                                                      
-END SUBROUTINE wro1lr
+  IF(n_dp.EQ.2) THEN
+     WRITE(unit,600) name(1:ln),blanks(1:nb),n_mod,n_dp,ngr_par
+600  FORMAT('''',A,'''',A,2X,I2,3X,I2,1P,2E22.14)
+  ELSE IF(n_dp.EQ.3) THEN
+     WRITE(unit,601) name(1:ln),blanks(1:nb),n_mod,n_dp,ngr_par
+601  FORMAT('''',A,'''',A,2X,I2,3X,I2,1P,3E22.14)
+  ELSE IF(n_dp.EQ.4) THEN
+     WRITE(unit,602) name(1:ln),blanks(1:nb),n_mod,n_dp,ngr_par
+602  FORMAT('''',A,'''',A,2X,I2,3X,I2,1P,4E22.14)
+  ELSE IF(n_dp.EQ.1) THEN
+     WRITE(unit,603) name(1:ln),blanks(1:nb),n_mod,n_dp,ngr_par
+603  FORMAT('''',A,'''',A,2X,I2,3X,I2,1P,E22.14)
+  ELSE
+     WRITE(*,*) 'wro1lr_ngr: n_dp, wrong value ', n_dp
+     STOP
+  END IF
+END SUBROUTINE wro1lr_ngr
+
+
 ! Copyright (C) 1997-2000 by Mario Carpino (carpino@brera.mi.astro.it)  
 ! Version: June 7, 2000                                                 
 ! --------------------------------------------------------------------- 
@@ -1394,6 +1137,7 @@ END SUBROUTINE wro1lr
 SUBROUTINE outele(unit,elem,eltype,t0,label,multi,stdout) 
   USE fund_const
   IMPLICIT NONE                                                             
+
   INTEGER unit 
   DOUBLE PRECISION elem(6),t0 
   CHARACTER*(*) eltype,label 
@@ -1403,8 +1147,9 @@ SUBROUTINE outele(unit,elem,eltype,t0,label,multi,stdout)
   DOUBLE PRECISION hour
   INTEGER lench 
   CHARACTER*3 chmon 
+
   EXTERNAL lench,chmon
-  ll=lench(label)                                                       
+  ll=lench(label)                                                      
   IF(multi .AND. (ll.GT.0)) THEN 
      IF(unit.GT.0) WRITE(unit,133) label(1:ll) 
      IF(stdout) WRITE(*,133) label(1:ll) 
@@ -1414,12 +1159,12 @@ SUBROUTINE outele(unit,elem,eltype,t0,label,multi,stdout)
      IF(multi) THEN 
         IF(unit.GT.0) WRITE(unit,100) elem(1),elem(2),(elem(i)*degrad,i=3,6)
         IF(stdout) WRITE(*,100) elem(1),elem(2),(elem(i)*degrad,i=3,6)   
-100     FORMAT(8X,'Semimajor axis     =',1P,E23.14,0P,' AU'/          &
-         &       8X,'Eccentricity       =',F20.15/                    &
-         &       8X,'Inclination        =',F18.13,' deg'/             &
-         &       8X,'Long. of node      =',F18.13,' deg'/             &
-         &       8X,'Arg. of pericenter =',F18.13,' deg'/             &
-         &       8X,'Mean anomaly       =',F18.13,' deg')  
+100     FORMAT(8X,'Semimajor axis     =',1P,E24.16,0P,' au'/          &
+             &       8X,'Eccentricity       =',F20.15/                    &
+             &       8X,'Inclination        =',F18.13,' deg'/             &
+             &       8X,'Long. of node      =',F18.13,' deg'/             &
+             &       8X,'Arg. of pericenter =',F18.13,' deg'/             &
+             &       8X,'Mean anomaly       =',F18.13,' deg')  
      ELSE 
         IF(ll.GT.0) THEN 
            IF(unit.GT.0) WRITE(unit,120) label(1:ll),elem(1),elem(2),(elem(i)*degrad,i=3,6),t0
@@ -1427,20 +1172,20 @@ SUBROUTINE outele(unit,elem,eltype,t0,label,multi,stdout)
         ELSE 
            IF(unit.GT.0) WRITE(unit,130) elem(1),elem(2),(elem(i)*degrad,i=3,6),t0
            IF(stdout) WRITE(unit,130) elem(1),elem(2),(elem(i)*degrad,i=3,6),t0
-120 FORMAT(8X,'KepElem(',A,'):',1P,E15.7,0P,F13.8,4F10.5,' (T=',F10.3,')')
-130 FORMAT(8X,'KepElem:',1P,E15.7,0P,F13.8,4F10.5,' (T=',F10.3,')')   
+120        FORMAT(8X,'KepElem(',A,'):',1P,E15.7,0P,F13.8,4F10.5,' (T=',F10.3,')')
+130        FORMAT(8X,'KepElem:',1P,E15.7,0P,F13.8,4F10.5,' (T=',F10.3,')')   
         END IF
      END IF
   ELSEIF(eltype.EQ.'COM') THEN 
      IF(multi) THEN 
         IF(unit.GT.0) WRITE(unit,104) elem(1),elem(2),(elem(i)*degrad,i=3,5),elem(6)      
         IF(stdout) WRITE(*,104) elem(1),elem(2),(elem(i)*degrad,i=3,5),elem(6) 
-104     FORMAT(8X,'Pericenter distance  =',1P,E23.14,0P,' AU'/        &
-         &       8X,'Eccentricity       =',F20.15/                    &
-         &       8X,'Inclination        =',F18.13,' deg'/             &
-         &       8X,'Long. of node      =',F18.13,' deg'/             &
-         &       8X,'Arg. of pericenter =',F18.13,' deg'/             &
-         &       8X,'Time of pericenter =',F18.13,' MJD')  
+104     FORMAT(8X,'Pericenter distance  =',1P,E23.14,0P,' au'/        &
+             &       8X,'Eccentricity       =',F20.15/                    &
+             &       8X,'Inclination        =',F18.13,' deg'/             &
+             &       8X,'Long. of node      =',F18.13,' deg'/             &
+             &       8X,'Arg. of pericenter =',F18.13,' deg'/             &
+             &       8X,'Time of pericenter =',F18.13,' MJD')  
      ELSE 
         IF(ll.GT.0) THEN 
            IF(unit.GT.0) WRITE(unit,124) label(1:ll),elem(1),elem(2),(elem(i)*degrad,i=3,6),t0
@@ -1448,20 +1193,20 @@ SUBROUTINE outele(unit,elem,eltype,t0,label,multi,stdout)
         ELSE 
            IF(unit.GT.0) WRITE(unit,134) elem(1),elem(2),(elem(i)*degrad,i=3,6),t0
            IF(stdout) WRITE(unit,134) elem(1),elem(2),(elem(i)*degrad,i=3,6),t0 
-124 FORMAT(8X,'ComElem(',A,'):',1P,E15.7,0P,F13.8,3F10.5,F13.6,' (T=',F10.3,')')
-134 FORMAT(8X,'ComElem:',1P,E15.7,0P,F13.8,3F10.5,F13.6,' (T=',F10.3,')')   
+124        FORMAT(8X,'ComElem(',A,'):',1P,E15.7,0P,F13.8,3F10.5,F13.6,' (T=',F10.3,')')
+134        FORMAT(8X,'ComElem:',1P,E15.7,0P,F13.8,3F10.5,F13.6,' (T=',F10.3,')')   
         END IF
      END IF
   ELSEIF(eltype.EQ.'EQU') THEN 
      IF(multi) THEN 
         IF(unit.GT.0) WRITE(unit,101) (elem(i),i=1,5),elem(6)*degrad   
         IF(stdout) WRITE(*,101) (elem(i),i=1,5),elem(6)*degrad
-101     FORMAT(8X,'Semimajor axis     =',1P,E23.14,0P,' AU'/     &
-         &       8X,'h [e*sin(w)]       =',F20.15/                   &
-         &       8X,'k [e*cos(w)]       =',F20.15/                   &
-         &       8X,'P [tg(i/2)*sin(N)] =',F20.15/                   &
-         &       8X,'Q [tg(i/2)*cos(N)] =',F20.15/                   &
-         &       8X,'Mean longitude     =',F18.13,' deg')   
+101     FORMAT(8X,'Semimajor axis     =',1P,E23.14,0P,' au'/     &
+             &       8X,'h [e*sin(w)]       =',F20.15/                   &
+             &       8X,'k [e*cos(w)]       =',F20.15/                   &
+             &       8X,'P [tg(i/2)*sin(N)] =',F20.15/                   &
+             &       8X,'Q [tg(i/2)*cos(N)] =',F20.15/                   &
+             &       8X,'Mean longitude     =',F18.13,' deg')   
      ELSE 
         IF(ll.GT.0) THEN 
            IF(unit.GT.0) WRITE(unit,121) label(1:ll),(elem(i),i=1,5),elem(6)*degrad,t0       
@@ -1469,16 +1214,16 @@ SUBROUTINE outele(unit,elem,eltype,t0,label,multi,stdout)
         ELSE 
            IF(unit.GT.0) WRITE(unit,131) (elem(i),i=1,5),elem(6)*degrad,t0  
            IF(stdout) WRITE(*,131) (elem(i),i=1,5),elem(6)*degrad,t0
-121 FORMAT(8X,'EQUElem(',A,'):',1P,E15.7,0P,4F13.8,F10.5,' (T=',F10.3,')')
-131 FORMAT(8X,'EQUElem:',1P,E15.7,0P,4F13.8,F10.5,' (T=',F10.3,')')      
+121        FORMAT(8X,'EQUElem(',A,'):',1P,E15.7,0P,4F13.8,F10.5,' (T=',F10.3,')')
+131        FORMAT(8X,'EQUElem:',1P,E15.7,0P,4F13.8,F10.5,' (T=',F10.3,')')      
         END IF
      END IF
   ELSEIF(eltype.EQ.'CAR') THEN 
      IF(multi) THEN 
         IF(unit.GT.0) WRITE(unit,102) elem 
         IF(stdout) WRITE(*,102) elem 
-102 FORMAT(8X,'Position vector   =',1X,1P,3E22.14,' AU'/              &
-     &       8X,'Velocity vector   =',1X,3E22.14,' AU/d') 
+102     FORMAT(8X,'Position vector   =',1X,1P,3E22.14,' au'/              &
+             &       8X,'Velocity vector   =',1X,3E22.14,' au/d') 
      ELSE 
         IF(ll.GT.0) THEN 
            IF(unit.GT.0) WRITE(unit,122) label(1:ll),elem,t0 
@@ -1486,16 +1231,29 @@ SUBROUTINE outele(unit,elem,eltype,t0,label,multi,stdout)
         ELSE 
            IF(unit.GT.0) WRITE(unit,132) elem,t0 
            IF(stdout) WRITE(*,132) elem,t0 
-122 FORMAT(8X,'PosVel(',A,'):',1P,6E15.7,' (T=',F10.3,')') 
-132 FORMAT(8X,'PosVel:',1P,6E15.7,' (T=',F10.3,')')  
+122        FORMAT(8X,'PosVel(',A,'):',1P,6E15.7,' (T=',F10.3,')') 
+132        FORMAT(8X,'PosVel:',1P,6E15.7,' (T=',F10.3,')')  
         END IF
      END IF
   ELSE 
      lt=lench(eltype) 
      WRITE(*,200) eltype(1:lt) 
-200 FORMAT('ERROR: unknown type "',A,'" of orbital elements') 
+200  FORMAT('ERROR: unknown type "',A,'" of orbital elements') 
      STOP '**** outele: unknown type of orbital elements ****' 
   END IF
+! Write non-grav parameters (if any)
+!  IF(n_mod.GT.0.AND.multi.AND.PRESENT(ngropt).AND..NOT.ngropt)THEN
+!  IF(n_mod.GT.0.AND.multi)THEN
+!     IF(unit.GT.0) THEN
+!        WRITE(unit,140) ngr_par(1:n_dp)
+!     END IF
+!     IF(stdout) THEN
+!        WRITE(unit,140) ngr_par(1:n_dp)
+!     END IF
+!140  FORMAT('Non-gravitational perturbations: '/   &
+!          & 8X, 'A/M  = ',1X,1P,E22.14,' m^2/ton'/ &
+!          & 8X, ' A2  = ',1X,1P,E22.14,' 10^(-10) au/d^2')
+!  END IF
   IF(multi) THEN 
      CALL mjddat(t0,day,month,year,hour) 
      cm=chmon(month) 
@@ -1504,6 +1262,159 @@ SUBROUTINE outele(unit,elem,eltype,t0,label,multi,stdout)
 110  FORMAT(8X,'Epoch of elements  : MJD',F17.8,' TDT (',A,I3,',',I5,',',F10.6,' h)')  
   END IF
 END SUBROUTINE outele
+
+! Copyright (C) 1997-2000 by Mario Carpino (carpino@brera.mi.astro.it)  
+! Version: June 7, 2000                                                 
+! --------------------------------------------------------------------- 
+!                                                                       
+!  *****************************************************************    
+!  *                                                               *    
+!  *                         O U T E L E                           *    
+!  *                                                               *    
+!  *           Verbose output of a set orbital elements            *    
+!  *                       to a report file                        *    
+!  *                                                               *    
+!  *****************************************************************    
+!                                                                       
+! INPUT:    UNIT      -  Output FORTRAN unit (report file)              
+!           ELEM      -  Orbital elements (ECLM J2000)                  
+!           ELTYPE    -  Type of orbital elements (EQU/KEP/CAR)         
+!           T0        -  Epoch of orbital elements (MJD, TDT)           
+!           LABEL     -  Label                                          
+!           MULTI     -  Multi-line output                              
+!           STDOUT    -  Standard output                                
+!                                                                       
+SUBROUTINE outele_ngr(unit,elem,eltype,t0,label,multi,stdout,n_mod,n_dp,ngr_par,ngropt) 
+  USE fund_const
+  IMPLICIT NONE                                                             
+
+  INTEGER unit 
+  DOUBLE PRECISION elem(6),t0 
+  CHARACTER*(*) eltype,label 
+  LOGICAL multi,stdout
+  INTEGER lt,i,day,month,year,ll 
+  CHARACTER cm*3 
+  DOUBLE PRECISION hour
+  INTEGER lench 
+  CHARACTER*3 chmon 
+! Non-gravitational parameters
+  INTEGER,          INTENT(IN) :: n_mod, n_dp
+  DOUBLE PRECISION, INTENT(IN) :: ngr_par(n_dp)  
+  LOGICAL,          INTENT(IN) :: ngropt
+  EXTERNAL lench,chmon
+  ll=lench(label)                                                      
+  IF(multi .AND. (ll.GT.0)) THEN 
+     IF(unit.GT.0) WRITE(unit,133) label(1:ll) 
+     IF(stdout) WRITE(*,133) label(1:ll) 
+133  FORMAT(8X,'Orbital elements for ',A,':') 
+  END IF
+  IF(eltype.EQ.'KEP') THEN 
+     IF(multi) THEN 
+        IF(unit.GT.0) WRITE(unit,100) elem(1),elem(2),(elem(i)*degrad,i=3,6)
+        IF(stdout) WRITE(*,100) elem(1),elem(2),(elem(i)*degrad,i=3,6)   
+100     FORMAT(8X,'Semimajor axis     =',1P,E24.16,0P,' au'/          &
+             &       8X,'Eccentricity       =',F20.15/                    &
+             &       8X,'Inclination        =',F18.13,' deg'/             &
+             &       8X,'Long. of node      =',F18.13,' deg'/             &
+             &       8X,'Arg. of pericenter =',F18.13,' deg'/             &
+             &       8X,'Mean anomaly       =',F18.13,' deg')  
+     ELSE 
+        IF(ll.GT.0) THEN 
+           IF(unit.GT.0) WRITE(unit,120) label(1:ll),elem(1),elem(2),(elem(i)*degrad,i=3,6),t0
+           IF(stdout) WRITE(*,120) label(1:ll),elem(1),elem(2),(elem(i)*degrad,i=3,6),t0     
+        ELSE 
+           IF(unit.GT.0) WRITE(unit,130) elem(1),elem(2),(elem(i)*degrad,i=3,6),t0
+           IF(stdout) WRITE(unit,130) elem(1),elem(2),(elem(i)*degrad,i=3,6),t0
+120        FORMAT(8X,'KepElem(',A,'):',1P,E15.7,0P,F13.8,4F10.5,' (T=',F10.3,')')
+130        FORMAT(8X,'KepElem:',1P,E15.7,0P,F13.8,4F10.5,' (T=',F10.3,')')   
+        END IF
+     END IF
+  ELSEIF(eltype.EQ.'COM') THEN 
+     IF(multi) THEN 
+        IF(unit.GT.0) WRITE(unit,104) elem(1),elem(2),(elem(i)*degrad,i=3,5),elem(6)      
+        IF(stdout) WRITE(*,104) elem(1),elem(2),(elem(i)*degrad,i=3,5),elem(6) 
+104     FORMAT(8X,'Pericenter distance  =',1P,E23.14,0P,' au'/        &
+             &       8X,'Eccentricity       =',F20.15/                    &
+             &       8X,'Inclination        =',F18.13,' deg'/             &
+             &       8X,'Long. of node      =',F18.13,' deg'/             &
+             &       8X,'Arg. of pericenter =',F18.13,' deg'/             &
+             &       8X,'Time of pericenter =',F18.13,' MJD')  
+     ELSE 
+        IF(ll.GT.0) THEN 
+           IF(unit.GT.0) WRITE(unit,124) label(1:ll),elem(1),elem(2),(elem(i)*degrad,i=3,6),t0
+           IF(stdout) WRITE(*,124) label(1:ll),elem(1),elem(2),(elem(i)*degrad,i=3,6),t0     
+        ELSE 
+           IF(unit.GT.0) WRITE(unit,134) elem(1),elem(2),(elem(i)*degrad,i=3,6),t0
+           IF(stdout) WRITE(unit,134) elem(1),elem(2),(elem(i)*degrad,i=3,6),t0 
+124        FORMAT(8X,'ComElem(',A,'):',1P,E15.7,0P,F13.8,3F10.5,F13.6,' (T=',F10.3,')')
+134        FORMAT(8X,'ComElem:',1P,E15.7,0P,F13.8,3F10.5,F13.6,' (T=',F10.3,')')   
+        END IF
+     END IF
+  ELSEIF(eltype.EQ.'EQU') THEN 
+     IF(multi) THEN 
+        IF(unit.GT.0) WRITE(unit,101) (elem(i),i=1,5),elem(6)*degrad   
+        IF(stdout) WRITE(*,101) (elem(i),i=1,5),elem(6)*degrad
+101     FORMAT(8X,'Semimajor axis     =',1P,E23.14,0P,' au'/     &
+             &       8X,'h [e*sin(w)]       =',F20.15/                   &
+             &       8X,'k [e*cos(w)]       =',F20.15/                   &
+             &       8X,'P [tg(i/2)*sin(N)] =',F20.15/                   &
+             &       8X,'Q [tg(i/2)*cos(N)] =',F20.15/                   &
+             &       8X,'Mean longitude     =',F18.13,' deg')   
+     ELSE 
+        IF(ll.GT.0) THEN 
+           IF(unit.GT.0) WRITE(unit,121) label(1:ll),(elem(i),i=1,5),elem(6)*degrad,t0       
+           IF(stdout) WRITE(*,121) label(1:ll),(elem(i),i=1,5),elem(6)*degrad,t0             
+        ELSE 
+           IF(unit.GT.0) WRITE(unit,131) (elem(i),i=1,5),elem(6)*degrad,t0  
+           IF(stdout) WRITE(*,131) (elem(i),i=1,5),elem(6)*degrad,t0
+121        FORMAT(8X,'EQUElem(',A,'):',1P,E15.7,0P,4F13.8,F10.5,' (T=',F10.3,')')
+131        FORMAT(8X,'EQUElem:',1P,E15.7,0P,4F13.8,F10.5,' (T=',F10.3,')')      
+        END IF
+     END IF
+  ELSEIF(eltype.EQ.'CAR') THEN 
+     IF(multi) THEN 
+        IF(unit.GT.0) WRITE(unit,102) elem 
+        IF(stdout) WRITE(*,102) elem 
+102     FORMAT(8X,'Position vector   =',1X,1P,3E22.14,' au'/              &
+             &       8X,'Velocity vector   =',1X,3E22.14,' au/d') 
+     ELSE 
+        IF(ll.GT.0) THEN 
+           IF(unit.GT.0) WRITE(unit,122) label(1:ll),elem,t0 
+           IF(stdout) WRITE(*,122) label(1:ll),elem,t0 
+        ELSE 
+           IF(unit.GT.0) WRITE(unit,132) elem,t0 
+           IF(stdout) WRITE(*,132) elem,t0 
+122        FORMAT(8X,'PosVel(',A,'):',1P,6E15.7,' (T=',F10.3,')') 
+132        FORMAT(8X,'PosVel:',1P,6E15.7,' (T=',F10.3,')')  
+        END IF
+     END IF
+  ELSE 
+     lt=lench(eltype) 
+     WRITE(*,200) eltype(1:lt) 
+200  FORMAT('ERROR: unknown type "',A,'" of orbital elements') 
+     STOP '**** outele: unknown type of orbital elements ****' 
+  END IF
+! Write non-grav parameters (if any)
+  IF(n_mod.GT.0.AND..NOT.ngropt)THEN
+     IF(unit.GT.0) THEN
+        WRITE(unit,140) ngr_par(1:n_dp)
+     END IF
+     IF(stdout) THEN
+        WRITE(unit,140) ngr_par(1:n_dp)
+     END IF
+140  FORMAT('Non-gravitational perturbations: '/   &
+          & 8X, 'A/M  = ',1X,1P,E22.14,' m^2/ton'/ &
+          & 8X, ' A2  = ',1X,1P,E22.14,' 10^(-10) au/d^2')
+  END IF
+  IF(multi) THEN 
+     CALL mjddat(t0,day,month,year,hour) 
+     cm=chmon(month) 
+     WRITE(unit,110) t0,cm,day,year,hour 
+     IF(stdout) WRITE(*,110) t0,cm,day,year,hour 
+110  FORMAT(8X,'Epoch of elements  : MJD',F17.8,' TDT (',A,I3,',',I5,',',F10.6,' h)')  
+  END IF
+END SUBROUTINE outele_ngr
+
 ! Copyright (C) 1997-1998 by Mario Carpino (carpino@brera.mi.astro.it)  
 ! Version: June 21, 1998                                                
 ! --------------------------------------------------------------------- 
@@ -1536,7 +1447,7 @@ SUBROUTINE wromlh(unit,rsys,epoch)
   bl=' '                                                                       
   WRITE(unit,100) comcha,comcha,rsys(1:l1),epoch(1:l2),             &
      &                bl(1:nb),comcha                                   
-100 FORMAT('format  = ''OEF1.1''       ',A,' file format'/            &
+100 FORMAT('format  = ''OEF2.0''       ',A,' file format'/            &
      &       'rectype = ''ML''           ',A,' record type (1L/ML)'/    &
      &       'refsys  = ',A,1X,A,A,A,' default reference system'/       &
      &       'END_OF_HEADER')   
@@ -1670,3 +1581,5 @@ SUBROUTINE fixcnm(defcov,defnor,defcn,cove,nore)
    defcov=.false. 
    defnor=.false. 
 END SUBROUTINE fixcnm
+
+

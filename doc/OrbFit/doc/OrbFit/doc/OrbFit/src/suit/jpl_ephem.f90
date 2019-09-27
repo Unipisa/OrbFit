@@ -26,10 +26,15 @@
 !  the subroutine also sets the values of  nrecl, nrfile, and namfil.   
                                                                         
 ! changed by sabrina baccili on Wed Oct 30                              
-!      save                                                             
-                                                                        
+!      save   
+! changed by F.Spoto on 2014 Aug 7 for compatibility with DE431 
+! (see /orbfit/current/src/jpleph/testeph.f90) 
       implicit double precision(a-h,o-z) 
-      character*6 ttl(14,3),cnam(400) 
+      INTEGER oldmax
+      PARAMETER (oldmax = 400) 
+      INTEGER nmax 
+      PARAMETER (nmax = 1000)
+      character*6 ttl(14,3),cnam(1000) 
       character*(*) namfil 
       character*150 namtmp 
       logical found 
@@ -96,8 +101,9 @@
      &       status='old',                                              &
      &       err=10)                                                    
                                                                         
-      read(nrfile,rec=1)ttl,cnam,ss,ncon,au,emrat,ipt,numde,lpt 
-                                                                        
+      read(nrfile,rec=1)ttl,(cnam(k),k=1,oldmax),ss,ncon,au,emrat,ipt,numde,lpt 
+      WRITE(*,155) numde
+155   FORMAT(' JPL planetary ephemerides DE',I3)
       close(nrfile) 
                                                                         
 !  find the number of ephemeris coefficients from the pointers          
@@ -406,8 +412,14 @@
 !                                                                       
 !                                                                       
 ! change by A.Milani and Z. Knezevic, March 10, 1998, for compatibility 
-! Lahey compiler                                                        
+! Lahey compiler
+! change by F.Spoto, 2014 Aug 7, for compatibility with DE431
+! (see /orbfit/current/src/jpleph/testeph.f90) 
       IMPLICIT NONE 
+      integer oldmax 
+      PARAMETER ( oldmax = 400) 
+      INTEGER namx 
+      PARAMETER ( namx = 1000) 
       DOUBLE PRECISION  et2(2),pv(6,12),pnut(4),t(2),pjd(4),buf(1500) 
       integer list(12) 
       logical first 
@@ -417,7 +429,7 @@
 ! variable declared for implicit none                                   
       INTEGER istate 
       INTEGER nrecl, ksize, nrfile, irecsz, ncoeffs, numde, nrl 
-      INTEGER i, j, nr, k 
+      INTEGER i, j, nr, k, l
       DOUBLE PRECISION s, aufac 
 !                                                                       
       include 'jplhdr.h90' 
@@ -437,7 +449,7 @@
                                                                         
 ! **********************************************************************
                                                                         
-!        call fszer1(nrecl,ksize,nrfile,namfil)                         
+!        call fszer1(nrecl,ksize,nrfile,namfil) 
          call fszer2(nrecl,ksize,nrfile,namfil) 
 !        call fszer3(nrecl,ksize,nrfile,namfil)                         
                                                                         
@@ -457,10 +469,16 @@
      &       status='old',                                              &
      &       err=10)                                                    
                                                                         
-      read(nrfile,rec=1)ttl,cnam,ss,ncon,au,emrat,                      &
-     & ((ipt(i,j),i=1,3),j=1,12),numde,lpt                              
-                                                                        
-      read(nrfile,rec=2)cval 
+      read(nrfile,rec=1)ttl,(cnam(k),k=1,oldmax),ss,ncon,au,emrat,                      &
+     & ((ipt(i,j),i=1,3),j=1,12),numde,lpt,(cnam(l),l=401,ncon)                              
+      
+      IF(ncon.le.oldmax)THEN 
+        READ(nrfile,rec=2)(cval(i),i=1,oldmax) 
+      ELSE 
+        READ(nrfile,rec=2)(cval(i),i=1,ncon) 
+      ENDIF
+                                                                  
+      !read(nrfile,rec=2)cval 
                                                                         
       do i=1,3 
       ipt(i,13)=lpt(i) 

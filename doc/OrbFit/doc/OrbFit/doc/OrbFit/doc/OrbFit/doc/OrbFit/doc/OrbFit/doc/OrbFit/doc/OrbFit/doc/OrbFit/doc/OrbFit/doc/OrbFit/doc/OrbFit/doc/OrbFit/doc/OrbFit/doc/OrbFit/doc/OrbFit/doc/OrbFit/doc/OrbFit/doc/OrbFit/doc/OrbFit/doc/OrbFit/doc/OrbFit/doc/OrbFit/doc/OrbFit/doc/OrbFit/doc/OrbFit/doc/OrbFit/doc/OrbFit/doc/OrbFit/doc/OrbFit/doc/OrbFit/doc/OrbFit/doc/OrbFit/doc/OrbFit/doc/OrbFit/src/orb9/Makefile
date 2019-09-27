@@ -1,9 +1,7 @@
 include ../make.flags
 include modules.flags
 
-all: giffv.x conv9.x prop_tax.x propsynt3big.x propsyntwoway.x prop9.x  inbaric.x inbarmerc.x orbit9.x propert3.x orbselect.x secre9.x
-
-test: merg.x magn.x mergt.x selext.x selextt.x purge.x orbit9t.x secre9.x
+all: giffv.x conv9.x prop_class.x prop_tax.x propsynt3big.x propsyntwoway.x prop9.x  inbaric.x inbarmerc.x orbit9.x orbit9t.x propert3.x orbselect.x secre9.x purge.x merg.x mergt.x selextt.x selext.x magn.x mergsec.x splitsec.x extract_sec.x
 
 #packages
 
@@ -37,14 +35,17 @@ conv9.x: conv9.o jobinp9.o $(LIB9) $(LIBDEPS)
 prop_tax.x: prop_tax.o propel_mod.o $(LIBDEPS)
 	$(FC)  $(FFLAGS) prop_tax.o propel_mod.o $(LIBDEPS) -o prop_tax.x
 
-propsynt3big.x: propsyntbig.o inptro.o synthcomp.o \
+prop_class.x: prop_class.o propel_mod.o $(LIBDEPS)
+	$(FC)  $(FFLAGS) prop_class.o propel_mod.o $(LIBDEPS) -o prop_class.x
+
+propsynt3big.x: propsyntbig.o inptro.o synthcomp.o fir_filters.o \
         $(LIB9) ../lib/libsuit.a 
-	$(FC) $(FFLAGS) propsyntbig.o inptro.o synthcomp.o \
+	$(FC) $(FFLAGS) propsyntbig.o inptro.o synthcomp.o fir_filters.o \
 	$(LIB9) -L../lib/ -lsuit -lprop  -o propsynt3big.x
 
-propsyntwoway.x: propsyntwo.o inptwoway.o synthcomp.o \
+propsyntwoway.x: propsyntwo.o inptwoway.o synthcomp.o fir_filters.o \
 	$(LIB9) $(LIBDEPS)
-	$(FC) $(FFLAGS) propsyntwo.o inptwoway.o synthcomp.o \
+	$(FC) $(FFLAGS) propsyntwo.o inptwoway.o synthcomp.o fir_filters.o \
 	$(LIB9) $(LIBDEPS) -o propsyntwoway.x
 
 propert3.x: propert.o $(LIB9) synthtro.o propasub.o smallsubsn.o \
@@ -82,8 +83,20 @@ inbarmerc.x: inbarmerc.o subdates.o epsi.o $(LIB9)  $(LIBDEPS)
 orbselect.x: orbselect.o  ../lib/libsuit.a 
 	$(FC) $(FFLAGS) orbselect.o  -L../lib/ -lsuit -o orbselect.x
 
+mergsec.x: mergsec.o ../lib/libsuit.a
+	$(FC) $(FFLAGS) mergsec.o -L../lib/ -lsuit -o mergsec.x
+
+splitsec.x: splitsec.o ../lib/libsuit.a
+	$(FC) $(FFLAGS) splitsec.o -L../lib/ -lsuit -o splitsec.x
+
+extract_sec.x: extract_sec.o ../lib/libsuit.a
+	$(FC) $(FFLAGS) extract_sec.o -L../lib/ -lsuit -o extract_sec.x
+
 merg.x: merg.o ../lib/libsuit.a
 	$(FC) $(FFLAGS) merg.o -L../lib/ -lsuit -o merg.x
+
+mergmult.x: mergmult.o ../lib/libsuit.a
+	$(FC) $(FFLAGS) mergmult.o -L../lib/ -lsuit -o mergmult.x
 
 mergt.x: mergt.o ../lib/libsuit.a
 	$(FC) $(FFLAGS) mergt.o -L../lib/ -lsuit -o mergt.x

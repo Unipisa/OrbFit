@@ -4,11 +4,9 @@ include modules.flags
 all: orbfit.x
 
 # Auxiliary routines (internal to orbfit)
-ORBAUX=rdopt_of.o srtobs.o seltid.o ustsp.o \
-       ofiobs.o ofiorb.o ofinod.o ofofit.o ofiden.o ofephe.o ofprop.o \
-       ofinip.o ofclrf.o
+ORBAUX=ofod.o rdopt_of.o srtobs.o seltid.o ustsp.o ofclrf.o
 
-ORBFIT=orbfit.o $(ORBAUX)
+ORBFIT=$(ORBAUX) orbfit.o 
 
 ORBFITDEPS=$(ORBFIT) ../lib/libprop.a ../lib/libmoid.a ../lib/libgauss.a ../lib/libsuit.a
 

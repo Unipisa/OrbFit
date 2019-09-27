@@ -47,10 +47,10 @@ PROGRAM magn
   CALL rmsp(name1,l)
   ! for tno-numbered
   !          int=100
-  ! for tno-multiopposition
-  !          int=10
+  ! for tno-multiopposition and secular resonant
+  int=10
   ! for the outer main belt
-  int=2 
+  !          int=2 
   ! write the line of output                                              
   DO i=1,imax-1
      IF(name1.eq.name(i))THEN

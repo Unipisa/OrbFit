@@ -25,7 +25,6 @@ CONTAINS
 
 ! Transformation of geodetic coordinates into cartesian
 SUBROUTINE geodetic_to_cartesian(longitude,latitude,altitude,x)
-IMPLICIT NONE
 
 DOUBLE PRECISION,               INTENT(IN)  :: longitude   ! geodetic longitude (positive east, rad)
 DOUBLE PRECISION,               INTENT(IN)  :: latitude    ! geodetic latitude (rad)
@@ -44,7 +43,6 @@ END SUBROUTINE geodetic_to_cartesian
 ! Transformation of cartesian coordinates into geodetic
 SUBROUTINE cartesian_to_geodetic(x,longitude,latitude,altitude,vertical)
 USE fund_const
-IMPLICIT NONE
 
 DOUBLE PRECISION, DIMENSION(3), INTENT(IN)            :: x           ! cartesian coordinates (m)
 DOUBLE PRECISION,               INTENT(OUT)           :: longitude   ! geodetic longitude (positive east, rad)
@@ -76,6 +74,24 @@ IF(delth > 1.d-2) THEN
    WRITE(ierrou,*) 'cartesian_to_geodetic: not converged; DELTH= ',delth
 END IF
 altitude=h
+IF(sinfi.gt.1.d0)THEN
+   write(*,*)'sinfi=',sinfi
+   IF(sinfi.lt.1.d0+10.d0*epsilon(1.d0))THEN
+      sinfi=1.d0
+   ELSE
+      write(ierrou,*)'oss_dif2: error! sinfi=',sinfi
+      numerr=numerr+1
+   ENDIF
+ENDIF
+IF(sinfi.lt.-1.d0)THEN
+   write(*,*)'sinfi=',sinfi
+   IF(sinfi.gt.-1.d0-10.d0*epsilon(1.d0))THEN
+      sinfi=-1.d0
+   ELSE
+      write(ierrou,*)'oss_dif2: error! sinfi=',sinfi 
+      numerr=numerr+1
+   ENDIF
+ENDIF
 latitude=ASIN(sinfi)
 longitude=ATAN2(x(2),x(1))
 IF(longitude < 0.d0) longitude=dpig+longitude
@@ -102,103 +118,117 @@ END SUBROUTINE cartesian_to_geodetic
 !
 ! INPUT:    IDOBS     -  Identifier of the observatory (0-999)
 !
-! OUTPUT:   XBF(3)    -  Body-fixed position of the observatory (AU)
+! OUTPUT:   XBF(3)    -  Body-fixed position of the observatory (au)
 !           NAME      -  Name of the observatory
+!           SHIFTST   -  Fraction of day after GMT
 !
-      SUBROUTINE obscoo(idobs,xbf,name)
-      USE fund_const
-      implicit none
-
-      integer lnobnx
-      parameter (lnobnx=47)
-
+SUBROUTINE obscoo(idobs,xbf,name, shiftst)
+  USE fund_const
+! NEEDED common blocks:                                                 
+  INCLUDE 'comlib.h90'
+  integer lnobnx
+  parameter (lnobnx=47)
 ! INPUT
-      integer idobs
+  integer, intent(in):: idobs
 ! OUTPUT
-      double precision xbf(3)
-      character*(*) name
-!
-      integer ns1,ns2
-      parameter (ns1=0,ns2=6200)
-
-!      double precision eradkm,eradau ! Earth radius in km, in AU
-!      parameter (eradkm=6378.137d0)
-! ALL THIS FROM fund_const.mod
-      double precision al1,pxy1,pz1,xbfv(3,ns1:ns2)
-      integer unit,i,k
-      character*3 ocod
-      character*(lnobnx) name1,namev(ns1:ns2)
-      character*80 rec
-      logical first,loaded(ns1:ns2)
-      save first,loaded,xbfv,namev!,eradau
-      data first/.true./
-
-      if(first)then
-!          eradau=eradkm/aukm
+  double precision, intent(out) :: xbf(3)
+  character*(*), intent(out) :: name
+! OPTIONAL
+  double precision, intent(out), optional :: shiftst
+! END INTERFACE
+  integer ns1,ns2
+  parameter (ns1=0,ns2=6200)
+  double precision al1,pxy1,pz1,xbfv(3,ns1:ns2), princ, shiftst_ar(ns1:ns2)
+  integer unit,i,k
+  character*3 ocod
+  character*(lnobnx) name1,namev(ns1:ns2)
+  character*80 rec
+  logical first,loaded(ns1:ns2),found
+  save first,loaded,xbfv,namev!,eradau
+  data first/.true./
+! begin execution
+  if(first)then
 ! Get parallax data from MPC
-          do 1 i=ns1,ns2
-    1     loaded(i)=.false.
-
-          call filopl(unit,'OBSCODE.dat')
-
-    2     continue
-          read(unit,110,end=3)ocod,al1,pxy1,pz1,name1
-          call statcode(ocod,k)
-          if(k.lt.ns1.or.k.gt.ns2)                                      &
-     &        stop ' **** obscoo: observatory code out of range ****'
-          al1=al1*radeg
-          xbfv(1,k)=reau*pxy1*cos(al1)
-          xbfv(2,k)=reau*pxy1*sin(al1)
-          xbfv(3,k)=reau*pz1
-          namev(k)=name1
-          loaded(k)=.true.
-          goto 2
-    3     continue
-
-          call filclo(unit,' ')
-
+     DO i=ns1,ns2
+        loaded(i)=.false.
+     ENDDO
+     call filopl(unit,'OBSCODE.dat')
+2    continue
+     read(unit,110,end=3)ocod,al1,pxy1,pz1,name1
+110  format(a3,f10.5,f8.6,f9.6,a)
+     call statcode(ocod,k)
+     if(k.lt.ns1.or.k.gt.ns2)stop ' **** obscoo: obscode out of range ****'
+     al1=princ(al1*radeg)
+     shiftst_ar(k)=al1/dpig
+     xbfv(1,k)=reau*pxy1*cos(al1)
+     xbfv(2,k)=reau*pxy1*sin(al1)
+     xbfv(3,k)=reau*pz1
+     namev(k)=name1
+     loaded(k)=.true.
+     goto 2
+3    continue
+     call filclo(unit,' ')
+! parallax data for simulations
+     INQUIRE(FILE=libdir(1:lenld)//'OBSCODE_sim.dat',EXIST=found)
+     IF(found)THEN
+        CALL filopl(unit,'OBSCODE_sim.dat')
+22      continue
+        read(unit,110,end=23)ocod,al1,pxy1,pz1,name1
+        call statcode(ocod,k)
+        if(k.lt.ns1.or.k.gt.ns2)stop ' **** obscoo: obscode out of range ****'
+        al1=princ(al1*radeg)
+        shiftst_ar(k)=al1/dpig
+        xbfv(1,k)=reau*pxy1*cos(al1)
+        xbfv(2,k)=reau*pxy1*sin(al1)
+        xbfv(3,k)=reau*pz1
+        namev(k)=name1
+        loaded(k)=.true.
+        goto 22
+23      continue
+        CALL filclo(unit,' ')
+     ENDIF
 !***********************************
 ! Get parallax data for radar sites
-          call filopl(unit,'RADCODE.dat')
-    4     continue
-             read(unit,'(a)',end=5)rec
-             if(rec(1:1).eq.'!'.or.rec(1:1).eq.' ')goto 4
-             read(rec,*)k,al1,pxy1,pz1,name1
-             if(k.lt.ns1.or.k.gt.ns2)                                   &
-     &            stop ' **** obscoo: internal error (11) ****'
-             al1=al1*radeg
-             xbfv(1,k)=1d-10*pxy1*cos(al1)
-             xbfv(2,k)=1d-10*pxy1*sin(al1)
-             xbfv(3,k)=1d-10*pz1
-             namev(k)=name1
-             loaded(k)=.true.
-          goto 4
-    5     call filclo(unit,' ')
+     call filopl(unit,'RADCODE.dat')
+4    continue
+     read(unit,'(a)',end=5)rec
+     if(rec(1:1).eq.'!'.or.rec(1:1).eq.' ')goto 4
+     read(rec,*)k,al1,pxy1,pz1,name1
+     if(k.lt.ns1.or.k.gt.ns2)stop ' **** obscoo: internal error (11) ****'
+     al1=al1*radeg
+     xbfv(1,k)=1d-10*pxy1*cos(al1)
+     xbfv(2,k)=1d-10*pxy1*sin(al1)
+     xbfv(3,k)=1d-10*pz1
+     namev(k)=name1
+     loaded(k)=.true.
+     goto 4
+5    call filclo(unit,' ')
 !***********************************
-
-          first=.false.
-      end if
-  110 format(a3,f10.5,f8.6,f9.6,a)
-
-      if(loaded(idobs)) then
-          do i=1,3
-            xbf(i)=xbfv(i,idobs)
-          enddo
-          name=namev(idobs)
-      else
-          write(*,101)idobs
-  101     format(' obscoo: observatory',i4,                             &
-     &       ' is not listed in file "OBSCODE.dat"')
+     first=.false.
+  end if
+  IF(PRESENT(shiftst)) THEN
+     IF(loaded(idobs)) THEN
+        shiftst=shiftst_ar(idobs)
+     ENDIF
+  ENDIF
+  if(loaded(idobs)) then
+     do i=1,3
+        xbf(i)=xbfv(i,idobs)
+     enddo
+     name=namev(idobs)
+  else
+     write(*,101)idobs
+101  format(' obscoo: observatory',i4,' is not listed in file "OBSCODE.dat"')
 !          stop ' **** obscoo: abnormal end ****'
-          write(ierrou,101)idobs
-          numerr=numerr+1
-          do i=1,3
-            xbf(i)=0.d0
-          enddo
-          name='UNKNOWN'
-      end if
+     write(ierrou,101)idobs
+     numerr=numerr+1
+     do i=1,3
+        xbf(i)=0.d0
+     enddo
+     name='UNKNOWN'
+  end if
 
-      END SUBROUTINE
+END SUBROUTINE obscoo
 ! ==============================================                        
 !  statcode, codestat                                                   
 ! conversion from/to exadecimal to/from numeric code for observing stati

@@ -1,6 +1,3 @@
-! Copyright (C) 1998 by Andrea Milani (milani@dm.unipi.it)
-! Version: October 16, 2007
-! ---------------------------------------------------------------------
-! Default library directory
+! Default documentation directory
 CHARACTER*100 ddocd
-PARAMETER (ddocd=  '/orbfit/current/doc')
+PARAMETER (ddocd=  '/orbfit/orb50/doc')

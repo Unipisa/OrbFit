@@ -234,6 +234,8 @@ prompting.f90:   end subroutine string_prompt
 prompting.f90:end module prompting
 prop9.f90:PROGRAM prop9
 prop9.f90:END PROGRAM prop9
+prop_class.f90:PROGRAM prop_class
+prop_class.f90:END PROGRAM prop_class
 prop_tax.f90:PROGRAM prop_tax
 prop_tax.f90:END PROGRAM prop_tax
 propasub.f90:SUBROUTINE secth(g,s,aj) 
@@ -244,18 +246,21 @@ propasub.f90:SUBROUTINE ferraz(nt,swy,swc,swc2,sws,sws2,swcs,swcy,swsy,swy2,   &
 propasub.f90:END SUBROUTINE ferraz
 propel_mod.f90:MODULE propel_mod
 propel_mod.f90:CONTAINS
+propel_mod.f90: SUBROUTINE input_families(iun,err_line)
+propel_mod.f90:END SUBROUTINE input_families
 propel_mod.f90: SUBROUTINE input_propels(iun,npr,err_line)
 propel_mod.f90: END SUBROUTINE input_propels
-propel_mod.f90:  SUBROUTINE taxostep(ii,pro,nam0,hmag,d_max,iun_out,n1)
+propel_mod.f90:  SUBROUTINE taxostep(ii,pro,nam0,hmag,d_max,n1)
 propel_mod.f90:  CONTAINS
 propel_mod.f90:  SUBROUTINE scan_list(forward)
 propel_mod.f90:  END SUBROUTINE scan_list
 propel_mod.f90:END SUBROUTINE taxostep
 propel_mod.f90:END MODULE propel_mod
 propert.f90:PROGRAM propert 
-propert.f90:END PROGRAM propert
-propert.f90:SUBROUTINE inptro(iun,t,el,nt,na,number)
+propert.f90:CONTAINS
+propert.f90: SUBROUTINE inptro(iun,nt,na)
 propert.f90:END SUBROUTINE inptro
+propert.f90:END PROGRAM propert
 propsyntbig.f90:PROGRAM propsynt 
 propsyntbig.f90: END PROGRAM propsynt
 propsyntwo.f90:PROGRAM propsynt 

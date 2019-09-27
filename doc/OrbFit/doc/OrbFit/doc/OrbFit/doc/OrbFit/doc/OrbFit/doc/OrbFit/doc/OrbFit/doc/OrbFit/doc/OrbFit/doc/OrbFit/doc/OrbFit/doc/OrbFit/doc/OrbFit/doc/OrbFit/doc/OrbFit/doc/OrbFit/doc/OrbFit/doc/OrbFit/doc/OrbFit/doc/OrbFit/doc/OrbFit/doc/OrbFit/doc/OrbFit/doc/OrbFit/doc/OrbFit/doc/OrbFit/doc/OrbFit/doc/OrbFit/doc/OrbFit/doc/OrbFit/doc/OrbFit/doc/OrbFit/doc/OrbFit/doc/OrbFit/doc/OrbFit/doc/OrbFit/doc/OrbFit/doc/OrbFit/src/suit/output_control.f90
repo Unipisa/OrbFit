@@ -6,7 +6,7 @@ integer ipirip
 !   close app. file unit, number close app, error file unit, number of errors
 !   convention: if units are negative, the close app/errors are output
 !   to standard output and the errors are not counted
-integer iuncla,numcla,ierrou,numerr
+integer iuncla,numcla,ierrou,numerr,iwarou,numwar
 ! asteroid name for messages
 CHARACTER*30 name_obj
 INTEGER lobjnam

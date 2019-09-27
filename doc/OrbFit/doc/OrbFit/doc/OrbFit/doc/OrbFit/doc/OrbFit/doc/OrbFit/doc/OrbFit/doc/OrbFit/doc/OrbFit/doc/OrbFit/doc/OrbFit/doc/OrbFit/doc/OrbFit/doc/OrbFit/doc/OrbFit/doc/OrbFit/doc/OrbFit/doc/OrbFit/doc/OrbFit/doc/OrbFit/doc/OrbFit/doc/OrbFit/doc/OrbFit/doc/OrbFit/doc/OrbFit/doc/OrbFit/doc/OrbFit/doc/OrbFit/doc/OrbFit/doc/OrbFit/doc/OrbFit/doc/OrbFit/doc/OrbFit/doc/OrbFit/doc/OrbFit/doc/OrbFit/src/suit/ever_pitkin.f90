@@ -33,7 +33,12 @@ CONTAINS
     r0=vsize(x0)
     sig0=prscal(x0,y0)
     accept=ecc_cont(x0,y0,mu,1.d0,1.d0,ecc,q,energy)
-!    v0=vsize(y0)
+    v0=vsize(y0)
+    IF(r0.eq.0.d0.or.v0.eq.0.d0)THEN
+       WRITE(*,*)' fser_propag: zero radius/velocity '
+       WRITE(*,*)x0,y0
+       STOP
+    ENDIF
 !    alpha=v0**2-2*mu/r0 ! 2*E
     alpha=2*energy
 ! remove integer periods
@@ -85,7 +90,12 @@ CONTAINS
     r0=vsize(x0)
     sig0=prscal(x0,y0)
     accept=ecc_cont(x0,y0,mu,1.d0,1.d0,ecc,q,energy)
-!    v0=vsize(y0)
+    v0=vsize(y0)
+    IF(r0.eq.0.d0.or.v0.eq.0.d0)THEN
+       WRITE(*,*)' fser_propag: zero radius/velocity '
+       WRITE(*,*)x0,y0
+       STOP
+    ENDIF
 !    alpha=v0**2-2*mu/r0 ! 2*E
     alpha=2*energy
 ! remove integer periods

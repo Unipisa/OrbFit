@@ -21,5 +21,7 @@ MODULE massmod
   DOUBLE PRECISION, DIMENSION(nbox) :: gm,rm,sm,pmu,rmt,smp
   DOUBLE PRECISION :: cj2,scw
 ! planet names as read from input
-  CHARACTER*9 nompla(nbox) 
+  CHARACTER*9 nompla(nbox)  
+! added 9/9/09: Yarkovsky parameters da/dt in au/My
+  DOUBLE PRECISION dadt9(nastx)
 END MODULE massmod

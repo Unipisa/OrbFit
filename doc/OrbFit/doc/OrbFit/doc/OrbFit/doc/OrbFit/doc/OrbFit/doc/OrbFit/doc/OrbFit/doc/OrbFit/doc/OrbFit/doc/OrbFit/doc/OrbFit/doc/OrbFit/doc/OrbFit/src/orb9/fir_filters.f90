@@ -3,6 +3,9 @@ MODULE fir_filters
 USE var_precision
 IMPLICIT NONE
 SAVE
+
+  PUBLIC filter, filope ! public routines
+
 ! ===============================================
 ! {\bf parfil.h} ORBIT8V
 ! max filter length
@@ -147,7 +150,7 @@ CONTAINS
     INTEGER npar, j, k ! indexes for do loops 
     REAL(KIND=r_kind) :: hac 
     REAL(KIND=r_kind) :: hlen2 !filter half length
-    if(ndat.gt.ndx)stop' **** filter2: ndat > ndx ****' 
+    if(ndat.gt.ndx)stop ' **** filter2: ndat > ndx ****' 
 ! initialisation and skip                                               
     outdat=.false. 
     if(nskip2.ge.0)then 
@@ -162,7 +165,7 @@ CONTAINS
     if(ncont.ge.nsamp2)then 
        ncont=1 
        npar=npar+1 
-       if(npar.gt.npx)stop' **** filter2: npar > npx ****' 
+       if(npar.gt.npx)stop ' **** filter2: npar > npx ****' 
        s(1:ndat,npar)=0.d0 
        num_int(npar)=0 
     else 
@@ -458,7 +461,7 @@ CONTAINS
     REAL(KIND=r_kind) :: hlen2 !filter half length
     REAL(KIND=r_kind) :: hac
 ! execution 
-    if(ndat.gt.ndx)stop' **** filtan2: ndat > ndx ****' 
+    if(ndat.gt.ndx)stop ' **** filtan2: ndat > ndx ****' 
     outdat=.false. 
    if(nskip2.ge.0)then 
        s(1:ndat,1:npx)=0._r_kind
@@ -472,7 +475,7 @@ CONTAINS
     if(ncont.ge.nsamp2)then 
        ncont=1 
        npar=npar+1 
-       if(npar.gt.npx)stop' **** filtan2: npar > npx ****' 
+       if(npar.gt.npx)stop ' **** filtan2: npar > npx ****' 
        nrin1(1:ndat,npar)=nrin(1:ndat) 
        s(1:ndat,npar)=0.d0 
        num_int(npar)=0 

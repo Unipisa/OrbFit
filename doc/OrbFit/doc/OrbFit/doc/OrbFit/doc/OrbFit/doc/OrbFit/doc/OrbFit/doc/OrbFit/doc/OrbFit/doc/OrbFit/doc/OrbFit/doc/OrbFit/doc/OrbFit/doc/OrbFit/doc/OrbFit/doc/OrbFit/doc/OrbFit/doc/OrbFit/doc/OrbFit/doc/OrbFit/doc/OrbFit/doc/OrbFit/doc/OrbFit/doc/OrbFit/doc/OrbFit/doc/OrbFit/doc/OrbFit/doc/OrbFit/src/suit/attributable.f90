@@ -110,7 +110,7 @@ INTEGER :: nobs, ntime, nrad ! number of observations,
  ! of different times, of radar obs.
 
 DOUBLE PRECISION, DIMENSION(4) :: observ ! alpha, delta, rho, rhodot
-                         ! unit radians, AU, and AU/day
+                         ! unit radians, AU, and au/day
 
 DOUBLE PRECISION :: apm ! apparent magnitude, average; =0 if not available
 
@@ -154,11 +154,11 @@ TYPE(attrad), PARAMETER :: undefined_attrad = ATTRAD( &
 
 
 ! public entities
-PUBLIC attrib, attrad, undefined_attrib, undefined_attrad
+PUBLIC attrib, attrad, undefined_attrib, undefined_attrad,max_sphdist
 
 PUBLIC attri_comp, wri_attri, spher_dist , rea_attri, att_diff
 
-PUBLIC sphdistx
+PUBLIC sphdistx, same_station
 
 CONTAINS
 
@@ -170,6 +170,19 @@ CONTAINS
   
 !END FUNCTION drop_curv
 
+LOGICAL FUNCTION same_station(obs,m)
+  USE astrometric_observations
+  INTEGER,INTENT(IN) :: m ! number of observations 
+  TYPE(ast_obs),INTENT(IN),DIMENSION(m) :: obs ! observations 
+  INTEGER j
+  same_station=.true.
+  DO j=2,m
+    IF(obs(j)%obscod_i.ne.obs(j-1)%obscod_i) THEN
+      same_station=.false.
+      EXIT
+    ENDIF 
+  ENDDO
+END FUNCTION same_station
 
 SUBROUTINE rea_attri(iunatt,iunrat,name0,att,trou,eof)
   TYPE(attrib), INTENT(OUT) :: att
@@ -261,9 +274,9 @@ SUBROUTINE wri_attri(iunatt,iunrat,name0,att,trou,nvir)
   DOUBLE PRECISION hour,arc2,ds2,curv,accel,curv_unc,acc_unc,eta_unc
 ! write .att file
   IF(iunatt.ge.0)THEN
-     IF(iunatt.eq.0)  WRITE(iunatt,201)
-201  FORMAT(' t(MJD)  R.A.  DEC. radot  decdot tround rarou decrou nobs arc(d) '&
- &  ,' name  obscod  s(ra) s(dec) s(rad) s(decd) c(aad) c(ddd) pr.m(deg) appmag')
+     IF(iunatt.eq.0)  WRITE(*,201)
+201  FORMAT(' t(MJD)        R.A.          DEC.       radot       decdot      tround     rarou     decrou nobs  ', &
+ &  '  arc(d)   name   obscod    s(ra)   s(dec)   s(rad)   s(decd)   c(aad)   c(ddd)   pr.m(deg)   appmag')
      atrou=att%angles(1)+(trou-att%tdtobs)*att%angles(3)
      atrou=princ(atrou)
      dtrou=att%angles(2)+(trou-att%tdtobs)*att%angles(4)
@@ -278,27 +291,39 @@ SUBROUTINE wri_attri(iunatt,iunrat,name0,att,trou,nvir)
      caad=att%g(1,3)/(sa*sadot)
      cddd=att%g(2,4)/(sd*sddot)
      IF(PRESENT(nvir))THEN
-        WRITE(iunatt,300)att%tdtobs,att%angles,trou,atrou,dtrou,   &
-     &        att%nobs,att%arc,name0,att%obscod,nvir,                &
-     &        sa,sd,sadot,sddot,caad,cddd,att%eta*degrad,att%apm
-300     FORMAT(f13.6,1x,f10.7,1x,f10.7,1p,1x,d12.5,1x,d12.5,1x,0p, &
-     &      f9.2,1x,f8.5,1x,f8.5,1x,i3,1x,f8.2,1x,a9,1x,a3,1x,i5,    &
-     &      1p,6(1x,d10.3),0p,1x,f9.4,1x,f5.2)
+        IF(iunatt.eq.0)THEN
+           WRITE(*,300)att%tdtobs,att%angles,trou,atrou,dtrou,   &
+             &        att%nobs,att%arc,name0,att%obscod,nvir,                &
+             &        sa,sd,sadot,sddot,caad,cddd,att%eta*degrad,att%apm
+        ELSE
+           WRITE(iunatt,300)att%tdtobs,att%angles,trou,atrou,dtrou,   &
+             &        att%nobs,att%arc,name0,att%obscod,nvir,                &
+             &        sa,sd,sadot,sddot,caad,cddd,att%eta*degrad,att%apm
+        END IF
      ELSE
-        WRITE(iunatt,100)att%tdtobs,att%angles,trou,atrou,dtrou,   &
-     &        att%nobs,att%arc,name0,att%obscod,                     &
-     &        sa,sd,sadot,sddot,caad,cddd,att%eta*degrad,att%apm
-100     FORMAT(f13.6,1x,f10.7,1x,f10.7,1p,1x,d12.5,1x,d12.5,1x,0p,      &
-     &      f9.2,1x,f8.5,1x,f8.5,1x,i3,1x,f8.2,1x,a9,1x,a3,          &
-     &      1p,6(1x,d10.3),0p,1x,f9.4,1x,f5.2)
+        IF(iunatt.eq.0)THEN
+           WRITE(*,100)att%tdtobs,att%angles,trou,atrou,dtrou,   &
+                &        att%nobs,att%arc,name0,att%obscod,                     &
+                &        sa,sd,sadot,sddot,caad,cddd,att%eta*degrad,att%apm
+        ELSE
+           WRITE(iunatt,100)att%tdtobs,att%angles,trou,atrou,dtrou,   &
+                &        att%nobs,att%arc,name0,att%obscod,                     &
+                &        sa,sd,sadot,sddot,caad,cddd,att%eta*degrad,att%apm
+        END IF
      ENDIF
   ENDIF
+300 FORMAT(f13.6,1x,f10.7,1x,f10.7,1p,1x,d12.5,1x,d12.5,1x,0p, &
+         &      f9.2,1x,f8.5,1x,f8.5,1x,i3,1x,f8.2,1x,a9,1x,a3,1x,i5,    &
+         &      1p,6(1x,d10.3),0p,1x,f9.4,1x,f5.2)
+100 FORMAT(f13.6,1x,f10.7,1x,f10.7,1p,1x,d12.5,1x,d12.5,1x,0p,      &
+         &      f9.2,1x,f8.5,1x,f8.5,1x,i3,1x,f8.2,1x,a9,1x,a3,          &
+         &      1p,6(1x,d10.3),0p,1x,f9.4,1x,f5.2)
 ! write .rat file header
   IF(iunrat.lt.0)RETURN
-  IF(iunrat.eq.0)WRITE(iunrat,200)
-200 FORMAT('  name    nobs  arctime year nr st   arcang     pr.m     pmunc   ', &
-      & '  geocurv    accel     gcunc    accunc     RMS      RMS(a)    RMS(d)', &
-      & ' cor-g-a') 
+  IF(iunrat.eq.0)WRITE(*,200)
+200 FORMAT('  name     nobs   arctime year nr st   arcang        pr.m        pmunc      ', &
+      & '  geocurv      accel        gcunc        accunc       RMS          RMS(a)       RMS(d)', &
+      & '    cor-g-a   time') 
   CALL mjddat(att%tdtobs,iday,month,yearm,hour) 
 ! output               
   arc2=(att%arc/2.d0)**2
@@ -310,20 +335,34 @@ SUBROUTINE wri_attri(iunatt,iunrat,name0,att,trou,nvir)
   eta_unc=att%rms_eta*degrad
   IF(abs(curv).gt.999.d0.or.abs(accel).gt.999.d0.or.abs(att%rms_obs) &
   &    .gt.999.d0.or.abs(att%rms_a).gt.999.d0.or.abs(att%rms_d).gt.999.d0)THEN
-     WRITE(iunrat,101)name0,att%nobs,att%arc,yearm,att%nrad,att%nsta,   &
-      & att%sph*degrad,att%eta*degrad,eta_unc,                            &
-      & curv,accel,curv_unc,acc_unc,att%rms_obs,att%rms_a,att%rms_d,      &
-      & att%c_curvacc,att%tdtobs
-101  FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7),       &
- &    1p,4(1x,d12.5),0p,3(1x,d12.5),1x,f7.4,1x,f13.6)
+     IF(iunrat.eq.0)THEN
+        WRITE(*,101)name0,att%nobs,att%arc,yearm,att%nrad,att%nsta,   &
+             & att%sph*degrad,att%eta*degrad,eta_unc,                            &
+             & curv,accel,curv_unc,acc_unc,att%rms_obs,att%rms_a,att%rms_d,      &
+             & att%c_curvacc,att%tdtobs
+     ELSE
+        WRITE(iunrat,101)name0,att%nobs,att%arc,yearm,att%nrad,att%nsta,   &
+             & att%sph*degrad,att%eta*degrad,eta_unc,                            &
+             & curv,accel,curv_unc,acc_unc,att%rms_obs,att%rms_a,att%rms_d,      &
+             & att%c_curvacc,att%tdtobs
+     END IF
   ELSE
-     WRITE(iunrat,102)name0,att%nobs,att%arc,yearm,att%nrad,att%nsta,   &
-      & att%sph*degrad,att%eta*degrad,eta_unc,                            &
-      & curv,accel,curv_unc,acc_unc,att%rms_obs,att%rms_a,att%rms_d,      &
-      & att%c_curvacc,att%tdtobs
-102  FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7),       &
- &    4(1x,f12.7),3(1x,f12.7),1x,f7.4,1x,f13.6)
+     IF(iunrat.eq.0)THEN
+        WRITE(*,102)name0,att%nobs,att%arc,yearm,att%nrad,att%nsta,   &
+             & att%sph*degrad,att%eta*degrad,eta_unc,                            &
+             & curv,accel,curv_unc,acc_unc,att%rms_obs,att%rms_a,att%rms_d,      &
+             & att%c_curvacc,att%tdtobs
+     ELSE
+        WRITE(iunrat,102)name0,att%nobs,att%arc,yearm,att%nrad,att%nsta,   &
+             & att%sph*degrad,att%eta*degrad,eta_unc,                            &
+             & curv,accel,curv_unc,acc_unc,att%rms_obs,att%rms_a,att%rms_d,      &
+             & att%c_curvacc,att%tdtobs
+     END IF
   ENDIF
+101 FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7),       &
+         &    1p,4(1x,d12.5),0p,3(1x,d12.5),1x,f7.4,1x,f13.6)
+102 FORMAT(a9,1x,i4,1x,f10.4,1x,i4,1x,i2,1x,i1,3(1x,f12.7),       &
+         &    4(1x,f12.7),3(1x,f12.7),1x,f7.4,1x,f13.6)
 END SUBROUTINE wri_attri
 
 SUBROUTINE attri_comp(m,obs,obsw,att,error,qobs,qpobs,qppobs)
@@ -361,12 +400,17 @@ SUBROUTINE attri_comp(m,obs,obsw,att,error,qobs,qpobs,qppobs)
   alr(1)=alpha(1) 
   ng=0 
   DO j=2,m 
-     IF(alpha(j).lt.alpha(j-1)-pig)THEN 
-        ng=ng+1 
-     ELSEIF(alpha(j).gt.alpha(j-1)+pig)THEN 
-        ng=ng-1 
+     IF(obs(j)%type.eq.'O'.or.obs(j)%type.eq.'S') THEN 
+        IF(alpha(j).lt.alpha(j-1)-pig)THEN 
+           ng=ng+1 
+        ELSEIF(alpha(j).gt.alpha(j-1)+pig)THEN 
+           ng=ng-1 
+        ENDIF
+        alr(j)=alpha(j)+ng*dpig 
+!     ELSE
+!        WRITE(*,*)' attri_comp:  radar att must be computed otherwise',obs(j)%type
+!        STOP
      ENDIF
-     alr(j)=alpha(j)+ng*dpig 
   ENDDO
   delta(1:m)=obs%coord(2)
   rmsa(1:m)=abs(obsw%rms_coord(1))
@@ -378,7 +422,13 @@ SUBROUTINE attri_comp(m,obs,obsw,att,error,qobs,qpobs,qppobs)
   sw=0.d0
   swx=0.d0
   DO j=1,m
-     ww=1/(rmsa(j)*rmsd(j)*cos(delta(j)))
+     IF(obs(j)%type.eq.'O'.or.obs(j)%type.eq.'S') THEN 
+        ww=1/(rmsa(j)*rmsd(j)*cos(delta(j)))
+     ELSEIF(obs(j)%type.eq.'R') THEN
+        ww=1/rmsa(j)
+     ELSEIF(obs(j)%type.eq.'V') THEN
+        ww=1/rmsd(j)
+     ENDIF
      swx=swx+t(j)*ww
      sw=sw+ww
   ENDDO
@@ -535,34 +585,52 @@ SUBROUTINE attri_comp(m,obs,obsw,att,error,qobs,qpobs,qppobs)
      att%c_curvacc=gked(1,2)/(att%rms_geocurv*att%rms_etadot)
   ENDIF
   IF(PRESENT(qobs).and.PRESENT(qpobs).and.PRESENT(qppobs))THEN
-     IF(ntime.eq.2)THEN
-        qobs=0.d0
-        qpobs=0.d0
-        qppobs=0.d0
-     ELSE
+
+!     IF(ntime.eq.2)THEN ! fara il fit lineare!!!
+!        qobs=0.d0
+!        qpobs=0.d0
+!        qppobs=0.d0
+!     ELSE
 ! geocentric position of the observer, equator and equinox J2000
-        DO j=1,m 
-           IF(rhs.ne.1.and.rhs.ne.2)THEN
-              WRITE(*,*)'attri_comp: rhs=', rhs
-              STOP
-           END IF
+     DO j=1,m 
+        IF(rhs.ne.1.and.rhs.ne.2)THEN
+           WRITE(*,*)'attri_comp: rhs=', rhs
+           STOP
+        END IF
+        
+        IF(obs(j)%type.eq.'S')THEN
+           dx(1:3,j)=obs(j)%obspos(1:3)
+        ELSE
            CALL observer_position(obs(j)%time_tdt,position,velocity,obs(j)%obscod_i)
            IF(rhs.eq.1)THEN
               CALL prodmv(dx(1:3,j),roteceq,position)                
            ELSEIF(rhs.eq.2)THEN
               dx(1:3,j)=position                
            END IF
-        ENDDO
+        ENDIF
+     ENDDO
 ! Poincare' interpolation on geocentric position of observer
-        DO j=1,3
-           CALL quadratic_fit(t,dx(j,1:m),rmsa,m,ntime,g2a,g3a,s2a,s3a,rms_2a,rms_3a,ising)
-! WARNING: what to do with residuals, uncertainty of these fits?
-!           qppobs(j)=s3a(1)
+     DO j=1,3
+        CALL quadratic_fit(t,dx(j,1:m),rmsa,m,ntime,g2a,g3a,s2a,s3a,rms_2a,rms_3a,ising)
+        
+        IF(ntime.eq.2)THEN
+           qppobs(j)=0.d0
+           qpobs(j)=s2a(1)
+           qobs(j)=s2a(2)
+        ELSEIF(ntime.gt.2)THEN
+           ! WARNING: what to do with residuals, uncertainty of these fits?
+           !           qppobs(j)=s3a(1)
            qppobs(j)=2.d0*s3a(1) ! modified on July 7, 2008
            qpobs(j)=s3a(2)
            qobs(j)=s3a(3)
-        ENDDO
-     ENDIF
+        ELSE
+           WRITE(*,*)'attri_comp: error! ntime <2!',ntime
+           STOP
+        ENDIF
+     ENDDO
+
+!  ENDIF
+
   ENDIF
 END SUBROUTINE attri_comp
 

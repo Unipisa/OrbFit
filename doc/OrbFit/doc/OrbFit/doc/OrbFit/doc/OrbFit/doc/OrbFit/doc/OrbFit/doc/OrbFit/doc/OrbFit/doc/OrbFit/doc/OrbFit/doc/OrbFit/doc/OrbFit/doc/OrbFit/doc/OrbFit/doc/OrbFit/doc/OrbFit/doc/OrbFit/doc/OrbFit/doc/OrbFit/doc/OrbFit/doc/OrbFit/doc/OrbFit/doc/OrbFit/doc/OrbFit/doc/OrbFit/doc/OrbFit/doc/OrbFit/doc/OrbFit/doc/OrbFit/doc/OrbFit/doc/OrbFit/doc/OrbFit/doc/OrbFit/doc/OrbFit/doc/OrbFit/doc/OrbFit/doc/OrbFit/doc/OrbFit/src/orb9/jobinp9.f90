@@ -192,9 +192,9 @@ SUBROUTINE jobinp(inter,nast,imas,nbod,ifo,number,iast,nia,coox,  &
      comme1=comme1(1:len1)//commen(1:len) 
   endif
   if(cooy.eq.'EQU')then 
-     colhea='  a(AU)   h    k    p   q   lambda  nrev gamma' 
+     colhea='  a(au)   h    k    p   q   lambda  nrev gamma' 
   elseif(cooy.eq.'KEP')then 
-     colhea='  a(AU)   e    I    Omega  omega  Mean.an.  nrev gamma' 
+     colhea='  a(au)   e    I    Omega  omega  Mean.an.  nrev gamma' 
   elseif(cooy.eq.'CAR')then 
      colhea='   x     y     z     vx     vy     vz    gamma' 
   else 

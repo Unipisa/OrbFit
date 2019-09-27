@@ -96,6 +96,16 @@ astrometric_observations.f90:SUBROUTINE aster_radius(objid,obstype,m)
 astrometric_observations.f90:END SUBROUTINE aster_radius
 astrometric_observations.f90:SUBROUTINE rdanga(string,angle,acc,error)
 astrometric_observations.f90:END SUBROUTINE rdanga
+astrometric_observations.f90:!SUB-MODULE observ_bias_weight
+astrometric_observations.f90:SUBROUTINE observ_rms(obs,error_model,init,obsw,n)
+astrometric_observations.f90:END SUBROUTINE observ_rms
+astrometric_observations.f90:SUBROUTINE astrow_bias_cbm(error_model,obs,obsw)
+astrometric_observations.f90:END SUBROUTINE astrow_bias_cbm
+astrometric_observations.f90:SUBROUTINE astrow_nobias(error_model,obs,obsw)
+astrometric_observations.f90:END SUBROUTINE astrow_nobias
+astrometric_observations.f90:DOUBLE PRECISION FUNCTION magrms_new(magstr,tdt,idsta,typ)
+astrometric_observations.f90:END  FUNCTION magrms_new
+astrometric_observations.f90:! END SUB_MODULE observ_bias_weight
 astrometric_observations.f90:END MODULE astrometric_observations
 attributable.f90:MODULE attributable
 attributable.f90:CONTAINS
@@ -129,11 +139,12 @@ bin_search.f90:END SUBROUTINE bin_search_int
 cat_debias.f90:MODULE cat_debias
 cat_debias.f90:  CONTAINS
 cat_debias.f90:  SUBROUTINE cat_bias_init
-cat_debias.f90:  END SUBROUTINE cat_bias_init
+cat_debias.f90:   END SUBROUTINE cat_bias_init
 cat_debias.f90:  ! SUBROUTINE cat_find
-cat_debias.f90:  SUBROUTINE cat_find(mpcflag,t,obscode,catcode)
+cat_debias.f90:  SUBROUTINE cat_find(mpcflag,t_cat,obscode,catcode)
 cat_debias.f90:  END SUBROUTINE cat_find
-cat_debias.f90:  SUBROUTINE cat_bias(phi,del,catcode,catrecord,bias_RA,bias_DEC,biasflag)
+cat_debias.f90:  ! SUBROUTINE cat_bias
+cat_debias.f90:  SUBROUTINE cat_bias(phi,del,catcode,bias_RA,bias_DEC,biasflag)
 cat_debias.f90:  END SUBROUTINE cat_bias
 cat_debias.f90:END MODULE cat_debias
 char_str.f90:! MODULE CHAR_STR
@@ -235,7 +246,7 @@ fidinam4.f90:SUBROUTINE filnam(eledir,astnam,suffix,file,le)
 fidinam4.f90:END SUBROUTINE filnam
 fidinam4.f90:SUBROUTINE splinam(name0,name1,m) 
 fidinam4.f90:END SUBROUTINE splinam
-fidinam4.f90:SUBROUTINE fidinam(eledir,astnam,suffix,file,le) 
+fidinam4.f90:SUBROUTINE fidinam(eledir0,astnam0,suffix,file,le) 
 fidinam4.f90:END SUBROUTINE fidinam
 fidinam4.f90:CHARACTER*10 FUNCTION dircom4(name0,le) 
 fidinam4.f90:END FUNCTION dircom4
@@ -445,11 +456,17 @@ math_lib.f90:DOUBLE PRECISION FUNCTION snorm(v,a,n,nnx)
 math_lib.f90:END FUNCTION snorm
 math_lib.f90:DOUBLE PRECISION FUNCTION snormd(v,a,n,nused) 
 math_lib.f90:END FUNCTION snormd
-math_lib.f90:SUBROUTINE convertcov(g0,derpar,gk) 
+math_lib.f90:SUBROUTINE convertcov(nd,g0,derpar,gk) 
 math_lib.f90:END SUBROUTINE convertcov
-math_lib.f90:SUBROUTINE convertnor(c0,derpar,ck) 
+math_lib.f90:SUBROUTINE convertcovdp(nd,g0,derpar,gk) 
+math_lib.f90:END SUBROUTINE convertcovdp
+math_lib.f90:SUBROUTINE convertnor(nd,c0,derpar,ck) 
 math_lib.f90:END SUBROUTINE convertnor
-math_lib.f90:SUBROUTINE norprs(nor1,jac,n,nor2,error) 
+math_lib.f90:SUBROUTINE convertnordp(nd,c0,derpar,ck) 
+math_lib.f90:END SUBROUTINE convertnordp
+math_lib.f90:SUBROUTINE norprsdp(nor1,jac,nd,nor2,error) 
+math_lib.f90:END SUBROUTINE norprsdp
+math_lib.f90:SUBROUTINE norprs(nor1,jac,nd,nor2,error) 
 math_lib.f90:END SUBROUTINE norprs
 math_lib.f90: END SUBROUTINE linfi3
 math_lib.f90: SUBROUTINE cubic_fit(x,y,sy,m,ntime,g4,s4,rms_4,ising)
@@ -477,19 +494,6 @@ name_rules.f90:END FUNCTION designatedd
 name_rules.f90:END MODULE name_rules
 obs_simul.f90:SUBROUTINE obs_simul(type1,t1,tut,astnam,ids,rmssec,rmsmag,alpha,delta,hmagn,obs,obsw)
 obs_simul.f90:END SUBROUTINE obs_simul
-observ_rms.f90:      SUBROUTINE observ_rms(obs,error_model,init,obsw,n)
-observ_rms.f90:      END SUBROUTINE observ_rms
-observ_rms.f90:      SUBROUTINE astrow(error_model,mpctyp,tdt,idsta,acca,accd,        &
-observ_rms.f90:      END SUBROUTINE astrow
-observ_rms.f90:      DOUBLE PRECISION FUNCTION magrms(magstr,tdt,idsta,typ)
-observ_rms.f90:      END  FUNCTION magrms
-observ_rms.f90:      SUBROUTINE rrmscl(filra,fildec,clonly)
-observ_rms.f90:      END SUBROUTINE rrmscl
-observ_rms.f90:      SUBROUTINE accstr(acca,accd,adsa,adsd,error)
-observ_rms.f90:      END SUBROUTINE accstr
-observ_rms.f90:      SUBROUTINE crmscl(obscod,ads,mpctyp,tdt,rmsa,rmsd,biasa,biasd,idcl,step,tdtlim)
-observ_rms.f90:      END SUBROUTINE crmscl
-observ_rms.f90:      SUBROUTINE crmscn(obscod,ads,mpctyp,tdt,rmsa,rmsd,avea,aved,      &
 obsvarie.f90:      SUBROUTINE iaucodnew(mpccod,iaudes,error)
 obsvarie.f90:    END SUBROUTINE iaucodnew
 obsvarie.f90:      SUBROUTINE iaucod(mpccod,iaudes,error) 
@@ -640,8 +644,8 @@ station_coordinates.f90:SUBROUTINE geodetic_to_cartesian(longitude,latitude,alti
 station_coordinates.f90:END SUBROUTINE geodetic_to_cartesian
 station_coordinates.f90:SUBROUTINE cartesian_to_geodetic(x,longitude,latitude,altitude,vertical)
 station_coordinates.f90:END SUBROUTINE cartesian_to_geodetic
-station_coordinates.f90:      SUBROUTINE obscoo(idobs,xbf,name)
-station_coordinates.f90:      END SUBROUTINE
+station_coordinates.f90:SUBROUTINE obscoo(idobs,xbf,name, shiftst)
+station_coordinates.f90:END SUBROUTINE obscoo
 station_coordinates.f90:      SUBROUTINE statcode(obsstr,iobs) 
 station_coordinates.f90:      END SUBROUTINE statcode                                           
 station_coordinates.f90:      SUBROUTINE codestat(iobs,obsstr) 

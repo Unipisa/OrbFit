@@ -3,7 +3,7 @@
 # Fortran compiler
 FC=ifc
 # Options for Fortran compiler for debugging:
-FFLAGS= -cm -g -CB -traceback -Vaxlib -I../include 
+FFLAGS= -warn nousage -g -CB -traceback -Vaxlib -I../include 
 # "ranlib" command: if it is not needed, use "RANLIB=touch"
 RANLIB=ranlib
 VPATH=../include

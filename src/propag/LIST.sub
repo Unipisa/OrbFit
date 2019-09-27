@@ -71,6 +71,8 @@ critical_points.f90:  SUBROUTINE d2eval(Vpl,vcom,D2)
 critical_points.f90:  END SUBROUTINE d2eval
 critical_points.f90:SUBROUTINE sign_dmin(pos1,tau1,pos2,tau2,dsign)
 critical_points.f90:END SUBROUTINE sign_dmin
+critical_points.f90:SUBROUTINE sign_dmin2(pos1,tau1,pos2,tau2,dsign)
+critical_points.f90:END SUBROUTINE sign_dmin2
 critical_points.f90:SUBROUTINE mutual_ref(el1,el2,mutI,mutom1,mutom2, &
 critical_points.f90:END SUBROUTINE mutual_ref
 critical_points.f90:SUBROUTINE CP_newton_raphson(com1c,com2c,iof1,iof2)
@@ -108,6 +110,11 @@ detcomp.f90:      END SUBROUTINE XERBLA
 detcomp.f90:!END MODULE detcomp
 dnod_amoid_rms_com.f90: SUBROUTINE dnod_amoid_rms_com(el1,el2,unc1,unc2,chk_der,dnodp,dnodm,&
 dnod_amoid_rms_com.f90:  END SUBROUTINE dnod_amoid_rms_com
+dyn_param.f90:MODULE dyn_param
+dyn_param.f90:CONTAINS
+dyn_param.f90: SUBROUTINE out_ng(iunng,debnac,indsol)
+dyn_param.f90: END SUBROUTINE out_ng
+dyn_param.f90:END MODULE dyn_param
 ephem_prop.f90:!  MODULES; NO HEADERS! 
 ephem_prop.f90:SUBROUTINE fstpro(batch,icov,ini0,cov0,iun20,iun8,ok,             &
 ephem_prop.f90:END SUBROUTINE fstpro
@@ -123,6 +130,8 @@ eval_risk.f90:MODULE eval_risk
 eval_risk.f90:CONTAINS
 eval_risk.f90:DOUBLE PRECISION FUNCTION palermo(U,hmagn,prob,dt,          &
 eval_risk.f90:END FUNCTION palermo
+eval_risk.f90:INTEGER FUNCTION torino(IP,energy)
+eval_risk.f90:END FUNCTION torino
 eval_risk.f90:END MODULE eval_risk
 eval_risk.f90:DOUBLE PRECISION FUNCTION prob_1dim(be,s0,r0)
 eval_risk.f90:END FUNCTION prob_1dim
@@ -133,7 +142,7 @@ eval_risk.f90:END FUNCTION ff_prob
 eval_risk.f90:DOUBLE PRECISION FUNCTION f_prob(uu)
 eval_risk.f90:END FUNCTION f_prob
 fitsubs.f90:!  CONTAINS:                                                            
-fitsubs.f90:SUBROUTINE whicor(inter,icor,ncor,inew) 
+fitsubs.f90:SUBROUTINE whicor(inter,nd,icor,ncor,inew) 
 fitsubs.f90:END SUBROUTINE whicor
 fitsubs.f90:SUBROUTINE chereq(icov,ini,cov,t,iunout,ok) 
 fitsubs.f90:END SUBROUTINE chereq
@@ -162,7 +171,7 @@ force_model.f90:! OUT OF MODULE
 force_model.f90:MODULE force_model
 force_model.f90:CONTAINS
 force_model.f90:  END SUBROUTINE masjpl
-force_model.f90:  SUBROUTINE force(x,v,t0,f,nd,idc,xxpla,ips,imem) 
+force_model.f90:  SUBROUTINE force(x,v,t0,f,ndf,idc,xxpla,ips,imem) 
 force_model.f90: CONTAINS
 force_model.f90:   SUBROUTINE planast(t0,ips,imem,velo_intrp,xpla) 
 force_model.f90:   END SUBROUTINE planast
@@ -172,6 +181,8 @@ force_model.f90:   SUBROUTINE genrel(x,vs,drgr)
 force_model.f90:   END SUBROUTINE genrel
 force_model.f90:      SUBROUTINE eihrel(x,vs,xpla,d,rpla,xsun,drgr) 
 force_model.f90:      END SUBROUTINE eihrel          
+force_model.f90:      SUBROUTINE eihrel2(x,v,xpla,d,rpla,rast,drgr)!,t) 
+force_model.f90:      END SUBROUTINE eihrel2    
 force_model.f90:      END SUBROUTINE force                                          
 force_model.f90:END MODULE force_model                      
 force_model.f90:LOGICAL FUNCTION velocity_req()
@@ -186,8 +197,8 @@ force_sat.f90:MODULE force_sat
 force_sat.f90:CONTAINS
 force_sat.f90:  SUBROUTINE forcesat(x,v,t0,f,nd,idc,xxpla,ips,imem, derf0)
 force_sat.f90:  END SUBROUTINE forcesat
-force_sat.f90:    SUBROUTINE eamoon_mass
-force_sat.f90:    END SUBROUTINE eamoon_mass
+force_sat.f90:  SUBROUTINE eamoon_mass
+force_sat.f90:  END SUBROUTINE eamoon_mass
 force_sat.f90:END MODULE force_sat
 gaussdeg8.f90:SUBROUTINE gaussdeg8(tobs,alpha,delta,obscod,ecc_max,q_max,el,nroots,nsol,rr,fail,msg,debug)
 gaussdeg8.f90:END SUBROUTINE gaussdeg8
@@ -205,11 +216,11 @@ least_squares.f90:SUBROUTINE fdiff_cor(batch,iarc,obs0,ini0,ok,cov0,el0,m,obs,ob
 least_squares.f90:END SUBROUTINE fdiff_cor
 least_squares.f90:SUBROUTINE fourdim_fit(m,obs,obsw,el0,    &
 least_squares.f90:END SUBROUTINE fourdim_fit
-least_squares.f90:SUBROUTINE step_fit(m,obs,obsw,el0,elc,uncert,csinor,delnor,rmsh,nused,succ)
+least_squares.f90:SUBROUTINE step_fit(m,obs,obsw,el0,elc,uncert,csinor,delnor,rmsh,nused,succ,nd)
 least_squares.f90:END SUBROUTINE step_fit
-least_squares.f90:SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,succ)
+least_squares.f90:SUBROUTINE constr_fit(m,obs,obsw,el0,peq,elc,uncert,csinor,delnor,rmsh,nused,succ,nd)
 least_squares.f90:END SUBROUTINE constr_fit
-least_squares.f90:SUBROUTINE diff_cor(m,obs,obsw,el0,icor,iunf,elc,uncert,csinor,delnor,succ) 
+least_squares.f90:SUBROUTINE diff_cor(m,obs,obsw,el0,icor,iunf,elc,uncert,csinor,delnor,succ,nd) 
 least_squares.f90:END SUBROUTINE diff_cor
 least_squares.f90:SUBROUTINE sin_cor(m,obs_s,obsw_s,elc,icor,  &
 least_squares.f90:END SUBROUTINE sin_cor
@@ -223,7 +234,7 @@ least_squares.f90:      SUBROUTINE sort_obs(t0,obs,obsw,noss,iposs2,obs_s,obsw_s
 least_squares.f90:      END SUBROUTINE sort_obs                                          
 least_squares.f90:      SUBROUTINE unsort_obs(iposs,noss,obsw_s,obsw)
 least_squares.f90:      END SUBROUTINE unsort_obs
-least_squares.f90:SUBROUTINE min_sol(obs_s,obsw_s,m,g,icor,iunf,gtwg,dx0,gamma,csinor,indp,cond)
+least_squares.f90:SUBROUTINE min_sol(obs_s,obsw_s,m,g,icor,iunf,gtwg,dx0,gamma,csinor,indp,cond,nd)
 least_squares.f90:END SUBROUTINE min_sol
 least_squares.f90:SUBROUTINE invmat(c,nx,ndim,a,cond,indp,iunf) 
 least_squares.f90:END SUBROUTINE invmat
@@ -231,7 +242,7 @@ least_squares.f90:DOUBLE PRECISION FUNCTION rms_compute(obs,obsw,n)
 least_squares.f90:END FUNCTION rms_compute
 least_squares.f90:SUBROUTINE fit_weight(obs1,obsw1,res0,w) 
 least_squares.f90:END SUBROUTINE fit_weight
-least_squares.f90:SUBROUTINE reject_obs(unilog,csinor,obs_s,obsw_s,                 &
+least_squares.f90:SUBROUTINE reject_obs(unilog,csinor,obs_s,obsw_s,nobs,gamma,icor,nmod,nd)
 least_squares.f90:CONTAINS
 least_squares.f90:! END SUBROUTINE reject_obs 
 least_squares.f90:  LOGICAL FUNCTION entopp(index,sel,mjd,nobs) 
@@ -250,14 +261,14 @@ least_squares.f90:END SUBROUTINE difini
 least_squares.f90:END MODULE least_squares 
 least_squares.f90:DOUBLE PRECISION FUNCTION rescov(nsolv,nused,csinor) 
 least_squares.f90:END FUNCTION rescov
-least_squares.f90:DOUBLE PRECISION FUNCTION meanti(tau,rmsa,rmsd,m)                 
+least_squares.f90:DOUBLE PRECISION FUNCTION meanti(tau,rmsa,rmsd,del,m)                 
 least_squares.f90:END FUNCTION meanti
 least_squares.f90:LOGICAL FUNCTION bizarre(el,ecc)
 least_squares.f90:END FUNCTION bizarre
 least_squares.f90:SUBROUTINE bizset(ecclim,samin,samax,phmin,ahmax,qmax)                 
 least_squares.f90:END SUBROUTINE bizset
-least_squares.f90:SUBROUTINE outcov(iun,icor,gamma,c)                               
-least_squares.f90:SUBROUTINE weak_dir(gamma,wdir,sdir,iun8,coo,coord,units) 
+least_squares.f90:SUBROUTINE outcov(iun,nd,icor,gamma,c)                               
+least_squares.f90:SUBROUTINE weak_dir(gamma,wdir,sdir,iun8,coo,coord,units,nd) 
 least_squares.f90:CONTAINS
 least_squares.f90:  SUBROUTINE scale_coef !(coo,coord,scales)
 least_squares.f90:  END SUBROUTINE scale_coef
@@ -279,15 +290,13 @@ moid_utilities.f90:      SUBROUTINE decode_out(N,dftout1,dftout2,dfteval)
 multiple_sol.f90:! ========MODULE multiple_sol================================
 multiple_sol.f90:MODULE multiple_sol  
 multiple_sol.f90:CONTAINS                                                                     
-multiple_sol.f90:! MODULE CONTAINS                                                       
-multiple_sol.f90:! OUT OF MODULE                                              
 multiple_sol.f90:SUBROUTINE f_multi(batch,obsc,inic,ok,covc,         &
 multiple_sol.f90:END  SUBROUTINE f_multi
 multiple_sol.f90:SUBROUTINE nmulti(nam0,elc,uncert,csinor,delnor,            &
 multiple_sol.f90:END SUBROUTINE nmulti
 multiple_sol.f90:SUBROUTINE step_fit2(m,obs,obsw,el0,unc0,csino0,delno0,nused,succ)
 multiple_sol.f90:END SUBROUTINE step_fit2
-multiple_sol.f90:SUBROUTINE mult_input(catname,ok)  
+multiple_sol.f90:SUBROUTINE mult_input(catname,ok,nd)  
 multiple_sol.f90:END SUBROUTINE mult_input
 multiple_sol.f90:SUBROUTINE fmuobs(type,ids,t1,tut1,sigma,         &
 multiple_sol.f90:END SUBROUTINE fmuobs 
@@ -297,11 +306,10 @@ multiple_sol.f90:SUBROUTINE fmuplo(titnam,sigma)
 multiple_sol.f90:END SUBROUTINE fmuplo 
 multiple_sol.f90:SUBROUTINE outmul(titnam,filnam,t1,sigma,alpha,delta,             &
 multiple_sol.f90:END SUBROUTINE outmul
-multiple_sol.f90:SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,wdir,sdir,units,fail)
+multiple_sol.f90:SUBROUTINE prop_sig(batch,el1,el2,dn,sigma,mc,obs,obsw,wdir,sdir,units,fail,nd)
 multiple_sol.f90:END SUBROUTINE prop_sig
-multiple_sol.f90:SUBROUTINE int_step(el0,el1,hh,imint,mc,obs,obsw,iun,wdir,sdir,units,fail)
+multiple_sol.f90:SUBROUTINE int_step(el0,el1,hh,imint,mc,obs,obsw,iun,wdir,sdir,units,fail,nd)
 multiple_sol.f90:END SUBROUTINE int_step
-multiple_sol.f90:!  SUBROUTINES:                                                          
 multiple_sol.f90:SUBROUTINE lovinit(astname,mulsodir,obsdir,progna,iunout,        &
 multiple_sol.f90:! ===============OUTPUT THROUGH MODULE MULTIPLE_SOL===============
 multiple_sol.f90:END SUBROUTINE lovinit
@@ -318,6 +326,8 @@ non_grav.f90:! ==========MODULE non_grav============
 non_grav.f90:! CONTAINS
 non_grav.f90:MODULE non_grav
 non_grav.f90:CONTAINS 
+non_grav.f90:  SUBROUTINE radpast(x,accrad) 
+non_grav.f90:  END SUBROUTINE radpast
 non_grav.f90:      SUBROUTINE comet_non_grav_symm(x,v,nongrav)
 non_grav.f90:      END SUBROUTINE comet_non_grav_symm
 non_grav.f90:      SUBROUTINE comet_non_grav_asymm(x,v,nongrav)
@@ -334,6 +344,14 @@ obs_correl.f90:      END SUBROUTINE rdcorm
 obs_correl.f90:      SUBROUTINE fcsfun(name,kfun,npar)
 obs_correl.f90:! ADD HERE NEW FUNCTIONS, using increasing integer identificator (KFUN)
 obs_correl.f90:      END SUBROUTINE fcsfun
+obs_correl.f90:      SUBROUTINE astrow(error_model,mpctyp,tdt,idsta,acca,accd,        &
+obs_correl.f90:      END SUBROUTINE astrow
+obs_correl.f90:   SUBROUTINE rrmscl(filra,fildec,clonly)
+obs_correl.f90:    END SUBROUTINE rrmscl
+obs_correl.f90:   SUBROUTINE accstr(acca,accd,adsa,adsd,error)
+obs_correl.f90: END SUBROUTINE accstr
+obs_correl.f90:  SUBROUTINE crmscl(obscod,ads,mpctyp,tdt,rmsa,rmsd,biasa,biasd,idcl,step,tdtlim)
+obs_correl.f90: END SUBROUTINE crmscl
 obs_correl.f90:END MODULE obs_correl
 obssto.f90:!=================MODULE obssto===================
 obssto.f90:MODULE obssto 
@@ -349,11 +367,15 @@ offlov_checktp.f90:SUBROUTINE riskchecktp(va_tracemin,t0,type,no_risk,   &
 offlov_checktp.f90:END SUBROUTINE riskchecktp
 offlov_checktp.f90:SUBROUTINE header_risk(iunrisk)
 offlov_checktp.f90:END SUBROUTINE header_risk
+offlov_checktp.f90:SUBROUTINE header_esa_risk(iunesarisk)
+offlov_checktp.f90:END SUBROUTINE header_esa_risk
 offlov_checktp.f90:  SUBROUTINE big_vitp(tptrail, lre, tpmin, t0,nvai, nbigrisk,iunnew,iunwarn,riskfile)
 offlov_checktp.f90:  END SUBROUTINE big_vitp
 offlov_checktp.f90:END MODULE offlov_checktp
 orbit_elements.f90:MODULE orbit_elements
 orbit_elements.f90:CONTAINS
+orbit_elements.f90:SUBROUTINE undefined_orb_uncert(nd,unc)
+orbit_elements.f90:END SUBROUTINE undefined_orb_uncert
 orbit_elements.f90:SUBROUTINE coo_cha(x,cooy,y,fail_flag,del,obscode)
 orbit_elements.f90:END SUBROUTINE coo_cha
 orbit_elements.f90:LOGICAL FUNCTION equal_orbels(el1,el2)
@@ -410,32 +432,29 @@ orbit_elements.f90:  CONTAINS
 orbit_elements.f90:SUBROUTINE drvdytp(ytp,drv,rv)
 orbit_elements.f90:END SUBROUTINE drvdytp
 orbit_elements.f90:END FUNCTION opik_tpcar
-orbit_elements.f90:SUBROUTINE read_elems(el,name,eof,file,unit,covar)
+orbit_elements.f90:SUBROUTINE read_elems(el,name,eof,file,unit,covar,dp,nd)
 orbit_elements.f90:END SUBROUTINE read_elems
-orbit_elements.f90:SUBROUTINE write_elems(el,name,form,file,unit,covar,incfit)
+orbit_elements.f90:SUBROUTINE write_elems(el,name,form,file,unit,covar,incfit,dp)
 orbit_elements.f90:END SUBROUTINE write_elems
 orbit_elements.f90:SUBROUTINE convertunc(unc1,dee,unc2)
 orbit_elements.f90:END SUBROUTINE convertunc
+orbit_elements.f90:SUBROUTINE propagunc(nd,unc1,dee,unc2)
+orbit_elements.f90:END SUBROUTINE propagunc
 orbit_elements.f90:CHARACTER*3 FUNCTION cootyp(ityp)
 orbit_elements.f90:END FUNCTION cootyp
-orbit_elements.f90:SUBROUTINE wrikep(file,name,elem,covar,moid,pha)
+orbit_elements.f90:SUBROUTINE wrikep(file,name,elem,covar,moid,pha,unit0)
 orbit_elements.f90:END SUBROUTINE wrikep
 orbit_elements.f90:DOUBLE PRECISION FUNCTION v_infty0(el0)
 orbit_elements.f90:END FUNCTION v_infty0
 orbit_elements.f90:SUBROUTINE find_elems(nam0,eledir,buildpath,coox,iunout,el0,unc0,ini0,cov0)
 orbit_elements.f90:END SUBROUTINE find_elems
+orbit_elements.f90:SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,nore,defnor,h,g,mass,n_par,dp)    
+orbit_elements.f90:END SUBROUTINE wromlr
+orbit_elements.f90: SUBROUTINE rd_orb(name,elem,eltype,t0,cove,defcov,nore,defnor,     &
+orbit_elements.f90:END SUBROUTINE rd_orb
 orbit_elements.f90:END MODULE orbit_elements
 orbit_elements.f90:DOUBLE PRECISION FUNCTION appmag(h,g,ds,dt,beta) 
 orbit_elements.f90:END FUNCTION appmag
-perturbations.f90:MODULE perturbations
-perturbations.f90:CONTAINS
-perturbations.f90:  SUBROUTINE secacc(x,v,s,accradsec)
-perturbations.f90:  END SUBROUTINE secacc
-perturbations.f90:  SUBROUTINE sunmoon_pert(x,ef,dplan,dlove,pk2cur,partials) 
-perturbations.f90:  END SUBROUTINE sunmoon_pert
-perturbations.f90:  SUBROUTINE radp(x,s,accrad) 
-perturbations.f90:  END SUBROUTINE radp
-perturbations.f90:END MODULE perturbations
 plocbd.f90:      SUBROUTINE ploae(t0,a,e,aa,ee,sigma,npo,titnam,xlab,ylab) 
 plocbd.f90:    SUBROUTINE getdev(idev) 
 plocbd.f90:    END SUBROUTINE getdev
@@ -453,17 +472,17 @@ pred_obs.f90:SUBROUTINE predic_obs(el,idsta,tobs,type,       &
 pred_obs.f90:END SUBROUTINE predic_obs
 pred_obs.f90:SUBROUTINE predic_obs2(el,idsta,tobs,att,uncert,rr,pha,dsun,twobo,dobde,elmoon)
 pred_obs.f90:END SUBROUTINE predic_obs2
-pred_obs.f90:SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,   &
+pred_obs.f90:SUBROUTINE alph_del2 (el,tobs,iobscod,obs4,ider,nd,  &
 pred_obs.f90:END SUBROUTINE alph_del2
 pred_obs.f90:SUBROUTINE oss_dif2(xast,xea,tobs,iobscod,obs4,ider,dobdx,      &
 pred_obs.f90:END SUBROUTINE oss_dif2
 pred_obs.f90:SUBROUTINE pre_obs_att(el,tobs,alpha,delta,adot,ddot,twobo)
 pred_obs.f90:END SUBROUTINE pre_obs_att
-pred_obs.f90:SUBROUTINE alph_del (el,tauj,iocj,pos,vel,ider,twobo,alj,dej,dade,ddde, &
+pred_obs.f90:SUBROUTINE alph_del (el,tauj,iocj,pos,vel,ider,twobo,nd,alj,dej,dade,ddde, &
 pred_obs.f90:END SUBROUTINE alph_del
 pred_obs.f90: SUBROUTINE oss_dif(xast,xea,tauj,idst,pos,vel,alj,dej,ider,dadx,dddx, &
 pred_obs.f90: END SUBROUTINE oss_dif
-pred_obs.f90:SUBROUTINE r_rdot (el,tr,ioc,tech,posr,post,r,v,drde,dvde,ider) 
+pred_obs.f90:SUBROUTINE r_rdot (el,tr,ioc,tech,posr,post,r,v,nd,drde,dvde,ider) 
 pred_obs.f90:CONTAINS
 pred_obs.f90:  DOUBLE PRECISION FUNCTION deltau(xast,xsta,rho,r) 
 pred_obs.f90:  END FUNCTION deltau
@@ -479,6 +498,10 @@ pred_obs.f90:SUBROUTINE aber1(xrel,vrel,xcor)
 pred_obs.f90:END SUBROUTINE aber1
 pred_obs.f90:SUBROUTINE aber2(xrel,xast,xoss,xcor) 
 pred_obs.f90:END SUBROUTINE aber2
+pred_obs.f90:SUBROUTINE rise_set_iter(alpha,delta,adot,ddot,tref,longitude,latitude,altitude,&
+pred_obs.f90:END SUBROUTINE rise_set_iter
+pred_obs.f90:SUBROUTINE rise_and_set(alpha,delta,tref,longitude,latitude,altitude,t_rise,t_set,t_transit,visib)
+pred_obs.f90:END SUBROUTINE rise_and_set
 propag_state.f90:!==========MODULE PROPAGATOR==============================
 propag_state.f90:! MODULE CONTAINS:                                                      
 propag_state.f90:! OUT OF MODULE
@@ -486,7 +509,7 @@ propag_state.f90:MODULE propag_state
 propag_state.f90:CONTAINS
 propag_state.f90:SUBROUTINE pro_ele(el0,t1,el1,unc0,unc1,obscod0,twobo) 
 propag_state.f90:END SUBROUTINE pro_ele
-propag_state.f90:SUBROUTINE propag(el,t2,xast,xea,ider,dxde,twobo)
+propag_state.f90:SUBROUTINE propag(el,t2,xast,xea,ider,nd,dxdpar,twobo)
 propag_state.f90:END SUBROUTINE propag         
 propag_state.f90:SUBROUTINE inipro 
 propag_state.f90:END SUBROUTINE inipro
@@ -496,7 +519,7 @@ propag_state.f90:SUBROUTINE sel_met_sat(ecc,q,qg,hmax)
 propag_state.f90:END SUBROUTINE sel_met_sat
 propag_state.f90:SUBROUTINE sel_met(ecc,q,qg,hmax) 
 propag_state.f90:END SUBROUTINE sel_met
-propag_state.f90:SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,dx0de) 
+propag_state.f90:SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,nd,dx0de) 
 propag_state.f90: END SUBROUTINE propin      
 propag_state.f90: SUBROUTINE bdnste(t1,y1,h,h2,nstep,m,j1,dd,delta,nvar2,nvar2x,nvar)
 propag_state.f90: END SUBROUTINE bdnste
@@ -526,11 +549,11 @@ propag_state.f90:END SUBROUTINE clo_test
 propag_state.f90:END MODULE propag_state          
 propag_state.f90:SUBROUTINE set_restart(res_log)
 propag_state.f90:END SUBROUTINE set_restart
-propag_state.f90:SUBROUTINE varwra(y2,dxdx0,nvar,nvar2) 
+propag_state.f90:SUBROUTINE varwra(y2,dxdx0,nd,nvar,nvar2) 
 propag_state.f90:END  SUBROUTINE varwra
-propag_state.f90:SUBROUTINE varunw(dxdx0,x,v,nvar2) 
+propag_state.f90:SUBROUTINE varunw(dxdx0,x,v,nd,nvar2) 
 propag_state.f90:END SUBROUTINE varunw
-propag_state.f90:SUBROUTINE vawrxv(x,v,dxdx0,nvar2) 
+propag_state.f90:SUBROUTINE vawrxv(x,v,dxdx0,nvar2,nd) 
 propag_state.f90:END SUBROUTINE vawrxv
 ra15_mod.f90:! ================ MODULE ra15_mod =======
 ra15_mod.f90:! CONTAINS 
@@ -553,14 +576,16 @@ ra15_mod.f90: SUBROUTINE cloapp9(idc,tt)
 ra15_mod.f90: END SUBROUTINE cloapp9
 ra15_mod.f90:END MODULE ra15_mod
 ret_analysistp.f90:!==================MODULE ret_analysistp======================            
-ret_analysistp.f90:! CONTAINS
-ret_analysistp.f90:!  SUBROUTINES 
 ret_analysistp.f90:MODULE ret_analysistp
 ret_analysistp.f90:! SUBROUTINEs
 ret_analysistp.f90:CONTAINS 
+ret_analysistp.f90:  LOGICAL FUNCTION check_largevi(vas,lre)
+ret_analysistp.f90:  END FUNCTION check_largevi
+ret_analysistp.f90:  SUBROUTINE risklarge(vas,lre,lmin,no_risk,t0,iunnew,iunwarn,iunrisk,riskfile)
+ret_analysistp.f90:  END SUBROUTINE risklarge
 ret_analysistp.f90:  SUBROUTINE ret_min(lre,vas_tr,t0,dnewton,no_risk)  
 ret_analysistp.f90:  END SUBROUTINE ret_min              
-ret_analysistp.f90:  SUBROUTINE ret_minctp(lre,vas_tr,t0,iunwarn,iunnew,riskfile,dnewton,no_risk)
+ret_analysistp.f90:  SUBROUTINE ret_minctp(lre,vas_tr,t0,iunwarn,iunnew,riskfile,dnewton,no_risk,riskesafile)
 ret_analysistp.f90:  END SUBROUTINE ret_minctp
 ret_analysistp.f90:  SUBROUTINE falslog4tp(vas_tracec,iunwar,type) 
 ret_analysistp.f90:  END SUBROUTINE falslog4tp
@@ -617,7 +642,7 @@ semi_linear.f90:SUBROUTINE linobs(ibv,npo,el,axes,sig,b,v,sigma,ceicel,elm,npo1)
 semi_linear.f90:END SUBROUTINE linobs
 semi_linear.f90:SUBROUTINE ellips(daddet,gamm0,sig,axes,gamad) 
 semi_linear.f90:END SUBROUTINE ellips
-semi_linear.f90:SUBROUTINE ellipsoid(daddet,gamm0,sig,axes,gamad) 
+semi_linear.f90:SUBROUTINE ellipsoid(nd,daddet,gamm0,sig,axes,gamad) 
 semi_linear.f90:END SUBROUTINE ellipsoid
 semi_linear.f90:SUBROUTINE elemov(x,y,v,ceicel,del) 
 semi_linear.f90:END SUBROUTINE elemov                                          
@@ -677,7 +702,9 @@ tp_trace.f90:! ========MODULE tp_trace================================
 tp_trace.f90:MODULE tp_trace
 tp_trace.f90:! SUBROUTINEs
 tp_trace.f90:CONTAINS
-tp_trace.f90:  SUBROUTINE str_clan(dx1dx0,dx0de) 
+tp_trace.f90:  SUBROUTINE undefined_tp_point(nd,tpp)
+tp_trace.f90:  END SUBROUTINE undefined_tp_point
+tp_trace.f90:  SUBROUTINE str_clan(dx1dx0,nd,dx0de) 
 tp_trace.f90:CONTAINS
 tp_trace.f90:      SUBROUTINE mtp_rot3(batchcl,vt3,dx,dv,dxde,gc,                     &
 tp_trace.f90:      END SUBROUTINE mtp_rot3   
@@ -719,13 +746,13 @@ virtual_impactor.f90:  END SUBROUTINE store_vi
 virtual_impactor.f90:  SUBROUTINE vi_draw(del)
 virtual_impactor.f90:  END SUBROUTINE vi_draw
 virtual_impactor.f90:END MODULE virtual_impactor
-wromlr.f90:SUBROUTINE wromlr(unit,name0,elem,eltype,t0,cove,defcov,nore,defnor,h,g,mass)    
-wromlr.f90:END SUBROUTINE wromlr
 yark_pert.f90:! ==========MODULE yark_pert============
 yark_pert.f90:! CONTAINS
 yark_pert.f90:! MODULES AND HEADERS
 yark_pert.f90:MODULE yark_pert
 yark_pert.f90:CONTAINS 
+yark_pert.f90:SUBROUTINE sec_nong9(xb,vb,s,sv,secacc)
+yark_pert.f90:END SUBROUTINE sec_nong9
 yark_pert.f90:      SUBROUTINE secular_nongrav(x,v,secacc)
 yark_pert.f90:      END SUBROUTINE secular_nongrav
 yark_pert.f90:      SUBROUTINE yarkdi(xast,a,iparti) 

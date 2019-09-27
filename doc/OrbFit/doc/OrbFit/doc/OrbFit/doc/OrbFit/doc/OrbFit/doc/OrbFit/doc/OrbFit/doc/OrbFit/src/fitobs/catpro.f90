@@ -5,6 +5,7 @@ program catpro
   USE output_control
   USE orbit_elements
   USE propag_state
+  USE dyn_param
   USE name_rules, ONLY: idname_len
 ! ================================================                      
   implicit none 
@@ -19,15 +20,16 @@ program catpro
   INTEGER ld,le
   CHARACTER*10 rsys,epoch ! for catalog file header
   CHARACTER*3 eltype ! for rdorb call
-  DOUBLE PRECISION t,eq(6),covar(6,6),normal(6,6),h,gmag,mass
+  DOUBLE PRECISION t,eq(6),covar(ndimx,ndimx),normal(ndimx,ndimx),h,gmag,mass
   LOGICAL defcov,defnor
   INTEGER no
   DOUBLE PRECISION tref ! reference epoch for propagation 
   TYPE(orbit_elem) el0,el,ek !elements (in, out, keplerian)
   TYPE(orb_uncert) unc,unc0 ! uncertainties (in ,out)
   INTEGER fail_flag ! for coordinate changes
-  LOGICAL eof,covpro,ok  ! end input file, propagate covariance, data available
-  INTEGER i,ndone ! counters
+  LOGICAL eof,covpro,ok, err  ! end input file, propagate covariance, data available
+  INTEGER i,ndone, nlsloc, lsloc(ndyx) ! counters
+  INTEGER nd
 ! =================input options===============================
   progna='catpro' 
   run=progna                                        
@@ -67,7 +69,12 @@ program catpro
 10 CONTINUE 
 ! input orbit at common epoch, with covariance                          
   REWIND (ipirip) 
-  CALL read_elems(el0,namid,eof,dummyfile,iuncat0,COVAR=unc0)             
+  CALL read_elems(el0,namid,eof,nlsloc,err,lsloc,UNC=unc0,FILE=dummyfile,UNIT=iuncat0)
+  IF(dyn%nmod.GT.0)THEN
+     nls=nlsloc
+     ls=lsloc
+  END IF
+  nd=6+nls
   IF(eof) GOTO 5 
   i=i+1 ! counter of orbits read
 ! convert name in case it is of the form nam0=namp                      
@@ -103,12 +110,13 @@ program catpro
 ! write output in multiline format (if covariance is required),         
 ! single line format otherwise.                                         
   IF(covpro)THEN 
-     CALL write_elems(el,name,'ML',dummyfile,iuncat,unc) !INCFIT???
+     CALL write_elems(el,name,'ML',UNC=unc,FILE=dummyfile,UNIT=iuncat)
+     !CALL write_elems(el,name,'ML',dummyfile,iuncat,unc) !INCFIT???
   ELSE 
 ! output single line catalog record                                     
      CALL coo_cha(el,'KEP',ek, fail_flag)
      IF(fail_flag.lt.4) THEN 
-        CALL write_elems(ek,name,'1L',dummyfile,iuncat) !INCFIT???
+        CALL write_elems(ek,name,'1L',FILE=dummyfile,UNIT=iuncat)
      ELSE
         WRITE(*,*)' catpro: cannot handle comets in 1L format', el
      ENDIF

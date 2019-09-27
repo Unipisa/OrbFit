@@ -1,2 +1,0 @@
- ..\..\bin\orbfit
-pause

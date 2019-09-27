@@ -44,7 +44,7 @@ MODULE critical_points
 
 ! public routines
   PUBLIC :: crit_pts,d2eval 
-  PUBLIC :: sign_dmin,mutual_ref,dmintil_rms,q_Q_T_rms, moid_rms
+  PUBLIC :: sign_dmin,mutual_ref,dmintil_rms,q_Q_T_rms, moid_rms,Habs_rms
 CONTAINS
 
 ! =================================================================
@@ -80,7 +80,7 @@ CONTAINS
       IF(PRESENT(rmsh))THEN
          covmh(2,2)=rmsh**2
       ENDIF
-      uncea=undefined_orb_uncert
+      CALL undefined_orb_uncert(6,uncea)
       uncea%g=0.d0
 ! compute MOID with sign and its variance
       CALL dmintil_rms(elea,elem,nummin,dmintil,UNC1=uncea,UNC2=uncel,&
@@ -161,7 +161,7 @@ CONTAINS
 ! total derivatives of H w.r. to original elements
     dHdel2=dHdrho*drhodel2+dHdr*drdel2 +dHdbeta*dbetadel2
 ! ------ covariance computation ------
-    gel = unc2%g
+    gel = unc2%g(1:6,1:6)
     dHtmp = MATMUL(gel,dHdel2)
     Hvar = DOT_PRODUCT(dHdel2,dHtmp)
     Hrms = sqrt(Hvar)
@@ -680,8 +680,9 @@ CONTAINS
     IF(nroots.eq.0)THEN
        write(ierrou,*)'crit_pts: ERROR! no critical point found! nroots=',nroots
        numerr=numerr+1
+       nummin=0
+       nummax=0
        RETURN
-!       STOP
     ENDIF
 
     nummin=0
@@ -1660,6 +1661,33 @@ CONTAINS
 ! to select a sign for d_min
 SUBROUTINE sign_dmin(pos1,tau1,pos2,tau2,dsign)
   IMPLICIT NONE
+! Cartesian coordinates at minimum and tangent vectors
+! to the orbits
+  DOUBLE PRECISION,INTENT(IN),DIMENSION(3) :: pos1,tau1
+  DOUBLE PRECISION,INTENT(IN),DIMENSION(3) :: pos2,tau2
+  DOUBLE PRECISION,INTENT(OUT) :: dsign ! dmin sign
+! end interface
+  DOUBLE PRECISION,DIMENSION(3) :: deltapos,tau3
+  DOUBLE PRECISION :: dotprod
+  deltapos=pos1-pos2
+  CALL prvec(tau1,tau2,tau3)
+  dotprod=DOT_PRODUCT(deltapos,tau3)
+!  write(ierrou,*)dotprod
+  IF(dotprod.gt.0.d0)THEN
+     dsign = 1.d0
+  ELSEIF(dotprod.lt.0.d0)THEN
+     dsign = -1.d0
+  ELSE
+     write(*,*)'sign_dmin error!!'
+     dsign = 2.d0
+!     STOP
+  ENDIF
+END SUBROUTINE sign_dmin
+
+! ==============================================================
+! to select a sign for d_min (old version, it shows someproblems)
+SUBROUTINE sign_dmin2(pos1,tau1,pos2,tau2,dsign)
+  IMPLICIT NONE
   DOUBLE PRECISION,PARAMETER :: eps_S=100.d0*epsilon(1.d0)
 ! Cartesian coordinates at minimum and tangent vectors
 ! to the orbits
@@ -1669,6 +1697,7 @@ SUBROUTINE sign_dmin(pos1,tau1,pos2,tau2,dsign)
 !
   DOUBLE PRECISION :: detT1, detT2, detT3
   DOUBLE PRECISION :: S1,S2,S3
+  DOUBLE PRECISION :: Smax
 
   detT1 = tau1(2)*tau2(3)-tau2(2)*tau1(3)
   detT2 = tau1(3)*tau2(1)-tau2(3)*tau1(1)
@@ -1677,6 +1706,23 @@ SUBROUTINE sign_dmin(pos1,tau1,pos2,tau2,dsign)
   S1=(pos1(1)-pos2(1))*detT1
   S2=(pos1(2)-pos2(2))*detT2
   S3=(pos1(3)-pos2(3))*detT3
+
+! added 5/2/2012
+  Smax = max(abs(S1),abs(S2),abs(S3))
+  IF(Smax.gt.eps_S)THEN
+     IF(Smax.eq.abs(S1))THEN
+        dsign = SIGN(1.d0,S1)
+     ELSEIF(Smax.eq.abs(S2))THEN
+        dsign = SIGN(1.d0,S2)
+     ELSEIF(Smax.eq.abs(S3))THEN
+        dsign = SIGN(1.d0,S3)
+     ENDIF
+  ELSE
+     WRITE(ierrou,*)'sign_dmin: WARNING! ALMOST DEGENERATE CASE: &
+          & S1,S2,S3',S1,S2,S3
+  ENDIF
+  RETURN
+! -----------------------------------
 
   IF(abs(S1).gt.eps_S)THEN
      dsign=SIGN(1.d0,S1)
@@ -1699,7 +1745,7 @@ SUBROUTINE sign_dmin(pos1,tau1,pos2,tau2,dsign)
         numerr=numerr+1
      ENDIF
   ENDIF
-END SUBROUTINE sign_dmin
+END SUBROUTINE sign_dmin2
 
 !==========================================================
 ! COMPUTATION of the MUTUAL ELEMENTS mutI,mutom1,mutom2
@@ -1834,7 +1880,7 @@ SUBROUTINE mutual_ref(el1,el2,mutI,mutom1,mutom2, &
   cmutom1=DOT_PRODUCT(Anodver,chi1)
   cmutom2=DOT_PRODUCT(Anodver,chi2)
   CALL prvec(Anodver,chi1,Anodverchi1)
-  CALL prvec(Enne1,chi2,Anodverchi2)
+  CALL prvec(Anodver,chi2,Anodverchi2)
   smutom1=DOT_PRODUCT(Anodverchi1,Enne1)
   smutom2=DOT_PRODUCT(Anodverchi2,Enne2)
   mutom1 = atan2(smutom1,cmutom1)
@@ -2158,7 +2204,7 @@ END SUBROUTINE CP_newton_raphson
 ! =================================================================
 SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
      & unc1,unc2,dmintrms,ddmintdel2,comp_flag,detH,detHrms, &
-     & sint1t2,taurms,sinmutI,sinmutIrms,chk_der)
+     & sint1t2,taurms,sinmutI,sinmutIrms,chk_der,v1min,v2min,tau_1,tau_2,dminflag)
   IMPLICIT NONE
 ! ===================== INTERFACE =======================
   TYPE(orbit_elem),INTENT(IN) :: el1,el2 ! orbital elements
@@ -2181,6 +2227,12 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
   DOUBLE PRECISION,OPTIONAL,INTENT(OUT) :: sinmutI
   DOUBLE PRECISION,OPTIONAL,INTENT(OUT) :: sinmutIrms
   LOGICAL,OPTIONAL,INTENT(IN) :: chk_der
+  DOUBLE PRECISION,OPTIONAL,DIMENSION(3,nminx),INTENT(OUT) :: tau_1,tau_2
+  DOUBLE PRECISION,OPTIONAL,DIMENSION(nminx),INTENT(OUT):: v1min,v2min
+! failure in computing moid with sign
+! dminflag = 1 could not compute dmin
+! dminflag = 2 could not give a sign to dmin
+  INTEGER,INTENT(OUT),OPTIONAL :: dminflag(nminx) 
 ! =================== END INTERFACE =====================
   LOGICAL :: chk_der_aux   
   LOGICAL,DIMENSION(3) :: comp_flag_aux
@@ -2231,6 +2283,7 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
 ! to compute derivatives of dmintil
   TYPE(orbit_elem), DIMENSION(nminx) :: el1min,el2min
   TYPE(orbit_elem), DIMENSION(nminx) :: car1min,car2min
+  TYPE(orbit_elem) :: com1min,com2min
   DOUBLE PRECISION,DIMENSION(1,10)  :: derdmintil
   DOUBLE PRECISION,DIMENSION(10,1)  :: tderdmintil
   DOUBLE PRECISION,DIMENSION(3)  :: ddeltadcom
@@ -2248,6 +2301,9 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
 
 !  chk_der = .false. ! no control of derivatives
 
+  IF(PRESENT(dminflag))THEN
+     dminflag=0 !initialization
+  ENDIF
 
 !  IF(verb_moid.ge.20) THEN
 !     WRITE(*,*)'Cometary elements:'
@@ -2263,13 +2319,17 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
      CALL convertunc(unc1,jaccomel1,unccom1)
      CALL convertunc(unc2,jaccomel2,unccom2)
 ! covariance matrix w.r.t. COM elems
-     gcom1=unccom1%g
-     gcom2=unccom2%g
+     gcom1=unccom1%g(1:6,1:6)
+     gcom2=unccom2%g(1:6,1:6)
      covcom(1:10,1:10)=0.d0
      covcom(1:5,1:5)=gcom1(1:5,1:5)
      covcom(6:10,6:10)=gcom2(1:5,1:5)
   ELSE
-! conversion into cometary elements
+! conversion into cometary elements 
+! ***********************************************************
+! HINT: COM(1:5)=COT(1:5); 
+! COM(6) and COT(6), which are different, are NOT used here!
+! ***********************************************************
 !     WRITE(*,*) el2%coo, el1%coo
      IF(el2%coo.eq.'COM')THEN
         com2=el2
@@ -2337,10 +2397,11 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
      write(ierrou,*)'dmintil_rms: hessian evaluation failed'
      numerr=numerr+1
   ENDIF
-  IF(nstat.le.0) THEN
-     WRITE(ierrou,*)'dmintil_rms: error! nstat=',nstat
+  IF(nstat.le.0.or.nummin.le.0) THEN
+     WRITE(ierrou,*)'dmintil_rms: error! nstat=',nstat,'nummin=',nummin
      numerr=numerr+1
-     nummin=0
+!     nummin=0 !non serve
+     IF(PRESENT(dminflag)) dminflag(1)=1
      RETURN
   ENDIF
   
@@ -2357,6 +2418,15 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
   DO k = 1,nstat 
      IF(answer(srtnum(k)).eq.-1) THEN
         kmin=kmin+1
+! added 2/6/2014, GFG ---------------------------------
+        IF(kmin.gt.nminx)THEN
+           WRITE(*,*)'dmintil_rms: nminx exceeded!',kmin
+           WRITE(ierrou,*)'dmintil_rms: nminx exceeded!',kmin
+           numerr=numerr+1
+           nummin = kmin-1 !setting nummin to nminx
+           CYCLE
+        ENDIF
+! -----------------------------------------------------
         f1min(kmin) = f1(srtnum(k))
         f2min(kmin) = f2(srtnum(k))
         D2min(kmin) = D2(srtnum(k))
@@ -2403,6 +2473,10 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
              & detH_aux,trH(i),detHrms_aux,car1min(i),car2min(i), &
              & dcardcom1,dcardcom2,tau1,tau2,tau3hat,sint1t2_aux(i),&
              & taurms_aux)
+        IF(PRESENT(tau_1).AND.PRESENT(tau_2))THEN
+           tau_1(1:3,i)=tau1(1:3)
+           tau_2(1:3,i)=tau2(1:3)
+        ENDIF
         IF(PRESENT(detH))THEN
            detH(i)=detH_aux
         ENDIF
@@ -2438,7 +2512,11 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
 ! give a sign to the minimal distance
         CALL sign_dmin(car1min(i)%coord(1:3),tau1, &
              & car2min(i)%coord(1:3),tau2,dsign)
-     
+        IF(PRESENT(dminflag))THEN
+           IF(dsign.eq.2.d0)THEN
+              dminflag(i)=2
+           ENDIF
+        ENDIF
         dmintil(i)=dsign*SQRT(D2min(i))
         tderdmintil=TRANSPOSE(derdmintil)
         dmint_cov=MATMUL(derdmintil,MATMUL(covcom,tderdmintil)) 
@@ -2456,12 +2534,80 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
            numerr=numerr+1
         ENDIF
      ENDDO
+
+
+  ELSEIF(PRESENT(ddmintdel2))THEN
+! -------------------------------------------------------------
+! eigenvalue monitoring of the Hessian matrix
+!(we have eliminated some terms that are zero at critical points)
+     DO i=1,MAX(nummin,1)
+        com1min=com1
+        com2min=com2
+! substitute last element time of perihelion passage
+        com1min%coord(6)=f1min(i)
+        com2min%coord(6)=f2min(i)
+        CALL coo_cha(com1min,'CAR',car1min(i),fail_flag,dcardcom1)
+        CALL coo_cha(com2min,'CAR',car2min(i),fail_flag,dcardcom2)       
+
+        CALL tau1_tau2(com1,com2,f1min(i),f2min(i),car1min(i),car2min(i),&
+             & tau1,tau2,tau3hat,sint1t2_aux(i))
+        IF(PRESENT(tau_1).AND.PRESENT(tau_2))THEN
+           tau_1(1:3,i)=tau1(1:3)
+           tau_2(1:3,i)=tau2(1:3)
+        ENDIF
+!        CALL comp_rms_com(com1,com2,unccom1,unccom2,chk_der_aux, &
+!             & f1min(i),f2min(i),sinmutI_aux,sinmutIrms_aux,Hess, &
+!             & detH_aux,trH(i),detHrms_aux,car1min(i),car2min(i), &
+!             & dcardcom1,dcardcom2,tau1,tau2,tau3hat,sint1t2_aux(i),&
+!             & taurms_aux)
+
+        dcardcom(1:6,1:10)=0.d0! initialization
+        dcardcom(1:3,1:5)=dcardcom1(1:3,1:5)
+        dcardcom(4:6,6:10)=dcardcom2(1:3,1:5)
+        DO h=1,10       
+           DO k=1,3 
+              ddeltadcom(k)=dcardcom(k,h)-dcardcom(k+3,h)
+           ENDDO
+           derdmintil(1,h)=DOT_PRODUCT(tau3hat,ddeltadcom)!derivs w.r.t.COM
+        ENDDO
+! give a sign to the minimal distance
+        CALL sign_dmin(car1min(i)%coord(1:3),tau1, &
+             & car2min(i)%coord(1:3),tau2,dsign)
+        IF(PRESENT(dminflag))THEN
+           IF(dsign.eq.2.d0)THEN
+              dminflag(i)=2
+           ENDIF
+        ENDIF
+        dmintil(i)=dsign*SQRT(D2min(i))
+        tderdmintil=TRANSPOSE(derdmintil)
+        IF(PRESENT(c1min).and.PRESENT(c2min))THEN
+           c1min(1:3,i) = car1min(i)%coord(1:3)
+           c2min(1:3,i) = car2min(i)%coord(1:3)
+        ENDIF
+
+        ddmintdel2(1:5,i)=derdmintil(1,6:10)
+     ENDDO
+
   ELSE
      DO i=1,nummin
         CALL tau1_tau2(com1,com2,f1min(i),f2min(i),car1min(i),car2min(i),&
              & tau1,tau2,tau3hat,sint1t2_aux(i))
+        IF(PRESENT(tau_1).AND.PRESENT(tau_2))THEN
+           tau_1(1:3,i)=tau1(1:3)
+           tau_2(1:3,i)=tau2(1:3)
+        ENDIF
         CALL sign_dmin(car1min(i)%coord(1:3),tau1, &
              & car2min(i)%coord(1:3),tau2,dsign)
+
+! ======================================
+! ADDED 12/2/2012
+        IF(PRESENT(dminflag))THEN
+           IF(dsign.eq.2.d0)THEN
+              dminflag(i) = 2
+              CYCLE
+           ENDIF
+        ENDIF
+! =======================================
         dmintil(i)=dsign*SQRT(D2min(i)) 
         IF(PRESENT(c1min).and.PRESENT(c2min))THEN
            c1min(1:3,i) = car1min(i)%coord(1:3)
@@ -2482,6 +2628,11 @@ SUBROUTINE dmintil_rms(el1,el2,nummin,dmintil,c1min,c2min,&
 !     write(*,100) derdmintil(1,6:10)
  100 FORMAT(5(f12.8,1x))
      ENDIF
+  ENDIF
+
+  IF(PRESENT(v1min).AND.PRESENT(v2min)) THEN
+     v1min(1:nummin)=f1min(1:nummin)
+     v2min(1:nummin)=f2min(1:nummin)
   ENDIF
 
 END SUBROUTINE dmintil_rms
@@ -2656,8 +2807,8 @@ SUBROUTINE comp_rms_com(com1,com2,unc1,unc2,chk_der,f1,f2,sinmutI,&
 ! ==========================================================
 
 ! covariance matrix
-    gcom1=unc1%g
-    gcom2=unc2%g
+    gcom1=unc1%g(1:6,1:6)
+    gcom2=unc2%g(1:6,1:6)
     covcom(1:10,1:10)=0.d0
     covcom(1:5,1:5)=gcom1(1:5,1:5)
     covcom(6:10,6:10)=gcom2(1:5,1:5)
@@ -4413,7 +4564,7 @@ END SUBROUTINE comp_rms_com
     derperiod = (3.d0*pig/gk)*sqrt(aa)
 
 ! ------ covariance computation ------
-    geq = unc%g
+    geq = unc%g(1:6,1:6)
     perihrmsvec = MATMUL(derperih,MATMUL(geq(1:3,1:3),tderperih))
     apohrmsvec = MATMUL(derapoh,MATMUL(geq(1:3,1:3),tderapoh))
     perihrms = sqrt(perihrmsvec(1,1))

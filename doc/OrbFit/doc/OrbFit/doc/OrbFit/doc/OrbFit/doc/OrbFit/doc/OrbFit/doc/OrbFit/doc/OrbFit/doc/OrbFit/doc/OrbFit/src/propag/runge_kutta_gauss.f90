@@ -393,6 +393,7 @@ END SUBROUTINE rkstep
 !  too many gauss-seidel iterations                                     
             WRITE(iun_log,*)' rkg: non convergent after ',it,' iterations' 
             WRITE(iun_log,*)t1,ep(it) 
+            GOTO 77 ! ADDED 11/6/2014
          ENDIF 
          it=it+1 
          ips=-1 

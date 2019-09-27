@@ -67,6 +67,7 @@ inptwoway.o: \
 input9.o: \
 	../include/comnbo.h90 \
 	../propag/close_app.mod \
+	../propag/dyn_param.mod \
 	../propag/force9d.mod \
 	../propag/force_model.mod \
 	../propag/massmod.mod \
@@ -157,7 +158,14 @@ prop9.o: \
 	../propag/massmod.mod \
 	short9.o 
 
+prop_class.o: \
+	../suit/name_rules.mod \
+	propel_mod.o 
+
 prop_tax.o: \
+	../propag/dyn_param.mod \
+	../propag/orbit_elements.mod \
+	../suit/fund_const.mod \
 	../suit/name_rules.mod \
 	propel_mod.o 
 
@@ -165,6 +173,7 @@ propasub.o: \
 	synthtro.o 
 
 propel_mod.o: \
+	../suit/fund_const.mod \
 	../suit/name_rules.mod 
 
 propert.o: \
@@ -190,6 +199,7 @@ reaopt.o: \
 
 reaoptt.o: \
 	../include/comnbo.h90 \
+	../propag/dyn_param.mod \
 	../propag/massmod.mod \
 	../suit/fund_const.mod \
 	libcen.h90 
@@ -223,7 +233,8 @@ subs9.o: \
 	../suit/fund_const.mod 
 
 synthcomp.o: \
-	../suit/fund_const.mod 
+	../suit/fund_const.mod \
+	fir_filters.o 
 
 synthtro.o: \
 	../suit/fund_const.mod 

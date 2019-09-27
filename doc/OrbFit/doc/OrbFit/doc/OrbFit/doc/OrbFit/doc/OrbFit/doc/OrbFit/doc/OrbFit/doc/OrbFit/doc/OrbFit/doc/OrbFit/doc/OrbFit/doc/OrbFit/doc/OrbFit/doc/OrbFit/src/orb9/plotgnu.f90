@@ -59,13 +59,13 @@
          WRITE (22, * ) 'set output' 
       ELSEIF (idev.eq. - 5) then 
          WRITE (22, * ) 'set terminal postscript monochrome' 
-         WRITE (22, * ) 'set output "giffv.ps"' 
+         WRITE (22, * ) 'set output "giffvbw.eps"' 
       ELSEIF (idev.eq. - 6) then 
          WRITE (22, * ) 'set terminal postscript monochrome' 
          WRITE (22, * ) 'set output "|lpr -h"' 
       ELSEIF (idev.eq. - 7) then 
          WRITE (22, * ) 'set terminal postscript color' 
-         WRITE (22, * ) 'set output "giffv.ps"' 
+         WRITE (22, * ) 'set output "giffvc.eps"' 
       ELSE 
          WRITE ( * , * ) ' this device flag ', idev, ' not known' 
          RETURN 
@@ -87,16 +87,16 @@
       ENDIF 
 !  hard copy (if not done already)                                      
       IF (idev.eq. - 7) then 
-!        ii=system('lpr giffv.ps')                                      
+!        ii=system('lpr giffv.eps')                                      
 !        write(*,*)ii                                                   
-         CALL system ('lpr giffv.ps') 
+         CALL system ('lpr giffvc.eps') 
       ELSEIF (idev.eq. - 5) then
 !  option moved in front of filename 
-         CALL system ('lpr -h giffv.ps') 
+         CALL system ('lpr -h giffvbw.eps') 
       ENDIF 
 !  ADDED removal of giffv.tmp and giffv.gnu to prevent program crush
-      CALL system ('rm -f giffv.tmp')
-      CALL system ('rm -f giffv.gnu') 
+!      CALL system ('rm -f giffv.tmp')
+!      CALL system ('rm -f giffv.gnu') 
       RETURN 
       END SUBROUTINE plotcr                         
 ! ***************************************************************       

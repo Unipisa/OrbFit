@@ -1,6 +1,7 @@
 MODULE virtual_impactor
   USE orbit_elements
   USE tp_trace
+  USE dyn_param
   IMPLICIT NONE
   PRIVATE
 
@@ -11,6 +12,7 @@ MODULE virtual_impactor
      TYPE (orbit_elem) :: ele ! orbital elements of one represntative of the VI
      TYPE(orb_uncert)  :: unc ! covariance and normal matrices
      TYPE (tp_point) :: tp     ! TP point and auxiliary variables
+     TYPE(dyn_par) :: dyn    ! nongravitational parameters
 !     TYPE (tp_point) :: prev_tp(nprevx) ! TP point on previous encounters
   END TYPE virt_imp
 

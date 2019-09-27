@@ -24,7 +24,7 @@ SUBROUTINE reacat(iprqua,sysz,refz,coox,sysx,refx,t0a,t1,xa,nfound)
 ! input from reaele                                                     
   LOGICAL eof,fou(nastx) 
   INTEGER nrec,nrecx 
-  PARAMETER (nrecx=200000) 
+  PARAMETER (nrecx=1000000) 
   DOUBLE PRECISION hm,xx(6) 
   INTEGER ndarc,nobs 
 ! headers                                                               
@@ -124,7 +124,7 @@ SUBROUTINE reacat(iprqua,sysz,refz,coox,sysx,refx,t0a,t1,xa,nfound)
 !  one file for all the planets and one file for all the asteroids      
 ! ********************************************************************  
 !  column headers for equinoctal elements and numbers                   
-  colhea='  a(AU)      h      k      p      q     lambda  nrev  gam' 
+  colhea='  a(au)      h      k      p      q     lambda  nrev  gam' 
 !  sampled elements, only for iprq even, unit 11 and 21                 
   if(mod(iprqua,2).eq.0)then 
      open(21,file='vast.dat',status='unknown') 

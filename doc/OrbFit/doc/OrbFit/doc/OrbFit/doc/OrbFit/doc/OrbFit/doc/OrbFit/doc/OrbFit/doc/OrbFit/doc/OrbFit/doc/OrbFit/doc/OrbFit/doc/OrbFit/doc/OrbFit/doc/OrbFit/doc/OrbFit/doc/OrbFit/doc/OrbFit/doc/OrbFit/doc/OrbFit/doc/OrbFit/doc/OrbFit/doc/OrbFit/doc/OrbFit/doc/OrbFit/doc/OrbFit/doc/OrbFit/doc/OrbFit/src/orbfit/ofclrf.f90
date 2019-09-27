@@ -10,29 +10,29 @@
 !  *                                                               *
 !  *****************************************************************
 !
-      SUBROUTINE ofclrf
-      USE output_control
-      IMPLICIT NONE
-
-       CHARACTER*12 status
+SUBROUTINE ofclrf
+  USE output_control
+  IMPLICIT NONE
+  
+  CHARACTER(LEN=12):: status
 
 ! Close report file for errors
-      IF(numerr.LE.0) THEN
-          status='DELETE'
-      ELSE
-          status='KEEP'
-      END IF
-      CALL filclo(ierrou,status)
-
+  IF(numerr.LE.0) THEN
+     status='DELETE'
+  ELSE
+     status='KEEP'
+  END IF
+  CALL filclo(ierrou,status)
+  
 ! Close report file for close approaches
-      IF(numcla.LE.0) THEN
-          status='DELETE'
-      ELSE
-          status='KEEP'
-      END IF
-      CALL filclo(iuncla,status)
+  IF(numcla.LE.0) THEN
+     status='DELETE'
+  ELSE
+     status='KEEP'
+  END IF
+  CALL filclo(iuncla,status)
 
 ! Close report file for propagator parameters
-      CALL filclo(ipirip,' ')
-
-      END
+  CALL filclo(ipirip,' ')
+  
+END SUBROUTINE ofclrf

@@ -3,7 +3,7 @@ MODULE cat_debias
   IMPLICIT NONE
   PRIVATE 
 ! common data: biases per catalog
-  DOUBLE PRECISION         :: catrecord(49152,26)
+  DOUBLE PRECISION, ALLOCATABLE:: catrecord(:,:)   !catrecord(49152,26)
   INTEGER(KIND=i4b), PARAMETER :: ns_max=8192 ! 2^13 : largest nside available
 
   !initialise array x2pix, y2pix and pix2x, pix2y used in several routines
@@ -12,100 +12,42 @@ MODULE cat_debias
   integer(KIND=i4b), save, dimension(0:1023) :: pix2x=0, pix2y=0
 
 ! public routines
-  PUBLIC cat_find,cat_bias
+  PUBLIC cat_bias
   
   CONTAINS
 
-  SUBROUTINE cat_bias_init
-    INTEGER  :: error, i,iun
-    CALL filopl(iun,'xcat.bias')
-    READ(iun,*)
-704 FORMAT(7X,F10.6,25(F16.6))
+  SUBROUTINE cat_bias_init(error_model)
+    INTEGER                     :: error, i,iun
+    CHARACTER*(*),INTENT(IN)    :: error_model
+! opening file and allocate catrecord, 3 catalogs times 4 field
+    IF(error_model.eq.'cbm10')THEN
+       CALL filopl(iun,'xcat.bias_cbm10')
+       ALLOCATE(catrecord(49152,3*4))
+! strip header, two lines
+       READ(iun,*)
+       READ(iun,*)
+! 19 catalogs times 4 fields
+    ELSEIF(error_model.EQ.'fcct14'.OR.error_model.EQ.'vfcc17')THEN
+       CALL filopl(iun,'xcat.bias_fcct14')
+       ALLOCATE(catrecord(49152,19*4))
+       ! strip header, six lines
+       DO i=1,6
+          READ(iun,*)
+       END DO
+    ELSE
+       WRITE(*,*) 'cat_bias_init : **** WRONG ERROR MODEL ***** ',error_model
+       STOP
+    END IF
+
+! read bias table      
     DO i=1,49152
-       READ(iun,704,IOSTAT=error) catrecord(i,:)
+       READ(iun,*,IOSTAT=error) catrecord(i,:)
        IF (error/=0)THEN
          WRITE(*,*)' cat_bias_init: error in reading, record=',i 
          WRITE(*,*) catrecord(i,:)
        ENDIF
     ENDDO
    END SUBROUTINE cat_bias_init
-
-  !------------------------------------------------------------------
-  ! SUBROUTINE cat_find
-  ! The purpose of this routine is to provide the astrometric catalog
-  ! code starting from the MPC observations flag.
-  ! Special cases are handled for observatory codes 691, 703 and 704
-  ! Creation on 27 May 2009 by F. Bernardi
-  !-----------------------------------------------------------------
-  SUBROUTINE cat_find(mpcflag,t_cat,obscode,catcode)
-    IMPLICIT NONE
-    CHARACTER(LEN=2),           INTENT(OUT)   :: catcode
-    CHARACTER(LEN=2),           INTENT(INOUT) :: mpcflag
-    CHARACTER(LEN=3),           INTENT(IN)    :: obscode
-    DOUBLE PRECISION,           INTENT(IN)    :: t_cat
-    IF (mpcflag.EQ.'  ') THEN
-       !----------------
-       ! Special cases
-       !----------------
-       IF (obscode.EQ.'691') THEN
-          IF(t_cat.GE.48499.AND.t_cat.LE.51449) THEN
-             catcode='G1'
-             mpcflag='sh'
-          ELSEIF(t_cat.GT.51449.AND.t_cat.LE.51899) THEN
-             catcode='A1'
-             mpcflag='sa'
-          ELSEIF(t_cat.GT.51899.AND.t_cat.LE.54095) THEN 
-             catcode='A2'
-             mpcflag='sc'
-          ENDIF
-       ELSEIF (obscode.EQ.'703') THEN
-          IF(t_cat.LE.53371) THEN
-             catcode='A2'
-             mpcflag='sc'
-          ENDIF
-       ELSEIF (obscode.EQ.'704') THEN
-          IF(t_cat.LE.51544) THEN
-             catcode='A1'
-             mpcflag='sa'
-          ELSEIF(t_cat.GT.51544) THEN 
-             catcode='A2'
-             mpcflag='sc'
-          ENDIF
-       ELSE
-          catcode='UN'                                        ! Unknown
-       ENDIF
-    ELSEIF (mpcflag.EQ.' a'.OR.mpcflag.EQ.' b') THEN 
-       catcode='A1'                                        ! USNO-A1
-    ELSEIF (mpcflag.EQ.' c'.OR.mpcflag.EQ.' d') THEN 
-       catcode='A2'                                        ! USNO-A2
-    ELSEIF (mpcflag.EQ.' e'.OR.mpcflag.EQ.' q'.OR.mpcflag.EQ.' r'.OR.mpcflag.EQ.' t'.OR.mpcflag.EQ.' u') THEN
-       catcode='UC'                                        ! UCAC
-    ELSEIF (mpcflag.EQ.' f'.OR.mpcflag.EQ.' g') THEN 
-       catcode='TY'                                        ! Tycho
-    ELSEIF (mpcflag.EQ.' h'.OR.mpcflag.EQ.' i'.OR.mpcflag.EQ.' j'.OR.mpcflag.EQ.' z') THEN 
-       catcode='G1'                                        ! GSC-1
-    ELSEIF (mpcflag.EQ.' k') THEN 
-       catcode='G2'                                        ! GSC-2
-    ELSEIF (mpcflag.EQ.' l') THEN 
-       catcode='AC'                                        ! ACT
-    ELSEIF (mpcflag.EQ.' m') THEN 
-       catcode='GA'                                        ! GSC-ACT
-    ELSEIF (mpcflag.EQ.' n') THEN 
-       catcode='TR'                                        ! TRC
-    ELSEIF (mpcflag.EQ.' o'.OR.mpcflag.EQ.' s') THEN 
-       catcode='B1'                                        ! USNO-B1
-    ELSEIF (mpcflag.EQ.' p') THEN 
-       catcode='PP'                                        ! PPM
-    ELSEIF (mpcflag.EQ.' v') THEN 
-       catcode='NO'                                         ! NOMAD
-    ELSEIF (mpcflag.EQ.' w') THEN 
-       catcode='CM'                                        ! CMC
-    ELSEIF (mpcflag.EQ.' x') THEN 
-       catcode='HI'                                        ! Hip-2
-    ELSE
-       catcode='UN'                                        ! Unknown
-    ENDIF
-  END SUBROUTINE cat_find
 
   !------------------------------------------------------------------
   ! SUBROUTINE cat_bias
@@ -117,63 +59,129 @@ MODULE cat_debias
   ! Creation on 21 May 2009 by F. Bernardi
   !-----------------------------------------------------------------
 
-  SUBROUTINE cat_bias(phi,del,catcode,bias_RA,bias_DEC,biasflag)
+  SUBROUTINE cat_bias(phi,del,catcodmpc,bias_RA,bias_DEC,pmRA,pmDEC,biasflag,error_model)
     USE healpix_types
-    DOUBLE PRECISION,      INTENT(OUT) :: bias_DEC
-    DOUBLE PRECISION,      INTENT(OUT) :: bias_RA
+    DOUBLE PRECISION,      INTENT(OUT) :: bias_DEC,pmDEC
+    DOUBLE PRECISION,      INTENT(OUT) :: bias_RA,pmRA
     LOGICAL,               INTENT(OUT) :: biasflag        
-    CHARACTER*2,           INTENT(IN)  :: catcode               ! this is our internal cat coding
+    CHARACTER*1,           INTENT(IN)  :: catcodmpc               ! this is MPC catalogue
 !    DOUBLE PRECISION,      INTENT(IN)  :: catrecord(49152,26)   ! This array contains the cat biases
     DOUBLE PRECISION,      INTENT(IN)  :: del           ! DEC of the observations in radians
     DOUBLE PRECISION                   :: dpig=6.28318530717958648d0
+    CHARACTER*(*),INTENT(IN)           :: error_model
     INTEGER(KIND=4)                    :: ipring
     INTEGER(KIND=4),       PARAMETER   :: nside=64      ! This is the SIDE number for the HEALpix pixellization
     DOUBLE PRECISION,      INTENT(IN)  :: phi           ! RA of the observations in radians
     DOUBLE PRECISION                   :: theta         ! colatitude in equatorial coo.
     LOGICAL,                      SAVE :: first=.true.
+    INTEGER                            :: nskip         ! index for debias table
     IF(first)THEN
-       CALL cat_bias_init
+       CALL cat_bias_init(error_model)
        first=.false.
     ENDIF
-     theta=dpig/4-del         
+! default if no success in finding debiasing
+    bias_RA=0.d0
+    bias_DEC=0.d0
+    pmRA=0.d0
+    pmDEC=0.d0
+    biasflag=.false.
+! find appropriate sky pixel
+    theta=dpig/4-del         
     CALL ang2pix_ring(nside, theta, phi, ipring)
-    IF(catcode.EQ.'TY') THEN                         ! Case for Tycho catalog
-       bias_RA=catrecord((ipring+1),3)
-       bias_DEC=catrecord((ipring+1),(3+2))
-       biasflag=.true.
-    ELSEIF(catcode.EQ.'UC') THEN                     ! Case for UCAC catalog
-       bias_RA=catrecord((ipring+1),7)
-       bias_DEC=catrecord((ipring+1),(7+2))
-       biasflag=.true.
-    ELSEIF(catcode.EQ.'B1') THEN                     ! Case for USNO-B1 catalog
-       bias_RA=catrecord((ipring+1),11)
-       bias_DEC=catrecord((ipring+1),(11+2))
-       biasflag=.true.
-    ELSEIF(catcode.EQ.'A1') THEN                     ! Case for USNO-A1 catalog
-       bias_RA=catrecord((ipring+1),15)
-       bias_DEC=catrecord((ipring+1),(15+2))
-       biasflag=.true.
-    ELSEIF(catcode.EQ.'A2') THEN                     ! Case for USNO-A2 catalog
-       bias_RA=catrecord((ipring+1),19)
-       bias_DEC=catrecord((ipring+1),(19+2))
-       biasflag=.true.
-    ELSEIF(catcode.EQ.'G2') THEN                     ! Case for GSC-2 catalog
-       bias_RA=catrecord((ipring+1),23)
-       bias_DEC=catrecord((ipring+1),(23+2))
-       biasflag=.true.
-    ELSE
-       bias_RA=0.d0
-       bias_DEC=0.d0
-       biasflag=.false.
-    ENDIF
-    ! Handle cases where biases are not provided
-    IF(biasflag.eq..true.)THEN
-       IF(bias_RA.gt.9000.or.bias_DEC.gt.9000)THEN
-          bias_RA=0.d0
-          bias_DEC=0.d0
-          biasflag=.false. 
+! use debiasing data, available for some catalogs
+    IF(error_model.eq.'cbm10')THEN
+       IF(catcodmpc.EQ.'a'.OR.catcodmpc.EQ.'b') THEN         ! Case for USNO-A1 catalog
+          bias_RA=catrecord((ipring+1),1)
+          bias_DEC=catrecord((ipring+1),2)
+          pmRA=catrecord((ipring+1),3)
+          pmDEC=catrecord((ipring+1),4)
+          biasflag=.true.
+       ELSEIF(catcodmpc.EQ.'c'.OR.catcodmpc.EQ.'d') THEN     ! Case for USNO-A2 catalog
+          bias_RA=catrecord((ipring+1),5)
+          bias_DEC=catrecord((ipring+1),6)
+          pmRA=catrecord((ipring+1),7)
+          pmDEC=catrecord((ipring+1),8)
+          biasflag=.true.
+       ELSEIF(catcodmpc.EQ.'o') THEN                         ! Case for USNO-B1 catalog
+          bias_RA=catrecord((ipring+1),9)
+          bias_DEC=catrecord((ipring+1),10)
+          pmRA=catrecord((ipring+1),11)
+          pmDEC=catrecord((ipring+1),12)
+          biasflag=.true.
        ENDIF
-    ENDIF
+    ELSEIF(error_model.EQ.'fcct14'.OR.error_model.EQ.'vfcc17')THEN
+       SELECT CASE (catcodmpc)
+       CASE('a')
+! USNO-A1.0
+          nskip=0
+       CASE('b')
+! USNO-SA1.0
+          nskip=1
+       CASE('c')
+! USNO-A2.0
+          nskip=2
+       CASE('d')
+! USNO-SA2.0
+          nskip=3
+       CASE('e')
+! UCAC-1
+          nskip=4
+       CASE('g')
+! Tycho-2 not to be debiased
+          nskip=-1
+       CASE('i')
+! GSC-1.1
+          nskip=6
+       CASE('j')
+! GSC-1.2
+          nskip=7
+       CASE('l')
+! ACT not to be debiased
+          nskip=-1
+       CASE('m')
+! GSC-ACT
+          nskip=9
+       CASE('o')
+! USNO-B1.0
+          nskip=10
+       CASE('p')
+! PPM
+          nskip=11
+       CASE('q')
+! UCAC-4
+          nskip=12
+       CASE('r')
+! UCAC-2
+          nskip=13
+       CASE('u')
+! UCAC-3
+          nskip=14
+       CASE('v')
+! NOMAD
+          nskip=15
+       CASE('w')
+! CMC-14
+          nskip=16
+       CASE('L')
+! 2MASS
+          nskip=17
+       CASE('N')
+! SDSS-DRT7
+          nskip=18
+       CASE DEFAULT
+          nskip=-1
+       END SELECT
+! Debiading of the selected catalog
+       IF(nskip.GE.0)THEN
+          bias_RA=catrecord((ipring+1),4*nskip+1)
+          bias_DEC=catrecord((ipring+1),4*nskip+2)
+          pmRA=catrecord((ipring+1),4*nskip+3)
+          pmDEC=catrecord((ipring+1),4*nskip+4)
+          biasflag=.true.
+       END IF
+    END IF
+    
+! add part for new debiasing scheme
   END SUBROUTINE cat_bias
 
   !=======================================================================

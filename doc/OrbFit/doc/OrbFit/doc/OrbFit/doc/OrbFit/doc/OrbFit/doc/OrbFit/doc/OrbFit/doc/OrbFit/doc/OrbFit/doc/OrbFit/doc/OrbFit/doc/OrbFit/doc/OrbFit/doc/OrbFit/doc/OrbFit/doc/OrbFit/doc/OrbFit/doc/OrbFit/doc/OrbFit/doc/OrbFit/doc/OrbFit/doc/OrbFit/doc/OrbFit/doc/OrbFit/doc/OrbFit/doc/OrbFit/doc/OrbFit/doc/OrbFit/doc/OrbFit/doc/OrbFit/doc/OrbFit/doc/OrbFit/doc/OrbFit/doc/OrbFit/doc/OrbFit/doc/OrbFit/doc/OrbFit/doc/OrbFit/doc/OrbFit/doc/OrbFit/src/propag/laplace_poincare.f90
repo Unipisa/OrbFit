@@ -9,6 +9,7 @@ SUBROUTINE laplace_poincare(m,obs,obsw,el,nroots,nsol,rr,fail,msg,debug)
   USE output_control
   USE astrometric_observations
   USE attributable
+  USE station_coordinates, ONLY: statcode
   IMPLICIT NONE  
 !INPUT:  observations
   INTEGER,INTENT(IN) :: m ! number of observations 
@@ -30,6 +31,7 @@ SUBROUTINE laplace_poincare(m,obs,obsw,el,nroots,nsol,rr,fail,msg,debug)
   DOUBLE PRECISION, DIMENSION(6) :: qea, xv
   DOUBLE PRECISION cosd,sind,cosa,sina,qe,qhdnh,qhdvh,lambda_n,lambda_v,cosep, tc,vsize,prscal
   DOUBLE PRECISION C0,h0,coef(0:8),roots(8),rho,rhodot
+  INTEGER obsco ! station code, numeric
   INTEGER ir ! loop on solutions of deg. 8 equation
   INTEGER fail_flag ! for coordinate change
   TYPE(orbit_elem) elk 
@@ -120,7 +122,7 @@ SUBROUTINE laplace_poincare(m,obs,obsw,el,nroots,nsol,rr,fail,msg,debug)
      rhodot=(-rho*att%etadot+gms*qhdvh/(qe**2)*(1.d0-lambda_v-qe**3/roots(ir)**3))/(2*att%eta)
      vp=qea(4:6)+qpobs+rho*att%eta*vhat + rhodot*rhat               
 ! remove spurious root
-     IF(rho.lt.0.01d0)THEN
+     IF(rho.lt.0.001d0)THEN
         IF(debug)WRITE(*,*) ' spurious root , r, rho ',roots(ir),rho
         WRITE(iun_log,*) ' spurious root , r, rho ',roots(ir),rho
         CYCLE
@@ -142,27 +144,30 @@ SUBROUTINE laplace_poincare(m,obs,obsw,el,nroots,nsol,rr,fail,msg,debug)
      el(nsol)%coo='CAR'
 ! planetary aberration 
      el(nsol)%t=att%tdtobs-rho/vlight
-     CALL coo_cha(el(nsol),'KEP',elk,fail_flag)
+     CALL statcode(att%obscod,obsco)
+     CALL coo_cha(el(nsol),'ATT',el(nsol),fail_flag,OBSCODE=obsco)
      WRITE(iun_log,525) ir, fail_flag 
-     IF(elk%coo.EQ.'KEP') THEN 
-        WRITE(iun_log,535) 'a',elk%coord(1),elk%coord(2) 
-     ELSEIF(elk%coo.EQ.'COM'.or.elk%coo.eq.'COT') THEN 
-        WRITE(iun_log,535) 'q',elk%coord(1),elk%coord(2)
-     ELSE 
-        STOP '**** gaussdeg8: unknown elem type ****' 
+     IF(el(nsol)%coo.EQ.'KEP') THEN 
+        WRITE(iun_log,535) 'a,e ',el(nsol)%coord(1),el(nsol)%coord(2) 
+     ELSEIF(el(nsol)%coo.EQ.'COM'.or.el(nsol)%coo.eq.'COT') THEN 
+        WRITE(iun_log,535) 'q,e ',el(nsol)%coord(1),el(nsol)%coord(2)
+     ELSEIF (el(nsol)%coo.EQ.'ATT')THEN
+        WRITE(iun_log,535)'rho,rhodot',el(nsol)%coord(5),el(nsol)%coord(6)
+     ELSE
+        STOP '**** laplace_poincare: unknown elem type ****' 
      END IF
      IF(debug) THEN 
         WRITE(*,525) ir, fail_flag 
-        IF(elk%coo.EQ.'KEP') THEN 
-           WRITE(*,535) 'a',elk%coord(1),elk%coord(2) 
-        ELSEIF(elk%coo.EQ.'COM'.or.elk%coo.eq.'COT') THEN 
-           WRITE(*,535) 'q',elk%coord(1),elk%coord(2)
+        IF(el(nsol)%coo.EQ.'KEP') THEN 
+           WRITE(*,535) 'a,e ',el(nsol)%coord(1),el(nsol)%coord(2) 
+        ELSEIF(el(nsol)%coo.EQ.'COM'.or.elk%coo.eq.'COT') THEN 
+           WRITE(*,535) 'q,e ',el(nsol)%coord(1),el(nsol)%coord(2)
+        ELSEIF (el(nsol)%coo.EQ.'ATT')THEN
+           WRITE(iun_log,535)'rho,rhodot',el(nsol)%coord(5),el(nsol)%coord(6)
         ENDIF
      ENDIF
 525  FORMAT(12X,'ROOT NO.',I2,1x,I2) 
 535  FORMAT(16X,'Preliminary orbit: ',A,' =',F10.5,';  ecc =',F10.5) 
-                                                                        
-                                                                        
 20 END DO
                                                                         
   IF(nsol.LE.0) THEN 

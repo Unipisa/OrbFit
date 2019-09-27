@@ -25,7 +25,9 @@ SUBROUTINE epsi(npla,el,enne)
 ! output files                                                          
   OPEN(64,file='epsi.out',status='unknown') 
 ! ============================================                          
-!  Roy epsilon                                                          
+!  Roy epsilon               
+  WRITE(64,*)'% Roy-Walker epsilon'
+  WRITE(64,*)'% perturbed  epsilons tot position eff.'
   DO 1 i=1,npla 
      eptot(i)=0.d0 
 !  interior perturbation                                                
@@ -41,10 +43,12 @@ SUBROUTINE epsi(npla,el,enne)
      ENDDO
      eptot(i)=sqrt(eptot(i)) 
      WRITE(64,100)i,(eroy(j,i),j=1,npla),eptot(i)*el(1,i) 
-100  FORMAT(i3,1p,5d10.2/3x,4d10.2,10x,d11.3) 
+100  FORMAT(i3,1p,9d10.2,10x,d11.3) 
 1 ENDDO
 ! ============================================                          
-!  velocity perturbation                                                
+!  velocity perturbation
+  WRITE(64,*)'% heliocentric eta'
+  WRITE(64,*)'% perturbed  eta tot position eff.'
   DO 2 i=1,npla 
      etatot(i)=0.d0 
 !  interior perturbation                                                
@@ -55,16 +59,18 @@ SUBROUTINE epsi(npla,el,enne)
      eta(i,i)=0.d0 
 ! exterior perturbation                                                 
      DO j=i+1,npla 
-!          eta(j,i)=2.d0*(gm(j+1)/gm(1))*sqrt(el(1,i)/el(1,j))          
-        eta(j,i)=eroy(j,i) 
+        eta(j,i)=2.d0*(gm(j+1)/gm(1))*(el(1,i)/el(1,j))**2          
+!        eta(j,i)=eroy(j,i) 
         etatot(i)=etatot(i)+eta(j,i)**2 
      ENDDO
      etatot(i)=sqrt(etatot(i)) 
      WRITE(64,101)i,(eta(j,i),j=1,npla),etatot(i)*el(1,i) 
-101  FORMAT(i3,1p,5d10.2/3x,4d10.2,10x,d11.3) 
+101  FORMAT(i3,1p,9d10.2,10x,d11.3) 
 2 ENDDO
 ! ============================================                          
-!  position perturbation                                                
+!  position perturbation  
+  WRITE(64,*)'% baricentric theta'
+  WRITE(64,*)'% perturbed  theta tot position eff.'                         
   DO 3 i=1,npla 
      tetatot(i)=0.d0 
 !  interior, exterior but not self perturbation                         
@@ -78,10 +84,12 @@ SUBROUTINE epsi(npla,el,enne)
      ENDDO
      tetatot(i)=sqrt(tetatot(i)) 
      WRITE(64,102)i,(teta(j,i),j=1,npla),tetatot(i)*el(1,i) 
-102  FORMAT(i3,1p,5d10.2/3x,4d10.2,10x,d11.3) 
+102  FORMAT(i3,1p,9d10.2,10x,d11.3) 
 3 ENDDO
 ! ============================================                          
-!  synodic periods                                                      
+!  synodic periods  
+  WRITE(64,*)'% synodic periods'
+  WRITE(64,*)'% perturbed  periods (years)'                                   
   DO 4 i=1,npla 
 !  interior perturbation                                                
      DO j=1,i-1 
@@ -93,7 +101,7 @@ SUBROUTINE epsi(npla,el,enne)
         sper(j,i)=dpig/(enne(i)-enne(j))/365.25 
      ENDDO
      WRITE(64,104)i,(sper(j,i),j=1,npla) 
-104  FORMAT(i3,5f8.3/3x,4f8.3) 
+104  FORMAT(i3,9f8.3) 
 4 ENDDO
 ! ===============================================                       
 ! total perturbation on Ceres                                           
@@ -116,7 +124,7 @@ SUBROUTINE epsi(npla,el,enne)
   DO j=5,9 
      epce(j)=(gm(j+1)/sm(4))*(ac/el(1,j))**3 
      epct=epct+epce(j)**2 
-     etce(j)=epce(j) 
+     etce(j)= 2.d0*(gm(j+1)/gm(1))*(ac/el(1,j))**2
      etcet=etcet+etce(j)**2 
      tece(j)=(gm(j+1)/gm(1))*(el(1,j)/ac) 
      tecet=tecet+tece(j)**2 
@@ -124,10 +132,14 @@ SUBROUTINE epsi(npla,el,enne)
   ENDDO
   epct=sqrt(epct) 
   etcet=sqrt(etcet) 
-  tecet=sqrt(tecet) 
+  tecet=sqrt(tecet)
+  WRITE(64,*)'% Ceres Roy'
   WRITE(64,103)10,(epce(j),j=1,npla),epct*ac 
-103 FORMAT(i3,1p,5d10.2/3x,4d10.2,10x,d11.3) 
+103 FORMAT(i3,1p,9d10.2,10x,d11.3) 
+  WRITE(64,*)'% Ceres eta'
+  WRITE(64,103)10,(etce(j),j=1,npla),etcet*ac
+  WRITE(64,*)'% Ceres theta'
   WRITE(64,103)10,(tece(j),j=1,npla),tecet*ac 
-  WRITE(64,103)10,(etce(j),j=1,npla),etcet*ac 
+  WRITE(64,*)'% Ceres synodic periods'
   WRITE(64,104)10,(spece(j),j=1,npla) 
 END SUBROUTINE epsi

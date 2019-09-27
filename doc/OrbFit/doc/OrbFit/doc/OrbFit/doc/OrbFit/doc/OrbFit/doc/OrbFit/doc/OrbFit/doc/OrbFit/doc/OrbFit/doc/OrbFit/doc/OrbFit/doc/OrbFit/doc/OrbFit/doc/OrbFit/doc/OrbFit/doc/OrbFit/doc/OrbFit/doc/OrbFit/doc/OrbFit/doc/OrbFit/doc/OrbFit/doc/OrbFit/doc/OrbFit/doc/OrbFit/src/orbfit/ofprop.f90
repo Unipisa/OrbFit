@@ -88,7 +88,7 @@
       ELSE
           WRITE(uniele,104) comcha,name(i)(1:ln),comele(i)(1:lc)
       END IF
-      CALL wromlr(uniele,name(i),elem2%coord,elem2%coo,elem2%t,unc2%g,defcn(i),unc2%c,defcn(i),elem2%h_mag,elem2%g_mag,mass(i))
+      CALL wromlr(uniele,name(i),elem2%coord,elem2%coo,elem2%t,unc2%g,defcn(i),unc2%c,defcn(i),elem2%h_mag,elem2%g_mag,mass(i),6)
     1 END DO
   101 FORMAT(5X,'Propagated orbital elements for object ',A,':')
   102 FORMAT(5X,'Propagated orbital elements for object ',A,' (',A,'):')

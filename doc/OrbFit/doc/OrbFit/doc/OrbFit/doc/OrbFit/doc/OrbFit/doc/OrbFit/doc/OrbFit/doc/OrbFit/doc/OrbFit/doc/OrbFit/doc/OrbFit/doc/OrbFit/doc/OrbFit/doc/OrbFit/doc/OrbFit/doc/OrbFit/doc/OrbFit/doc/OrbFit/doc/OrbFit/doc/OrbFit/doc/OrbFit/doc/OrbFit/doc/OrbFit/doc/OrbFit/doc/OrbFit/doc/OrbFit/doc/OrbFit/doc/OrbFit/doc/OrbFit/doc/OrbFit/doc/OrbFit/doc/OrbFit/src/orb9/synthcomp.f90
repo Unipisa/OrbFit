@@ -5,7 +5,7 @@ MODULE synthcomp
   PRIVATE
 
 ! public routines
-  PUBLIC secth, doinc, dosemim, sigmf, sigma, parprt
+  PUBLIC secth, doecc,doinc, dosemim, sigmf, sigmfprideg, sigma, parprt
 
 ! shared data
 
@@ -51,7 +51,7 @@ CONTAINS
     ! number of forced terms
     nforc=9   
     IF(nforc.gt.nforcx)THEN
-       WRITE(*,*)' parprtt: too many forced terms, nforc=',nforc,   &
+       WRITE(*,*)' parprt: too many forced terms, nforc=',nforc,   &
             &       'max was nforcx=',nforcx
        STOP 
     ENDIF
@@ -59,7 +59,7 @@ CONTAINS
 ! for the jobs with 10000 points (outer belt)
        ntx=10001
        IF(ntx.gt.ntxx)THEN
-          WRITE(*,*)' parprtt: too many records, ntx=',ntx,    &
+          WRITE(*,*)' parprt: too many records, ntx=',ntx,    &
                &         'max was ntxx=',ntxx
           STOP 
        ENDIF
@@ -75,7 +75,7 @@ CONTAINS
        ! for the jobs with 20000 points (outer belt, extended integration)
        ntx=20001
        IF(ntx.gt.ntxx)THEN
-          WRITE(*,*)' parprtt: too many records, ntx=',ntx,    &
+          WRITE(*,*)' parprt: too many records, ntx=',ntx,    &
                &         'max was ntxx=',ntxx
           STOP 
        ENDIF
@@ -91,7 +91,7 @@ CONTAINS
        ! for the jobs with 20000 points (inner belt twoway, TNO)
        ntx=20001
        IF(ntx.gt.ntxx)THEN
-          WRITE(*,*)' parprtt: too many records, ntx=',ntx,    &
+          WRITE(*,*)' parprt: too many records, ntx=',ntx,    &
                &         'max was ntxx=',ntxx
           STOP 
        ENDIF
@@ -145,6 +145,226 @@ CONTAINS
 111    format(' ======== a : ',f12.9,' sig=',f10.9) 
     ENDIF
   END SUBROUTINE dosemim
+! =====================================================
+! proper eccentricity
+! =====================================================                 
+  SUBROUTINE doecc(x,y,tf,ntf,sn,klis,pe,dpe,fre,dfre,ang,rms,iwri,resflag,phalib,sini,apr) 
+    USE fir_filters
+    INTEGER, INTENT(IN) ::  ntf                       ! vector length
+    DOUBLE PRECISION, INTENT(IN) :: tf(ntf)           ! time
+    DOUBLE PRECISION, INTENT(IN) :: sini,apr          ! proper sinI as just computed by doinc, proper a
+    DOUBLE PRECISION, INTENT(INOUT) :: x(ntf),y(ntf)  ! data h,k
+    DOUBLE PRECISION, INTENT(OUT) :: pe,fre           ! proper element, frequency
+    DOUBLE PRECISION, INTENT(OUT) :: dpe,dfre,rms     !auxiliary output for accuracy
+! for a specific secular resonance
+    INTEGER, INTENT(INOUT) :: resflag   ! 1 if resonant, 0 if not, -1 forced non-res
+                       ! if 1 in input then resonance is forced
+    DOUBLE PRECISION, INTENT(OUT) :: phalib,ang! initial phase of libration, of perihelion (deg)
+! workspace   
+    DOUBLE PRECISION  x1(ntf),y1(ntf)
+    DOUBLE PRECISION omeg(ntx) 
+!  planetary theory, and forced terms                                   
+    DOUBLE PRECISION fe(nforc),feph(nforc),fesp(nforc) 
+    DOUBLE PRECISION feco(nforc),fed(nforc),sn(nforc) 
+    INTEGER klis(nforc) 
+    INTEGER k,iwri 
+    DOUBLE PRECISION rate,peri,cost,sig,sp,ph
+    DOUBLE PRECISION princ
+! resonant proper elements
+    DOUBLE PRECISION ecc(ntx),eccsm(ntx),tsm(ntx), tper(ntx),amp(ntx),spv(ntx), fas(ntx), costv(ntx)
+    DOUBLE PRECISION diffre,fstep, hlen, xf, yf(1), frelib, eccmean
+    DOUBLE PRECISION dper,pmax,pmin, a,f,d0,d1,d2, spmax,amax,tpermax, per
+    LOGICAL first, outf
+    DATA first /.true./
+    INTEGER i, j, nskip, ndat, nn, nfre, imax
+! =====================================================                 
+!   2: determination of frequencies by fit to arguments                 
+!   all the linear forced terms are removed first                       
+! =====================================================                 
+    CALL forced(x,y,tf,ntf,sn,klis,fe,feph,fesp,feco,fed) 
+    IF(iwri.eq.1)THEN 
+       DO  k=5,9 
+          IF(klis(k).ne.0)THEN 
+             write(9,127)k,fe(k),feph(k),fesp(k)*100,feco(k),fed(k) 
+127          format(' forced ',i2,' amp ',1p,d12.5,0p,' ph ',f9.4,     &
+     &        ' S% ',f8.4,' cost ',1p,d12.4,' unc. ',d12.4)             
+          ENDIF
+       ENDDO
+    ENDIF
+! =====================================================                 
+!   now compute argument Omega from q,p, varpi from k,h                 
+! =====================================================                 
+    CALL argum(x,y,tf,ntf,omeg,rate,peri,rms,ang)
+    ang=princ(ang)*degrad
+    rms=rms*degrad 
+    fre=rate*degrad*3.6d3 
+    dfre=rms/(MAXVAL(tf(1:ntf))-MINVAL(tf(1:ntf)))*3.6d3 
+    IF(iwri.eq.1)THEN 
+       write(9,128)fre,peri,rms,ang 
+128    format(' Argument:',                                           &
+     &  ' freq ',1p,d13.6,0p,'"/yr, per '                             &
+     &,f16.6,' yr, rms ',1p,d12.4,0p,'deg  ph ',f9.4,' deg')
+    ENDIF
+! =====================================================
+! test for secular resonance (hacked for Astraea, to be used only for 2.5<a<2.7)
+! =====================================================
+    diffre=fre+sn(5)-2.d0*sn(6)
+    IF((abs(diffre).lt.0.065d0.or.resflag.eq.1).and..not.resflag.eq.-1)THEN
+       resflag=1
+! compute eccentricity
+       ecc=0.d0
+       DO i=1,ntf
+         ecc(i)=sqrt(x(i)**2+y(i)**2)        
+       ENDDO
+! apply filter (see giffv.f90 lines 263-291), use filter.100
+       IF(first)THEN
+! filter coefficients input
+          CALL filope(100,1)
+          first=.false.
+       ENDIF    
+!  assumed constant step
+       fstep= x(ntf/2+1) - x(ntf/2)
+! filter half length
+       hlen=fstep*(nfil-1)/2 
+!  digital low frequency pass filter applied to ecc vector
+       nskip = 0 
+       j = 0 
+       DO i = 1, ntf 
+          ndat=1
+          CALL filter (tf(i), ecc(i:i), ndat, nskip, fstep, xf, yf(1:1), outf)
+          IF (outf) then 
+             j = j + 1 
+             eccsm(j) = yf(1)
+             tsm(j) = xf
+          ENDIF
+       ENDDO
+       nn = j 
+! compute spectrum, find maximum(?) of S at period pmax limited by??
+! see giffv.f90 lines 174-186
+       pmax=6d6; pmin=1.d6; nfre=2001
+       dper = (pmax - pmin) / nfre 
+       DO  j = 1, nfre
+          per = pmin + dper * (j - 1) 
+          CALL peri2 (tsm, eccsm, nn, per, sp, 0, d0, d1, d2)
+          a = d1 * d1 + d2 * d2 
+          a = sqrt (a) 
+          tper (j) = per 
+          amp (j) = a 
+          spv(j) = sp
+          fas(j) = atan2 (d1, d2) 
+          costv(j) = + d0 
+       ENDDO
+! then do trivial search for maximum on these points 
+       spmax=0.d0
+       imax=0
+       DO j=1, nfre
+          IF(spv(j).gt.spmax)THEN
+             spmax=spv(j)
+             imax=j
+          ENDIF
+       ENDDO
+       amax=amp(imax)
+       tpermax=tper(imax)
+       frelib=dpig/tpermax*degrad*3.6d3 
+       phalib=princ(fas(imax))*degrad
+       eccmean=costv(imax)
+! compute pe as amplitude at maximum Spectral Density
+       pe=amax
+       pe=pe+1.d0 ! this to separate from ordinary proper elements
+       IF(iwri.eq.1)THEN 
+          write(9,130)pe,spmax*100,tpermax,frelib,phalib,diffre,eccmean
+130       format(' Proper ',1p,d13.6,0p,' S% ',f8.4,' period.lib. ',f12.3,&
+    & ' freq.lib ',f8.5,' initial phase ',f9.4,' diff. g from resonant ',f9.5, &
+    & ' mean ecc. ',f6.4)
+       ENDIF
+! compute freqency as dpig/pmax, convert in arcsec/y
+!       freres=(3.6d2*3.6D3)/pmax 
+       IF(iwri.eq.1)THEN 
+! write something
+       ENDIF
+    ELSE
+       resflag=0
+       phalib=0.0d0
+!======================================================                 
+!   3: find the proper amplitude and phase                              
+! =====================================================
+       x1=x;y1=y                 
+       CALL prop(omeg,x1,y1,ntf,dpig,sp,pe,dpe,ph,cost,sig) 
+       ph=ph*degrad
+       IF(iwri.eq.1)THEN 
+          write(9,129)pe,ph,sp*100,cost,dpe,sig 
+129       format(' Proper ',1p,d13.6,0p,' arg ',f9.4,    &
+     &        'deg, S% ',f8.4,' const ',1p,d12.4,' unc ',d9.2,   &
+     &        ' rms',d9.2)                                              
+       ENDIF
+! check for bad fit to argument, low proper eccentricity
+       IF(rms.gt.180d0.and.pe.lt.0.03d0)THEN
+! select Hansa region; in this rectangle of a, sinI there are no other families
+          IF(sini.gt.0.35d0.and.sini.lt.0.4d0.and.apr.gt.2.5d0.and.apr.lt.2.735d0)THEN
+! compute spectrum, find maximum(?) of S at period pmax limited by??
+! see giffv.f90 lines 174-186
+             pmax=7.d4; pmin=5.d4; nfre=1001
+             dper = (pmax - pmin) / nfre 
+             DO  j = 1, nfre
+                per = pmin + dper * (j - 1) 
+                CALL peri2 (tf, x, ntf, per, sp, 0, d0, d1, d2)
+                a = d1 * d1 + d2 * d2 
+                a = sqrt (a) 
+                tper (j) = per 
+                amp (j) = a 
+                spv(j) = sp
+                fas(j) = atan2 (d1, d2)
+                costv(j) = + d0 
+             ENDDO
+! then do trivial search for maximum on these points 
+             spmax=0.d0
+             imax=0
+             DO j=1, nfre
+                IF(spv(j).gt.spmax)THEN
+                   spmax=spv(j)
+                   imax=j
+                ENDIF
+             ENDDO
+! compute pe as amplitude at maximum Spectral Density, g as the corresp. frequency
+             pe=amp(imax)
+             tpermax=tper(imax)       
+             fre=dpig/tpermax*degrad*3.6d3 
+             ph=princ(fas(imax))*degrad
+             cost=costv(imax)
+             dpe=0.d0;dfre=0.d0
+             IF(iwri.eq.1)THEN 
+                write(9,179)pe,ph,spmax*100,cost,dpe,sig 
+179             format(' Proper ',1p,d13.6,0p,' arg ',f9.4,    &
+         &        'deg, S% ',f8.4,' const ',1p,d12.4,' unc ',d9.2,   &
+         &        ' rms',d9.2)
+             ENDIF
+          ENDIF
+       ENDIF
+    ENDIF
+! =====================================================
+! check for bad fit:
+!======================================================
+    IF(iwri.eq.0)RETURN  ! not in running box test
+    IF(rms.gt.180.d0)THEN
+! diffre is the diff. frequency w.r. to g-2g6+g5, problems for abs(diffre)<0.4
+!  pe is proper ecc which gives problems for pe<0.02 
+       WRITE(9,199)rms, diffre, pe
+ 199   FORMAT(' bad fit to argument: rms=',f6.1,' diffre=',f9.3,' prop. e=',f6.4)
+    ENDIF
+! =====================================================                 
+! check for possible secular resonances                                 
+! =====================================================                 
+    DO k=5,9 
+       IF(klis(k).ne.0)THEN 
+          IF(abs(fre-sn(k)).lt.2.d0.or.fe(k).ge.pe)THEN 
+             WRITE(9,113)k,sn(k),fre,fe(k),pe 
+113          FORMAT('Sec.res.? ',i2,1x,f8.4,1x,f8.4,    &
+     &               ' ampl ',f8.6,1x,f8.6)                             
+          ENDIF
+       ENDIF
+    ENDDO
+  END SUBROUTINE doecc
+
 ! =====================================================
 ! proper inclination, or proper eccentricity
 ! =====================================================                 
@@ -259,7 +479,7 @@ CONTAINS
     s(8)=-0.6936d0 
 ! This has some problems...                                             
     s(5)=0.d0 
-! Semimajor axes (AU) derived from LONGSTOP 1B (average of filtered     
+! Semimajor axes (au) derived from LONGSTOP 1B (average of filtered     
 !  --periods  < 100,000 yr wiped out)                                   
     aj=5.2025696d0 
 !    write(*,*)aj                                                      
@@ -384,5 +604,22 @@ CONTAINS
     ENDDO
     sigmf=sqrt(sigmf/n) 
   END FUNCTION sigmf
+! =====================================                                 
+! RMS with respect to fixed value, for angles in deg                                       
+  DOUBLE PRECISION FUNCTION sigmfprideg(x,av,n) 
+    INTEGER, INTENT(IN) :: n
+    DOUBLE PRECISION, INTENT(IN) ::  x(n), av
+    DOUBLE PRECISION avrad, xrad, pridif
+    INTEGER i 
+    sigmfprideg=0.d0 
+    avrad=av*radeg
+    DO i=1,n 
+       xrad=x(i)*radeg
+       sigmfprideg=sigmfprideg+pridif(xrad,avrad)**2
+    ENDDO
+    sigmfprideg=sqrt(sigmfprideg/n)*degrad
+  END FUNCTION sigmfprideg
+
+
 
 END MODULE synthcomp

@@ -27,17 +27,27 @@ SUBROUTINE earth(t0,eqp)
 ! data for masses                                                       
   INCLUDE 'jplhdr.h90' 
 ! output of JPL routine, Julian date, rotation matrix                   
-  double precision et(2),rrd(6),xea(6),enne 
+  DOUBLE PRECISION et(2),rrd(6),xea(6),enne 
 ! integers for call to JPl routines                                     
-  integer ntarg,ncent,istate 
+  INTEGER ntarg,ncent,istate
+! temporary arrays with planet names, pointers
+  DOUBLE PRECISION gmp(13)
+! fail flag for call to jpllis
+  LOGICAL fail 
 ! ====================================                                  
 ! JPL Earth vector at observation time                                  
   et(1)=2400000.5d0 
   et(2)=t0 
   ntarg=3 
   ncent=11 
+! first read header of current JPL ephemerides, storing masses in array gmp
+  fail=.false.
+  CALL jpllis2(gmp,fail) 
+  IF(fail)THEN
+     STOP ' **** earth: failed call to jpllis ********'
+  ENDIF
 ! duplicate computation of gmse, in case masjpl has not been called yet 
-  gmse=gms*(1.d0+cval(11)/cval(18)) 
+  gmse=gmp(12)+gmp(3)
 ! ****** added on Sat Jun 14 1997 ******                                
 ! first istate need to be=2  (dpleph calculates also vel.)              
   istate=2 
@@ -70,6 +80,10 @@ SUBROUTINE earcar(t0,xea,ifla)
   double precision et(2),rrd(6) 
 ! integers for call to JPl routines                                     
   integer ntarg,ncent,istate 
+! temporary arrays with planet names, pointers
+  DOUBLE PRECISION gmp(13)
+! fail flag for call to jpllis
+  LOGICAL fail 
 ! ====================================                                  
 ! JPL Earth vector at observation time                                  
   et(1)=2400000.5d0 
@@ -81,8 +95,14 @@ SUBROUTINE earcar(t0,xea,ifla)
      ntarg=11 
      ncent=12 
   endif
+! first read header of current JPL ephemerides, storing masses in array gmp
+  fail=.false.
+  CALL jpllis2(gmp,fail) 
+  IF(fail)THEN
+     STOP ' **** earth: failed call to jpllis ********'
+  ENDIF
 ! duplicate computation of gmse, in case masjpl has not been called yet 
-  gmse=gms*(1.d0+cval(11)/cval(18)) 
+  gmse=gmp(12)+gmp(3)
 ! ****** added on Sat Jun 14 1997 ******                                
 ! first istate need to be=2  (dpleph calculates also vel.)              
   istate=2 
@@ -120,8 +140,6 @@ END SUBROUTINE earcar
 SUBROUTINE rdbep(t,nb,id,x,v) 
   USE planet_masses
   IMPLICIT NONE 
-  CHARACTER*4 kind 
-  PARAMETER (kind='AM  ') 
   INTEGER nb 
   INTEGER id(nb) 
   DOUBLE PRECISION t,x(3,nb),v(3,nb) 
@@ -161,8 +179,7 @@ SUBROUTINE rdbep(t,nb,id,x,v)
      READ(unit,REC=2) t1,t2,dt 
 ! Read masses                                                           
      DO  i=1,nbep 
-        READ(unit,REC=2+i) masbep(i),gma(i),gma1(i) 
-!            WRITE(*,*)i,masbep(i),gma(i),gma1(i)                       
+       READ(unit,REC=2+i) masbep(i),gma(i),gma1(i)
      ENDDO
 ! Initialization of buffer                                              
      ipt1=1 
@@ -213,10 +230,8 @@ SUBROUTINE rdbep(t,nb,id,x,v)
      elem1(6,k)=m01(k)+enne1(k)*(t-tb1) 
      elem2(6,k)=m02(k)+enne2(k)*(t-tb2) 
      ivel=1 
-     CALL kepcar(elem1(1,k),gma1(k),ivel,xv1) 
-     CALL kepcar(elem2(1,k),gma1(k),ivel,xv2) 
-!     CALL coocha(elem1(1,k),'KEP',gma1(k),xv1,'CAR',enne)              
-!     CALL coocha(elem2(1,k),'KEP',gma1(k),xv2,'CAR',enne)              
+     CALL coocha(elem1(1,k),'KEP',gma1(k),xv1,'CAR',enne)              
+     CALL coocha(elem2(1,k),'KEP',gma1(k),xv2,'CAR',enne)              
      DO i=1,3 
         x(i,ib)=c1*xv1(i)+c2*xv2(i) 
         v(i,ib)=c1*xv1(i+3)+c2*xv2(i+3) 
@@ -224,6 +239,71 @@ SUBROUTINE rdbep(t,nb,id,x,v)
 2 END DO
                                                                         
 END SUBROUTINE rdbep
+
+!  *****************************************************************    
+!  *                                                               *    
+!  *                         J P L L I S 2                         *    
+!  *                                                               *    
+!  *      Get the list of masses and IDs from JPL DE header        *
+!  *      Version robust w.r. to changes in the list cnam          *    
+!  *                                                               *    
+!  *****************************************************************    
+!
+! OUTPUT:   GMP       -  G*M(planet)                                    
+!           FAIL      -  Error flag  
+SUBROUTINE jpllis2(gmp,fail) 
+  IMPLICIT NONE 
+  DOUBLE PRECISION, INTENT(OUT) :: gmp(13) 
+  LOGICAL, INTENT(OUT) :: fail
+! for call to xstate 
+  DOUBLE PRECISION et2(2),pv(6,12),pnut(4) 
+  INTEGER list(12)
+! loop index
+  INTEGER i 
+! JPLDE header 
+  INCLUDE 'jplhdr.h90'
+  INTEGER lench 
+  EXTERNAL lench 
+  DATA et2/2*0.d0/ 
+  DATA list/12*0/
+! begin execution 
+  fail=.false.
+  gmp=0.d0
+! Dummy call to STATE for reading JPLDE header                          
+  CALL state(et2,list,pv,pnut,1) 
+!   'MERCURY','VENUS','EARTH_MOON','MARS','JUPITER','SATURN','URANUS','NEPTUNE','PLUTO','MOON','EARTH','SUN','EMRAT'/    
+! loop on the cnam array of constant names
+  DO i=1,30 ! maybe more???
+     IF(cnam(i).eq.'GM1')THEN
+        gmp(1)=cval(i)
+     ELSEIF(cnam(i).eq.'GM2')THEN
+        gmp(2)=cval(i)
+     ELSEIF(cnam(i).eq.'GMB')THEN
+        gmp(3)=cval(i)
+     ELSEIF(cnam(i).eq.'GM4')THEN
+        gmp(4)=cval(i)
+     ELSEIF(cnam(i).eq.'GM5')THEN
+        gmp(5)=cval(i)
+     ELSEIF(cnam(i).eq.'GM6')THEN
+        gmp(6)=cval(i)
+     ELSEIF(cnam(i).eq.'GM7')THEN
+        gmp(7)=cval(i)
+     ELSEIF(cnam(i).eq.'GM8')THEN
+        gmp(8)=cval(i)
+     ELSEIF(cnam(i).eq.'GM9')THEN
+        gmp(9)=cval(i) ! actually Pluto's mass is not anymore used
+     ELSEIF(cnam(i).eq.'GMS')THEN
+        gmp(12)=cval(i)
+     ELSEIF(cnam(i).eq.'EMRAT')THEN
+        gmp(13)=cval(i)
+     ENDIF
+  ENDDO
+  gmp(10)=gmp(3)/(1+gmp(13))
+  gmp(11)=gmp(3)*gmp(13)/(1+gmp(13)) 
+  DO i=1,13
+    IF(gmp(i).eq.0.d0) fail=.true.
+  ENDDO
+END SUBROUTINE jpllis2
 
 ! Copyright (C) 1997 by Mario Carpino (carpino@brera.mi.astro.it)       
 ! Version: October 13, 1997                                             
@@ -378,7 +458,7 @@ subroutine trange
   ckm=299792.458d0 
 ! id in km/day                                                          
   ckm=ckm*8.64d4 
-! conversion to AU/day                                                  
+! conversion to au/day                                                  
   vlight=ckm/au 
 ! au, earth/mooon mass ratio moved to fundamental_constants.mod
   aukm=au
@@ -409,6 +489,10 @@ SUBROUTINE mooncar(t0,xmoon,ifla)
   double precision et(2),rrd(6) 
 ! integers for call to JPl routines                                     
   integer ntarg,ncent,istate 
+! temporary arrays with planet names, pointers
+  DOUBLE PRECISION gmp(13)
+! fail flag for call to jpllis
+  LOGICAL fail 
 ! ====================================                                  
 ! JPL Moon vector at observation time                                  
   et(1)=2400000.5d0 
@@ -420,8 +504,14 @@ SUBROUTINE mooncar(t0,xmoon,ifla)
      ntarg=11 
      ncent=12 
   endif
+! first read header of current JPL ephemerides, storing masses in array gmp
+  fail=.false.
+  CALL jpllis2(gmp,fail) 
+  IF(fail)THEN
+     STOP ' **** earth: failed call to jpllis ********'
+  ENDIF
 ! duplicate computation of gmse, in case masjpl has not been called yet 
-  gmse=gms*(1.d0+cval(11)/cval(18)) 
+  gmse=gmp(12)+gmp(3)
 ! ****** added on Sat Jun 14 1997 ******                                
 ! first istate need to be=2  (dpleph calculates also vel.)              
   istate=2 
@@ -444,11 +534,12 @@ SUBROUTINE sunmoon_car(t0,equ,xsun,xmoon)
 ! SUNMOON_CAR - get geocentric cartesian coordinates
 ! for Sun and Moon, equatorial (equ=TRUE) or ecpliptic (equ=FALSE) 
 ! input: epoch time 
-  DOUBLE PRECISION, INTENT(IN) :: t0
+  DOUBLE PRECISION, INTENT(IN)                          :: t0
 ! equatorial or ecliptic
-  LOGICAL, INTENT(IN) :: equ 
+  LOGICAL, INTENT(IN)                                   :: equ 
 ! output: geocentric state vector of Sun and Moon (ecliptic)      
-  DOUBLE PRECISION, DIMENSION(6), INTENT(OUT) :: xsun, xmoon 
+  DOUBLE PRECISION, DIMENSION(6), INTENT(OUT)           :: xsun
+  DOUBLE PRECISION, DIMENSION(6), INTENT(OUT), OPTIONAL :: xmoon 
 ! =============JPL EPHEM===============                                 
 ! data for masses                                                       
   INCLUDE 'jplhdr.h90' 
@@ -471,14 +562,16 @@ SUBROUTINE sunmoon_car(t0,equ,xsun,xmoon)
 ! Change of reference system EQUM00 ---> ECLM00                         
      xsun(1:3)=MATMUL(roteqec,rrd(1:3)) 
      xsun(4:6)=MATMUL(roteqec,rrd(4:6))
-  ENDIF 
-  ntarg=10
-  CALL dpleph(et,ntarg,ncent,rrd,istate)
-  IF(equ)THEN
-     xmoon=rrd
-  ELSE   
-! Change of reference system EQUM00 ---> ECLM00                         
-     xmoon(1:3)=MATMUL(roteqec,rrd(1:3)) 
-     xmoon(4:6)=MATMUL(roteqec,rrd(4:6)) 
+  ENDIF
+  IF(PRESENT(xmoon))THEN
+    ntarg=10
+    CALL dpleph(et,ntarg,ncent,rrd,istate)
+    IF(equ)THEN
+       xmoon=rrd
+    ELSE   
+    ! Change of reference system EQUM00 ---> ECLM00                         
+       xmoon(1:3)=MATMUL(roteqec,rrd(1:3)) 
+       xmoon(4:6)=MATMUL(roteqec,rrd(4:6)) 
+    ENDIF
   ENDIF
 END SUBROUTINE sunmoon_car

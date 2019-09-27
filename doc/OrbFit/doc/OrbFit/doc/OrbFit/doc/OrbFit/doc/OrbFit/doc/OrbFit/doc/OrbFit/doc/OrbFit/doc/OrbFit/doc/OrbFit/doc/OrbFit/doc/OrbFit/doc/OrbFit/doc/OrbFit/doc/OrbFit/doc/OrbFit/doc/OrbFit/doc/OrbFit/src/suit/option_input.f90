@@ -1403,8 +1403,9 @@ SUBROUTINE rdnlog(cat,key,v,reqrd,found,fail1,fail)
      &       '        KTYP0 =',I2/        &
      &       '        KTYP1 =',I2)        
   
-! Read value into output variable         
+! Read value into output variable   
   READ(val,*,ERR=1) v 
+  
   RETURN 
 ! Error message       
 1 CONTINUE 

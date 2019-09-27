@@ -317,7 +317,7 @@
           IF(nit.GT.nitutc) THEN 
               WRITE(*,100) mjd1,sec1,scale 
               WRITE(*,*)mjd1,sec1
-              STOP' **** timnf: abnormal END ****' 
+              STOP ' **** timnf: abnormal END ****' 
           END IF 
           IF(sec.LT.0.d0) THEN 
 ! Duration in seconds of the previous day                               
@@ -356,7 +356,7 @@
           IF(nit.GT.nitmax) THEN 
               WRITE(*,100) mjd1,sec1,scale 
               WRITE(*,*)mjd1,sec1
-              STOP' **** timnf: abnormal END ****' 
+              STOP ' **** timnf: abnormal END ****' 
           END IF 
           k=sec/86400.d0 
           IF(sec.LT.0.d0) k=k-1 
@@ -616,7 +616,7 @@
       if(eqsc.eq.eqsc2) return 
                                                                         
 ! Check on infinite loops                                               
-      if(loops.gt.6) stop' **** cnvtim: too many loops ****' 
+      if(loops.gt.6) stop ' **** cnvtim: too many loops ****' 
       loops=loops+1 
                                                                         
 ! Transformations are performed according to the following path:        
@@ -650,7 +650,7 @@
               nit=nit+1 
               if(nit.gt.nitmax)then 
                   write(*,100) mjd1,sec1,scale1 
-                  stop' **** cnvtim: abnormal end ****' 
+                  stop ' **** cnvtim: abnormal end ****' 
               endif 
 !   c) try to find the starting value of TDT from the approximate       
 !      value of UT1                                                     
@@ -695,7 +695,7 @@
               nit=nit+1 
               if(nit.gt.nitmax)then 
                   write(*,101) mjd1,sec1,scale1 
-                  stop' **** cnvtim: abnormal end ****' 
+                  stop ' **** cnvtim: abnormal end ****' 
               end if 
 !   c) try to find the starting value of TAI from the approximate       
 !      value of UTC                                                     
@@ -1081,3 +1081,44 @@ SUBROUTINE calendwri(tcl,calend)
   write(calend,'(i4,a1,i2.2,a1,i2.2,f4.3)')                         &
      &     iyear,'/',imonth,'/',iday,h24                                
 END SUBROUTINE calendwri
+
+
+SUBROUTINE convert_mjd_cal(t_mjd,t_str)
+  !=============================================================================
+  DOUBLE PRECISION,  INTENT(IN)  :: t_mjd  ! Time in MJD
+  CHARACTER(LEN=16), INTENT(OUT) :: t_str  ! Time in the format YYYY/MM/DD HH:SS
+  !=============================================================================
+  CHARACTER(LEN=14)  :: t_aux
+  INTEGER            :: year, month 
+  DOUBLE PRECISION   :: day
+  INTEGER            :: day_int, hour, minute                               
+  CHARACTER(LEN=2)   :: month_ch,day_ch,hour_ch,minute_ch 
+  !=============================================================================
+  CALL calendwri(t_mjd,t_aux)
+  READ(t_aux(1:14),'(I4,1X,I2,1X,F6.3)') year,month,day
+  day_int = FLOOR(day)
+  hour    = FLOOR((day-day_int)*24d0)
+  minute  = NINT(((day-day_int)*24d0-hour)*60d0)
+  IF(month.LT.10)THEN 
+     WRITE(month_ch,'(A1,I1)') '0', month
+  ELSE
+     WRITE(month_ch,'(I2)') month
+  ENDIF
+  IF(day_int.LT.10)THEN 
+     WRITE(day_ch,'(A1,I1)') '0',day_int
+  ELSE
+     WRITE(day_ch,'(I2)') day_int
+  ENDIF
+  IF(hour.LT.10)THEN 
+     WRITE(hour_ch,'(A1,I1)') '0',hour
+  ELSE
+     WRITE(hour_ch,'(I2)') hour
+  ENDIF
+  IF(minute.lt.10)THEN 
+     WRITE(minute_ch,'(A1,I1)') '0',minute
+  ELSE
+     WRITE(minute_ch,'(I2)') minute
+  ENDIF
+  WRITE(t_str,'(I4,2(A1,A2),1X,A2,A1,A2)') year,'/',month_ch,'/',day_ch,hour_ch,':',minute_ch
+
+END SUBROUTINE convert_mjd_cal

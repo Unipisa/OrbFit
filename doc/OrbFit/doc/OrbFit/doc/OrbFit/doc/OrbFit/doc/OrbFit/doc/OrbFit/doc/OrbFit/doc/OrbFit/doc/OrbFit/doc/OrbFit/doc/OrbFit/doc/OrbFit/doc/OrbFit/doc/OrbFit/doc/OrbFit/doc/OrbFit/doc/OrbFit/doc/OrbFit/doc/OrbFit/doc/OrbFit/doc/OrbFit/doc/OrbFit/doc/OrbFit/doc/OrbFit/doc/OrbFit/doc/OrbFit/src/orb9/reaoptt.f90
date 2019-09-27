@@ -5,7 +5,8 @@ SUBROUTINE reaoptt(iun,ibar,catalo,iprqua,                        &
      &  dt,nout,idump,nsamp,nsamp2,njump,njump2,                        &
      &  sysz,refz,v1,semim) 
   USE fund_const
-  USE massmod                                            
+  USE massmod   
+  USE dyn_param, ONLY: iyark                                         
   IMPLICIT NONE 
 ! input                                                                 
   INTEGER, INTENT(IN) :: iun 
@@ -111,6 +112,8 @@ SUBROUTINE reaoptt(iun,ibar,catalo,iprqua,                        &
      ENDDO
   ENDDO
   close (99) 
+! Yarkovsky effect not used for Trojans
+  iyark=0
 !  output  control                                                      
   call skip(iun,1) 
   call reaflo(iun,'dt',dt) 

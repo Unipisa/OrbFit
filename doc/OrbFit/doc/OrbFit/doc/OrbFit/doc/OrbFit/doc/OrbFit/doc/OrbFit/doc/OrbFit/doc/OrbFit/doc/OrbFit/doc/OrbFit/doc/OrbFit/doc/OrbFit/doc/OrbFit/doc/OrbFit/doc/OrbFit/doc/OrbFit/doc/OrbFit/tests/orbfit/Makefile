@@ -1,52 +1,72 @@
-all: 1996RO13_gauss.oel 1996RO13_diffcor.oel 1996RO13_ephem1.oep \
-     1996RO13_ephem2.oep 1996RO13_ephem3.oep 1996RO13_ident1.oel
-#     1996RO13_ident2.oel 4067.oel 1998PB1.oel
+all: yarko2 yarko1 simple_eq0 simple_noeq0 ident
 
-OK:  1996RO13_gauss.oel 1996RO13_diffcor.oel 1996RO13_ephem1.oep \
-     1996RO13_ephem2.oep 1996RO13_ephem3.oep 
+simple_noeq0 : orbfit.x 2015AB.fel
+
+simple_eq0 : orbfit.x 410777.fel
+
+yarko1: orbfit.x 410777_yarko1.fel
+
+yarko2: orbfit.x 410777_yarko2.fel
+
+ident : orbfit.x 2015TF202.fel
+
+2015AB.fel : 	orbfit.x
+		-(ln -s ../bineph/testout/AST17.bai_431_fcct AST17.bai)
+		-(ln -s ../bineph/testout/AST17.bep_431_fcct AST17.bep)
+		-(cp -p 2015AB/2015AB.obs mpcobs/)
+		-(cp -p 2015AB/2015AB.oop .)
+		-(cp -p 2015AB/2015AB.inp .)
+		time orbfit.x < 2015AB.inp
+		-(diff 2015AB.oel testout/2015AB.oel || echo 'Files differ')
+
+410777.fel :  	orbfit.x
+		-(ln -s ../bineph/testout/AST17.bai_431_fcct AST17.bai)
+		-(ln -s ../bineph/testout/AST17.bep_431_fcct AST17.bep)
+		-(cp -p 410777/410777.rwo mpcobs/)
+		-(cp -p 410777/410777.eq0 epoch/)
+		-(cp -p 410777/410777.oop .)
+		-(cp -p 410777/410777.inp .)
+		time orbfit.x < 410777.inp
+		-(diff 410777.oel testout/410777.oel || echo 'Files differ')
+
+410777_yarko1.fel : orbfit.x
+		-(ln -s ../bineph/testout/AST17.bai_431_fcct AST17.bai)
+		-(ln -s ../bineph/testout/AST17.bep_431_fcct AST17.bep)
+		-(cp -p 410777_yarko/410777.rwo mpcobs/)
+		-(cp -p 410777_yarko/410777.eq0 epoch/)
+		-(cp -p 410777_yarko/410777_1.oop 410777.oop)
+		-(cp -p 410777_yarko/410777.inp .)
+		time orbfit.x < 410777.inp
+#		-(diff 410777.oel testout/410777.oel || echo 'Files differ')
+
+410777_yarko2.fel : orbfit.x
+		-(ln -s ../bineph/testout/AST17.bai_431_fcct AST17.bai)
+		-(ln -s ../bineph/testout/AST17.bep_431_fcct AST17.bep)
+		-(cp -p 410777_yarko/410777.rwo mpcobs/)
+		-(cp -p 410777_yarko/410777.eq0.yark epoch/410777.eq0)
+		-(cp -p 410777_yarko/410777_2.oop 410777.oop)
+		-(cp -p 410777_yarko/410777.inp .)
+		time orbfit.x < 410777.inp
+#		-(diff 410777.oel testout/410777.oel || echo 'Files differ')
+
+2015TF202.fel : orbfit.x
+		-(ln -s ../bineph/testout/AST17.bai_431_fcct AST17.bai)
+		-(ln -s ../bineph/testout/AST17.bep_431_fcct AST17.bep)
+		-(cp -p identification/2015TF202_1.obs mpcobs/)
+		-(cp -p identification/2015TF202_2.obs mpcobs/)
+		-(cp -p identification/2015TF202.oop .)
+		-(cp -p identification/2015TF202.inp .)
+		time orbfit.x < 2015TF202.inp
+		-(diff 2015TF202.oel testout/ident/2015TF202.oel || echo 'Files differ')
+		-(diff 2015TF202_1=2015TF202_2.rwo testout/ident/2015TF202_1=2015TF202_2.rwo || echo 'Files differ')
+
 
 distclean: clean
 
 clean:
-	rm -f *.pro *.clo *.odc *.oel *.olg *.oep *.rwo *~ reject.rep *.err
+	-(rm -f *.pro *.clo *.odc *.oel *.olg *.oep *.rwo *~ reject.rep *.err)
+	-(rm -f *.eq0 *.oop *.obs *.bat *.rad *.ele *.inp)
+	-(rm -f *.bai *bep)
+	-(rm -f mpcobs/2015TF202_*.rwo mpcobs/2015AB.rwo mpcobs/410777.rwo)
 
-4067.oel: 4067.obs ../../src/orbfit/orbfit.x
-	echo 4067 | ../../src/orbfit/orbfit.x
 
-1998PB1.oel: 1998PB1.obs ../../src/orbfit/orbfit.x
-	echo 1998PB1 | ../../src/orbfit/orbfit.x
-
-1996RO13_gauss.oel: 1996RO13_gauss.oop ../../src/orbfit/orbfit.x
-	echo 1996RO13_gauss | ../../src/orbfit/orbfit.x
-
-1996RO13_diffcor.oel: 1996RO13_diffcor.oop 1996RO13_gauss.oel \
-                      ../../src/orbfit/orbfit.x
-	echo 1996RO13_diffcor | ../../src/orbfit/orbfit.x
-
-1996RO13_ephem1.oep: 1996RO13_diffcor.oel ../../src/orbfit/orbfit.x
-	echo 1996RO13_ephem1 | ../../src/orbfit/orbfit.x
-
-1996RO13_ephem2.oep: astorb.sub ../../src/orbfit/orbfit.x
-	echo 1996RO13_ephem2 | ../../src/orbfit/orbfit.x
-
-1996RO13_ephem3.oep: astorb.sub ../../src/orbfit/orbfit.x
-	echo 1996RO13_ephem3 | ../../src/orbfit/orbfit.x
-
-1996RO13_ident1.oel: 1996RO13_ident1.oop astorb.sub \
-                    ../../src/orbfit/orbfit.x
-#	rm -f 1996RO13=1220T-2.rwo
-	cp 1996RO13=1220T-2.rwo.sav 1996RO13=1220T-2.rwo
-	echo 1996RO13_ident1 | ../../src/orbfit/orbfit.x
-	mv 1996RO13=1220T-2.rwo 1996RO13=1220T-2.ident1.rwo
-
-1996RO13_ident2.oel: 1996RO13_ident2.oop 1996RO13_ident1.oel \
-                     ../../src/orbfit/orbfit.x 
-#	discard 1996RO13=1220T-2.ident1.rwo 2.5 > 1996RO13=1220T-2.rwo
-# 	Next line is new.
-	cp 1996RO13=1220T-2.rwo.sav 1996RO13=1220T-2.rwo
-	cp 1996RO13=1220T-2.rwo 1996RO13=1220T-2.in.rwo
-	echo 1996RO13_ident2 | ../../src/orbfit/orbfit.x
-	mv 1996RO13=1220T-2.rwo 1996RO13=1220T-2.ident2.rwo
-
-../../src/orbfit/orbfit.x:
-	(cd ../..; make)

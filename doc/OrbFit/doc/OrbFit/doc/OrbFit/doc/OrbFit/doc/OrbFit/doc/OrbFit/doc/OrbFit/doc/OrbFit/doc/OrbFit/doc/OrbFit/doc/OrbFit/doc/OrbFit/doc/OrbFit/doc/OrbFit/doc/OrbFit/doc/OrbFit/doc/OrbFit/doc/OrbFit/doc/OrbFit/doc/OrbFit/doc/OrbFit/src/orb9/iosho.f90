@@ -172,7 +172,7 @@ SUBROUTINE iosho(kr,inp,iun8,iun7,iun17,nam0,t0,tt,el,pel,        &
 233     format(' t0=',f10.1,'; ref=',a6,' asteroid ',a4,            &
      &   '  Mean elements Milani & Knezevic')                           
      else 
-        write(*,*)' wrong input type in ios63, inp=',inp 
+        write(*,*)' wrong input type in iosho, inp=',inp 
         stop 
      endif
 ! *************************************************************         

@@ -5,12 +5,12 @@ all: ../lib/libsuit.a
 # LIBRARY OBJECT FILES
 
 # Observations & Statistics
-OBS_OBJ=station_coordinates.o astrometric_observations.o observ_rms.o \
+OBS_OBJ=station_coordinates.o astrometric_observations.o \
      obsvarie.o iorwo_old.o attributable.o very_short_arc.o obs_simul.o\
-      cat_debias.o healpix_types.o
+      cat_debias.o healpix_types.o 
 
 ATTR_OBJ=attributable.o very_short_arc.o obs_simul.o \
-     delaunay_triang.o admis_reg.o
+     delaunay_triang.o admis_reg.o triangles.o
 
 # Reference systems and IERS time series
 REF_OBJ=reference_systems.o iers_ser.o chebi_pol.o

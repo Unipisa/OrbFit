@@ -5,31 +5,38 @@
 !  See Nobili et al.  A&A 210,313, 1989                                 
 !  g(9) is used to accomodate the most important combination frequency  
 !  UNITS: semimaj axis= AU; freq= arcsec/yr                             
-SUBROUTINE secth(g,s,aj) 
+SUBROUTINE secth(inflag,g,s,aj) 
   IMPLICIT NONE 
-  DOUBLE PRECISION g(9),s(9),aj 
+  INTEGER, INTENT(IN) :: inflag ! 1= 5My 2=50My
+  DOUBLE PRECISION, INTENT(OUT) :: g(9),s(9),aj
+  DOUBLE PRECISION gv(9,2),sv(9,2)
 ! frequencies for 5 Myr integrations                                    
-  g(5)=4.233030463d0                                               
-  g(6)=28.234843727d0                                              
-  g(7)=3.088221248d0                                               
-  g(8)=0.673627325d0                                               
-  s(6)=-26.333553362d0                                             
-  s(7)=-2.992590375d0                                              
-  s(8)=-0.689319899d0                                              
+  gv(5,1)=4.233030463d0                                               
+  gv(6,1)=28.234843727d0                                              
+  gv(7,1)=3.088221248d0                                               
+  gv(8,1)=0.673627325d0                                               
+  sv(6,1)=-26.333553362d0                                             
+  sv(7,1)=-2.992590375d0                                              
+  sv(8,1)=-0.689319899d0                                              
 ! frequencies for 50 Myr integrations                                   
-!  g(5)=4.232814411d0 
-!  g(6)=28.234770846d0 
-!  g(7)=3.088071817d0 
-!  g(8)=0.673266012d0 
-!  s(6)=-26.333616452d0 
-!  s(7)=-2.993420737d0 
-!  s(8)=-0.690906565d0 
+  gv(5,2)=4.232814411d0 
+  gv(6,2)=28.234770846d0 
+  gv(7,2)=3.088071817d0 
+  gv(8,2)=0.673266012d0 
+  sv(6,2)=-26.333616452d0 
+  sv(7,2)=-2.993420737d0 
+  sv(8,2)=-0.690906565d0
+! choice depending upon time span
+  g(1:4)=0.d0
+  g(5:8)=gv(5:8,inflag)
+  s(1:5)=0.d0
+  s(6:8)=sv(6:8,inflag) 
 ! combination frequency                                                 
   g(9)=2.d0*g(6)-g(5) 
   s(9)=0.d0 
 ! This has some problems...                                             
   s(5)=0.d0 
-! Semimajor axes (AU) derived from LONGSTOP 1B (average of filtered     
+! Semimajor axes (au) derived from LONGSTOP 1B (average of filtered     
 !  --periods  < 100,000 yr wiped out)                                   
   aj=5.2025696d0 
 END SUBROUTINE secth

@@ -135,7 +135,7 @@ SUBROUTINE long9(em,nam0,tt,t0,inp,                               &
         write(iun2,503)vers 
         write(iun3,503)vers 
 503     format(' version ',a30/                                     &
-     &           '   no; a (AU); ecc ; sinI;  g ("/yr); s ("/yr);'      &
+     &           '   no; a (au); ecc ; sinI;  g ("/yr); s ("/yr);'      &
      &           ,'RFL;QCM;QCO;magn.')                                  
         write(iun9,504)vers 
         write(iun11,504)vers 
@@ -150,7 +150,7 @@ SUBROUTINE long9(em,nam0,tt,t0,inp,                               &
      ELSEIF(inp.eq.2.or.inp.eq.3)THEN 
         write(iun2,513)vers 
   513       format(' version ',a30/                                     &
-     &         ' time; a (AU); ecc ; sinI;  g ("/yr); s ("/yr);QCE;QCM')
+     &         ' time; a (au); ecc ; sinI;  g ("/yr); s ("/yr);QCE;QCM')
         write(iun9,514)vers 
   514       format(' version ',a30/                                     &
      &           ' time; l.per, l.node(deg); g0 ("/yr) ;'               &
@@ -191,7 +191,7 @@ SUBROUTINE long9(em,nam0,tt,t0,inp,                               &
 !  trigonometric functions of the fundamental angles (see trigfu)       
      call trigfu(pl(5),pl(6),pd(7),pd(6),sld,cld) 
 !  data on the inner planets for computation of g0, s0                  
-     call inplda(pa,pmv) 
+     call inplda(pa,pmv) ! these are constant data, even for inp=2
 ! ********************************************************************* 
 !  constants and units                                                  
 ! *******************************************************************   
@@ -215,9 +215,16 @@ SUBROUTINE long9(em,nam0,tt,t0,inp,                               &
 ! time is changing; rescaling is not necessary since only the phases    
 ! are recomputed                                                        
   if(inp.gt.1)then 
-     call secthe(tt,t0,dum,dum,pni,dum,pl,pmi,dum,pd    &
+     call secthe(tt,t0,pmv,pa,pni,pg,pl,pmi,ps,pd    &
      &       ,nnl,fnl,pninl,phanl)                                 
      call trigfu(pl(5),pl(6),pd(7),pd(6),sld,cld) 
+!  data on the inner planets for computation of g0, s0                  
+     call inplda(pa,pmv) 
+! ********************************************************************* 
+!  constants and units                                                  
+! *******************************************************************   
+! change of scale, units, fundamental constants                         
+     call convun(pmv,pa,pg,ps,pn,aunit,tunit,pmunit,nplin0,nplou,fnl,nnl)
   endif
 ! ********************************************************************* 
 !  functions of the asteroid semimajor axis                             

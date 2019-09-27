@@ -18,6 +18,8 @@ SUBROUTINE inpo9(dt,nout,idump,iprqua,                      &
   USE planet_masses, ONLY: dmin
   USE output_control, ONLY: iuncla
   USE propag_state, ONLY: intein
+  USE dyn_param, ONLY: iyark
+  USE force_model, ONLY: velo_req
   IMPLICIT NONE 
 ! commons                                                               
   INCLUDE 'comnbo.h90' 
@@ -65,9 +67,13 @@ SUBROUTINE inpo9(dt,nout,idump,iprqua,                      &
 ! dimensions, controls                                                  
   INTEGER norb,nast,ibar,npla,nang,iun,ilca 
 ! loop indexes                                                          
-  INTEGER i,j 
+  INTEGER i,j , jj, k, le
 ! functions                                                             
   INTEGER numang 
+! asteroid names for yarkovsky effect                                   
+  CHARACTER*9 idac(nastx) 
+  DOUBLE PRECISION dadtin(nastx)
+  LOGICAL isya
 ! **********************************************************            
 !  open option file and output file, headers                            
   open(1,file='orb9.opt',status='old') 
@@ -208,7 +214,38 @@ SUBROUTINE inpo9(dt,nout,idump,iprqua,                      &
 ! other orbfit style controls for optional perturbations              
   call skip(1,1)
   call reaint(1,'irelj2',irelj2)
+  call reaint(1,'iyark', iyark)
   close(1) ! end options
+! input of Yarkovsky data                                        
+! note: the file yarkosky.dat contains the value of dadt in au/My  
+  IF(iyark.eq.3)THEN   
+     INQUIRE (file ='yarkovsky.dat', exist = isya)
+     IF(.not.isya)THEN
+        STOP '*** missing yarkovsky.dat*******'
+     ELSE
+        velo_req=.true. ! propagator need to provide velocity at each step
+        OPEN(99,file='yarkovsky.dat',status='unknown') 
+        jj=0 
+        DO j=1,nastx 
+           READ(99,*,end=5) idac(j),dadtin(j) 
+           CALL rmsp(idac(j),le) 
+           WRITE(*,*) idac(j),dadtin(j) 
+           jj=jj+1 
+        ENDDO
+5       CONTINUE 
+        DO j=1,na 
+           dadt9(j)=0.d0 
+           DO k=1,jj 
+              IF(idac(k).eq.ida(j))THEN 
+                 dadt9(j)=dadtin(k) 
+              ENDIF
+           ENDDO
+        ENDDO
+        CLOSE(99)
+     ENDIF
+  ELSE
+     velo_req=.false.
+  ENDIF
 ! ********************************************************************  
 !  input filter coefficients                                            
 ! ********************************************************************  

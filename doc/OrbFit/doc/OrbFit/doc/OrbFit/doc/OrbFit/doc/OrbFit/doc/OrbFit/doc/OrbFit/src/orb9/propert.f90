@@ -80,10 +80,11 @@ PROGRAM propert
 !      read(22,122)initia                                               
 ! 122  format(a60)                                                      
 !  flag for the running box
-  WRITE(*,*)' running box flag 1 = 10000 recs;&
-& 2 = 20000 recs extended'
+  WRITE(*,*)' running box flag 1 = 5000 recs;&
+& 2 = 50000 recs extended'
   READ(*,517)inflag
 517 FORMAT(i1)
+!  inflag=2
   CALL parprtt(inflag,nbb,ntt,ndap,nshi,isum,iste)
   call cmpstr(initia,len) 
   filnam=initia(1:len)//'ast.fil' 
@@ -167,7 +168,7 @@ PROGRAM propert
   write(9,*)' together ',isum,' step',iste 
 ! =====================================================                 
 !   1c: constant data                                                   
-  call secth(gp,sn,aj) 
+  call secth(inflag,gp,sn,aj) 
 ! =====================================================                 
 !  loop on the naf asteroids 
   DO 1 n=1,naf 
@@ -382,7 +383,7 @@ CONTAINS
 !  CHARACTER*9, INTENT(OUT) :: number(nastx)
 ! END INTERFACE   
   double precision x(8),t0 
-  integer ng(2),ilce,i,j,n,nerr 
+  integer ng(2),ilce,i,j,n,nerr,jj,le 
   character coo*3,sys*3,ref*6,unit*3,comme*60,colhea*100 
 ! ===========================================================           
 !  read header of file on unit iun (Trojans)                            
@@ -390,6 +391,9 @@ CONTAINS
   write(*,100)(number(i),i=1,na) 
   write(63,100)(number(i),i=1,na) 
 100 format(10(2x,a9)) 
+  DO jj=1,na
+    CALL rmsp(number(jj),le)
+  ENDDO
 ! ===========================================================           
   nerr=0 
 !  read loop                                                            

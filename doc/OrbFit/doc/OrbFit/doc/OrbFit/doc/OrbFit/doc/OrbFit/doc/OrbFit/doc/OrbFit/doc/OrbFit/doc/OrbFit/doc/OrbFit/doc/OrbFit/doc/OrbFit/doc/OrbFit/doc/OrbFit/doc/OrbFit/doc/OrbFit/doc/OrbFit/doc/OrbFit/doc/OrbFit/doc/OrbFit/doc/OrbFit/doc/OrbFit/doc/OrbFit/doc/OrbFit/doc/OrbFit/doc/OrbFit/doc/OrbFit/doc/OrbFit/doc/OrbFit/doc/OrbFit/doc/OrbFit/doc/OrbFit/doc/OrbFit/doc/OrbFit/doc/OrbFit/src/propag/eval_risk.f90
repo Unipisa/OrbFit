@@ -5,7 +5,7 @@ MODULE eval_risk
 ! Created by Giacomo Tommei, 25 November 2002 
   IMPLICIT NONE
   PRIVATE
-  PUBLIC :: palermo ! public functions
+  PUBLIC :: palermo, torino ! public functions
   LOGICAL, PUBLIC :: massgiven ! is mass available from physical observations?
   DOUBLE PRECISION, PUBLIC ::  givenmass ! then this is the value in 
 CONTAINS
@@ -79,6 +79,47 @@ DOUBLE PRECISION FUNCTION palermo(U,hmagn,prob,dt,          &
   WRITE(iunwarn0,*)' expected E, background prob, ratio, scale value' 
   WRITE(iunwarn0,101) e_tilde, fb, rel_prob, palermo           
 END FUNCTION palermo
+!#######################################################################
+!                     TORINO_SCALE
+!#######################################################################
+! torino_scale:  input-> impact probability, energy of impact
+!#######################################################################
+
+INTEGER FUNCTION torino(IP,energy)
+  DOUBLE PRECISION, INTENT(IN) :: IP, energy
+
+  IF (IP.ge.0d0.and.IP.le.1d0.and.energy.ge.0d0.and.energy.le.10**8) THEN
+     IF ((log10(IP)).le.-2d0.and.(log10(energy)).gt.0d0.and.(log10(energy)).gt.&
+            &(-4d0-3d0/2d0*log10(IP)).and.(log10(energy)).le.(-1d0-3d0/2d0*log10(IP))) THEN 
+        torino=1
+     ELSEIF ((log10(IP)).le.-2d0.and.(log10(energy)).gt.(-1d0-3d0/2d0*log10(IP)).and.&
+    &(log10(energy)).le.(2d0-3d0/2d0*log10(IP))) THEN
+        torino=2
+     ELSEIF ((log10(IP)).gt.-2d0.and.IP.le.0.99d0.and.(log10(energy)).gt.0d0.and.(log10(energy)).le.2d0) THEN
+        torino=3
+     ELSEIF ((log10(IP)).gt.-2d0.and.(log10(energy)).ge.2d0.and.(log10(energy)).le.(2d0-3d0/2d0*log10(IP))) THEN
+        torino=4
+     ELSEIF (IP.le.0.99d0.and.(log10(energy)).le.5d0.and.(log10(energy)).gt.(2d0-3d0/2d0*log10(IP))) THEN
+        torino=5
+     ELSEIF ((log10(IP)).le.-2d0.and.(log10(energy)).gt.(2d0-3d0/2d0*log10(IP))) THEN
+        torino=6
+     ELSEIF ((log10(IP)).gt.-2d0.and.IP.le.0.99d0.and.(log10(energy)).gt.5d0) THEN
+        torino=7
+     ELSEIF (IP.gt.0.99d0.and.(log10(energy)).gt.0d0.and.(log10(energy)).le.2d0) THEN
+        torino=8
+     ELSEIF (IP.gt.0.99d0.and.(log10(energy)).gt.2d0.and.(log10(energy)).le.5d0) THEN
+        torino=9
+     ELSEIF (IP.gt.0.99d0.and.(log10(energy)).gt.5d0) THEN
+        torino=10
+     ELSE    
+        torino = 0    
+     ENDIF
+  ELSE
+     torino= -1
+  ENDIF
+END FUNCTION torino
+
+
 
 END MODULE eval_risk
 

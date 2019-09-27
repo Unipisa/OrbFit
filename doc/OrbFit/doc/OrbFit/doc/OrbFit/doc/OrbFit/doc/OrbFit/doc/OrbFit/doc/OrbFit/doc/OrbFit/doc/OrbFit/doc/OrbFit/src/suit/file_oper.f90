@@ -333,28 +333,41 @@ SUBROUTINE libini
   INTEGER unit 
   INTEGER lench 
   EXTERNAL lench 
+  CHARACTER(LEN=200) orbfit_home_env
+
 ! The file 'libdir.dat' can be used to modify the path of the           
 ! library directory (with respect to the built-in value contained       
 ! in parlib.h) without need of compiling again the software:            
 ! it is searched only in the current (working) directory                
   INQUIRE(FILE='libdir.dat',EXIST=found) 
-  IF(found) THEN 
-     CALL filopn(unit,'libdir.dat','old') 
-     READ(unit,100,END=10,ERR=10) libdir 
-     CALL filclo(unit,' ') 
-  ELSE 
-     libdir=dlibd 
+
+! First try to get the home dir from environment, then
+! file in current dir, then configured hard path.
+!  CALL get_environment_variable("ORBFIT_HOME", dlibd, 99, env_status)
+  CALL getenv("ORBFIT_DATA", orbfit_home_env)
+!  WRITE(*,*)'ENV=',orbfit_home_env)
+  IF(len(trim(orbfit_home_env)).gt.0) THEN
+    libdir = orbfit_home_env
+  ELSE
+     libdir=dlibd
   END IF
-100 FORMAT(A) 
-  lenld=lench(libdir) 
-  IF(libdir(lenld:lenld).NE.dircha) THEN 
-     lenld=lenld+1 
-     libdir(lenld:lenld)=dircha 
+  IF(found) THEN
+     CALL filopn(unit,'libdir.dat','old')
+     READ(unit,100,END=10,ERR=10) libdir
+     CALL filclo(unit,' ')
   END IF
-  iiclib=36 
-  RETURN 
-10 CONTINUE 
-  STOP '**** libini: error reading file "libdir.dat" ****' 
+100 FORMAT(A)
+!  WRITE(*,*)'libdir=',libdir
+  lenld=lench(libdir)
+  IF(libdir(lenld:lenld).NE.dircha) THEN
+     lenld=lenld+1
+     libdir(lenld:lenld)=dircha
+  END IF
+  iiclib=36
+  RETURN
+10 CONTINUE
+  STOP '**** libini: error reading file "libdir.dat" ****'
+
 END SUBROUTINE libini
 ! Copyright (C) 1996 by Mario Carpino (carpino@brera.mi.astro.it)       
 ! Version: September 19, 1996                                           

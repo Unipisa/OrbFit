@@ -121,7 +121,9 @@ END SUBROUTINE inpfil
 !   open and intest routine for longit7                                 
 ! ********************************************************************* 
 SUBROUTINE openfi(inp,t0,filast,filfil,filpro,filpla,filbar       &
-     &    ,iun2,iun3,iun9,iun10,iun11,iun19,iun21,iun18,iun7,iun17)     
+     &    ,iun2,iun3,iun8,iun9,iun10,iun11,iun19,iun21,           &
+!iun18,
+     &     iun7,iun17)     
   IMPLICIT NONE 
 ! input type, file names                                                
   INTEGER inp 
@@ -130,7 +132,7 @@ SUBROUTINE openfi(inp,t0,filast,filfil,filpro,filpla,filbar       &
 ! reference time, only for inp=3                                        
   DOUBLE PRECISION t0 
 ! unit numbers                                                          
-  INTEGER iun2,iun3,iun9,iun10,iun11,iun19,iun21,iun18,iun7,iun17
+  INTEGER iun2,iun3,iun8,iun9,iun10,iun11,iun19,iun21,iun18,iun7,iun17
 ! end interface                                                         
   INTEGER len,nast,ilce 
   CHARACTER*60 filang,filres,filmea,filnam,fildis,filadi,filrem,filprp  
@@ -145,8 +147,11 @@ SUBROUTINE openfi(inp,t0,filast,filfil,filpro,filpla,filbar       &
 ! input either catalog or time series, but of osculating elements anyway
 ! open files for input of osculating elements                           
      call rmbl(filast,len) 
-     CALL oporbf(filast(1:len), -1) 
-!           call filopn(iun8,filast(1:len),'old')                       
+     IF(inp.eq.1)THEN
+        CALL oporbf(filast(1:len), -1)
+     ELSEIF(inp.eq.2)THEN 
+        call filopn(iun8,filast(1:len),'old')                       
+     ENDIF
 ! open input file for planetary data                                    
      call rmbl(filpla,len) 
      call filopn(iun7,filpla,'old') 
@@ -159,32 +164,30 @@ SUBROUTINE openfi(inp,t0,filast,filfil,filpro,filpla,filbar       &
         write(*,*)' baricenter from file ',filbar 
         call rmbl(filbar,len) 
         call filopn(iun17,filbar,'old') 
-     elseif(inp.eq.3)then 
-        ibar=22 
-     else 
-        write(*,*)' unknown input type, inp=',inp 
-        stop 
      endif
-  ELSEIF(inp.eq.3)THEN 
+!  ELSEIF(inp.eq.3)THEN 
 !  input directly from orbit9 (digitally filtered)                      
-     call rmbl(filfil,len) 
-     call filopn(iun18,filfil(1:len),'old') 
-     call reahea(iun18,nomast,comast,colhea,coox,sysx,refx,      &
-     &           unitx,nast,ilce,t0)                                    
-     if(nast.gt.1)then 
-        write(*,*)nast,' orbts at once not allowed; use conv8v' 
-        stop 
-     endif
-     if(coox.ne.'EQU'.or.sysx.ne.'HEL'.or.refx.ne.'INVL1B')then 
-        write(*,*)' wrong input coordinates/ref.system, use conv8v' 
-        stop 
-     endif
+!     WRITE(*,*)' inp=3 NOT SUPPORTED'
+!     STOP 
+!     call rmbl(filfil,len) 
+!     call filopn(iun18,filfil(1:len),'old') 
+!     call reahea(iun18,nomast,comast,colhea,coox,sysx,refx,      &
+!     &           unitx,nast,ilce,t0)                                    
+!     if(nast.gt.1)then 
+!        write(*,*)nast,' orbts at once not allowed; use conv8v' 
+!        stop 
+!     endif
+!     if(coox.ne.'EQU'.or.sysx.ne.'HEL'.or.refx.ne.'INVL1B')then 
+!        write(*,*)' wrong input coordinates/ref.system, use conv8v' 
+!        stop 
+!     endif
   ELSE 
      WRITE(*,*)' inp =',inp,' not allowed' 
      STOP 
   ENDIF
 ! open output files                                                     
   IF(inp.eq.1.or.inp.eq.2)THEN 
+     ibar=22 ! arbitrary number to avoid undefined
 ! open files for output of mean elements                                
      call rmbl(filpro,len) 
      filmea=filpro(1:len)//'.mea' 
@@ -216,13 +219,10 @@ SUBROUTINE openfi(inp,t0,filast,filfil,filpro,filpla,filbar       &
   write(iun10,592) 
   if(inp.eq.1)then 
 ! original input from catalog of osculating elements                    
-! no input to long periodic part                                        
-!   discarded cases in a separate file                                  
+! no input to long periodic part because  discarded,
+!  output in a separate file                                  
      write(iun3,592) 
      write(iun11,592) 
-  else 
-     write(*,*)' input type ',inp,'  not supported' 
-     stop 
   endif
 END SUBROUTINE openfi
 ! ==================================================================    

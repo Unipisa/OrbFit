@@ -119,7 +119,7 @@ SUBROUTINE reaout(iprqua,sysz,refz,coox,sysx,refx,t0a,ta          &
 !  one file for all the planets and one file for all the asteroids      
 ! ********************************************************************  
 !  column headers for equinoctal elements and numbers                   
-  colhea='  a(AU)      h      k      p      q     lambda  nrev  gam' 
+  colhea='  a(au)      h      k      p      q     lambda  nrev  gam' 
 !  sampled elements, only for iprq even, unit 11 and 21                 
   if(mod(iprqua,2).eq.0)then 
      open(21,file='vast.dat',status='unknown') 

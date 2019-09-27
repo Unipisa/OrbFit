@@ -1,6 +1,33 @@
+      PROGRAM ASC2EPH 
 !                                                                       
-!      ASC2EPH creates a direct access JPL Planetary Ephemeris file from
+!      ASC2EPH creates a binary format JPL Planetary Ephemeris file from
 !      one or more ascii text files.                                    
+!                                                                       
+!$ Disclaimer                                                           
+!                                                                       
+!     THIS SOFTWARE AND ANY RELATED MATERIALS WERE CREATED BY THE       
+!     CALIFORNIA INSTITUTE OF TECHNOLOGY (CALTECH) UNDER A U.S.         
+!     GOVERNMENT CONTRACT WITH THE NATIONAL AERONAUTICS AND SPACE       
+!     ADMINISTRATION (NASA). THE SOFTWARE IS TECHNOLOGY AND SOFTWARE    
+!     PUBLICLY AVAILABLE UNDER U.S. EXPORT LAWS AND IS PROVIDED "AS-IS" 
+!     TO THE RECIPIENT WITHOUT WARRANTY OF ANY KIND, INCLUDING ANY      
+!     WARRANTIES OF PERFORMANCE OR MERCHANTABILITY OR FITNESS FOR A     
+!     PARTICULAR USE OR PURPOSE (AS SET FORTH IN UNITED STATES UCC      
+!     SECTIONS 2312-2313) OR FOR ANY PURPOSE WHATSOEVER, FOR THE        
+!     SOFTWARE AND RELATED MATERIALS, HOWEVER USED.                     
+!                                                                       
+!     IN NO EVENT SHALL CALTECH, ITS JET PROPULSION LABORATORY, OR NASA 
+!     BE LIABLE FOR ANY DAMAGES AND/OR COSTS, INCLUDING, BUT NOT        
+!     LIMITED TO, INCIDENTAL OR CONSEQUENTIAL DAMAGES OF ANY KIND,      
+!     INCLUDING ECONOMIC DAMAGE OR INJURY TO PROPERTY AND LOST PROFITS, 
+!     REGARDLESS OF WHETHER CALTECH, JPL, OR NASA BE ADVISED, HAVE      
+!     REASON TO KNOW, OR, IN FACT, SHALL KNOW OF THE POSSIBILITY.       
+!                                                                       
+!     RECIPIENT BEARS ALL RISK RELATING TO QUALITY AND PERFORMANCE OF   
+!     THE SOFTWARE AND ANY RELATED MATERIALS, AND AGREES TO INDEMNIFY   
+!     CALTECH AND NASA FOR ALL THIRD-PARTY CLAIMS RESULTING FROM THE    
+!     ACTIONS OF RECIPIENT IN THE USE OF THE SOFTWARE.                  
+!                                                                       
 !                                                                       
 !      This program, 'asc2eph', requires (via standard input) an ascii  
 !      header file ('header.XXX'), followed by one or more ascii ephemer
@@ -17,9 +44,6 @@
 !                                                                       
 !        header.405  asc+1920.405 asc+1940.405 asc+1960.405 asc+1980.405
 !                                                                       
-!      (The data files for DE200 and DE405 contain 20 years each; for DE
-!                                                                       
-!                                                                       
 !      This program is written in standard Fortran-77.                  
 !                                                                       
 ! **********************************************************************
@@ -29,97 +53,117 @@
 !      However, the units in which the length of a direct access record 
 !      are PROCESSOR DEPENDENT.  The parameter NRECL, the number of unit
 !      controls the length of a record in the direct access ephemeris.  
+!      The user MUST select the correct value of NRECL by editing one of
+!      comemnted lines defining PARAMETER (NRECL) below.                
 !                                                                       
+! **********************************************************************
+!                                                                       
+!     Updated 02 March  2013 to accommodate more than 400 dynamical para
+!     Updated 02 August 2013 to accommodate reading of TT-TDB           
+!     Updated 15 August 2013 to accommodate negative Julian dates       
+!                                                                       
+! **********************************************************************
+                                                                        
+      IMPLICIT NONE 
+                                                                        
+      INTEGER NRECL 
+                                                                        
 ! *****  The user must choose one of the following statements  *****    
-!                                                                       
-       PARAMETER ( NRECL = 4 ) 
-!       PARAMETER ( NRECL = 1 )                                         
+!            ( Usually NRECL = 4 is used on Unix platforms)             
+                                                                        
+      PARAMETER ( NRECL = 4 ) 
+!      PARAMETER ( NRECL = 1 )                                          
+                                                                        
+      INTEGER OLDMAX 
+      PARAMETER ( OLDMAX = 400) 
+      INTEGER NMAX 
+      PARAMETER ( NMAX = 1000) 
                                                                         
 ! **********************************************************************
                                                                         
-       CHARACTER*6  CNAM (400) 
+       CHARACTER*6  CNAM (NMAX) 
        CHARACTER*6  TTL  (14,3) 
        CHARACTER*12 HEADER 
                                                                         
        DOUBLE PRECISION  AU 
-       DOUBLE PRECISION  CVAL (400) 
-       DOUBLE PRECISION  DB(3000), DB2Z 
+       DOUBLE PRECISION  CVAL (NMAX) 
+       DOUBLE PRECISION  DB(3000) 
+       DOUBLE PRECISION  DB2Z 
        DOUBLE PRECISION  EMRAT 
        DOUBLE PRECISION  SS   (3) 
        DOUBLE PRECISION  T1, T2 
                                                                         
-       INTEGER  I, IPT (3,12), IRECSZ, IN 
+       INTEGER  I, IRECSZ, IN 
        INTEGER  J 
-       INTEGER  K,KSIZE 
-       INTEGER  LPT (3) 
+       INTEGER  K,KK,KP2,KSIZE 
+                                                   ! Pointers to number 
+       INTEGER  IPT (3,12) 
+                                                   ! Pointer to number o
+       INTEGER  LPT(3) 
+                                                   ! Pointer to number o
+       INTEGER  RPT(3) 
+                                                   ! Pointer to number o
+       INTEGER  TPT(3) 
        INTEGER  N, NCON, NROUT, NCOEFF, NRW, NUMDE 
        INTEGER  OUT 
                                                                         
        LOGICAL  FIRST 
-       DATA     DB2Z  /0.d0/ 
        DATA     FIRST / .TRUE. / 
                                                                         
 ! **********************************************************************
+!                                                                       
 !     By default, the output ephemeris will span the same interval as th
 !     input ascii data file(s).  The user may reset these to other JED's
 !                                                                       
-       T1 = 0.D0 
-       T2 = 9999999.d0 
+       DB2Z = -99999999.d0 
+       T1   = -99999999.d0 
+       T2   =  99999999.d0 
                                                                         
-                                                                        
-      if(nrecl .eq. 0) then 
-      write(*,*)'*** ERROR: User did not set NRECL ***' 
-      stop 
-      endif 
-                                                                        
+       IF(NRECL.NE.1.AND.NRECL.NE.4) THEN 
+         WRITE(*,*)'*** ERROR: User did not set NRECL ***' 
+         STOP 
+       ENDIF 
                                                                         
 !      Write a fingerprint to the screen.                               
                                                                         
        WRITE(*,*) ' JPL ASCII-TO-DIRECT-I/O program. ' //               &
-     &            ' Last modified 31-Mar-1993.'                         
+     &            ' Last modified 15-Aug-2013.'                         
                                                                         
-                                                                        
-!                                                                       
 !      Read the size and number of main ephemeris records.              
-!                                                                       
+!        (from header.xxx)                                              
+                                                                        
        READ  (*,'(6X,I6)')  KSIZE 
        WRITE (*,100)              KSIZE 
   100  FORMAT(/'KSIZE =',I6) 
                                                                         
        IRECSZ = NRECL * KSIZE 
                                                                         
-                                                                        
-!                                                                       
 !      Now for the alphameric heading records (GROUP 1010)              
-!                                                                       
+                                                                        
        CALL  NXTGRP ( HEADER ) 
                                                                         
-       IF (HEADER .NE. 'GROUP   1010')  THEN 
+       IF (HEADER.NE.'GROUP   1010')  THEN 
           CALL  ERRPRT ( 1010, 'NOT HEADER' ) 
        ENDIF 
                                                                         
        READ (*,'(14A6)')    TTL 
        WRITE(*,'(/(14A6))') TTL 
                                                                         
-                                                                        
-!                                                                       
 !      Read start, end and record span  (GROUP 1030)                    
-!                                                                       
+                                                                        
        CALL  NXTGRP ( HEADER ) 
                                                                         
-       IF ( HEADER .NE. 'GROUP   1030' ) THEN 
+       IF ( HEADER.NE.'GROUP   1030' ) THEN 
           CALL ERRPRT ( 1030, 'NOT HEADER' ) 
        ENDIF 
                                                                         
        READ (*,'(3D12.0)')  SS 
                                                                         
-                                                                        
-!                                                                       
 !      Read number of constants and names of constants (GROUP 1040/4).  
-!                                                                       
+                                                                        
        CALL  NXTGRP ( HEADER ) 
                                                                         
-       IF ( HEADER .NE. 'GROUP   1040 ') THEN 
+       IF ( HEADER.NE.'GROUP   1040 ') THEN 
           CALL ERRPRT ( 1040, 'NOT HEADER' ) 
        ENDIF 
                                                                         
@@ -128,96 +172,108 @@
                                                                         
        NCON = N 
                                                                         
-                                                                        
-!                                                                       
 !      Read number of values and values (GROUP 1041/4)                  
-!                                                                       
+                                                                        
        CALL  NXTGRP ( HEADER ) 
                                                                         
-       IF ( HEADER .NE. 'GROUP   1041' ) THEN 
+       IF ( HEADER.NE.'GROUP   1041' ) THEN 
           CALL ERRPRT ( 1041, 'NOT HEADER' ) 
        ENDIF 
                                                                         
        READ (*,'(I6)')       N 
-       READ (*,'(3D26.18)')  (CVAL(I),I=1,N) 
+       READ (*,*)  (CVAL(I),I=1,N) 
                                                                         
        DO  I = 1, N 
-           IF ( CNAM(I) .EQ. 'AU    ' )  AU    = CVAL(I) 
-           IF ( CNAM(I) .EQ. 'EMRAT ' )  EMRAT = CVAL(I) 
-           IF ( CNAM(I) .EQ. 'DENUM ' )  NUMDE = CVAL(I) 
+           IF ( CNAM(I).EQ.'AU    ' )  AU    = CVAL(I) 
+           IF ( CNAM(I).EQ.'EMRAT ' )  EMRAT = CVAL(I) 
+           IF ( CNAM(I).EQ.'DENUM ' )  NUMDE = CVAL(I) 
        END DO 
                                                                         
        WRITE (*,'(500(/2(A8,D24.16)))') (CNAM(I),CVAL(I),I=1,N) 
                                                                         
+!      Zero out pointer arrays                                          
                                                                         
-!                                                                       
+       DO I = 1,3 
+         DO J = 1,12 
+           IPT(I,J) = 0 
+         ENDDO 
+         LPT(I) = 0 
+         RPT(I) = 0 
+         TPT(I) = 0 
+       ENDDO 
+                                                                        
 !      Read pointers needed by INTERP (GROUP 1050)                      
-!                                                                       
+                                                                        
        CALL  NXTGRP ( HEADER ) 
                                                                         
-       IF ( HEADER .NE. 'GROUP   1050' ) THEN 
+       IF ( HEADER.NE.'GROUP   1050' ) THEN 
           CALL ERRPRT ( 1050, 'NOT HEADER' ) 
        ENDIF 
                                                                         
-       READ (*,'(13I6)')   ((IPT(I,J),J=1,12),LPT(I),I=1,3) 
-       WRITE(*,'(/(3I5))') IPT, LPT 
+       WRITE(*,'(/)') 
                                                                         
+       DO I=1,3 
+         READ (*,'(15I6)') (IPT(I,J),J=1,12),LPT(I),RPT(I),TPT(I) 
+         WRITE(*,'(15I5)')(IPT(I,J),J=1,12),LPT(I),RPT(I),TPT(I) 
+       ENDDO 
                                                                         
-!                                                                       
 !      Open direct-access output file ('JPLEPH')                        
-!                                                                       
+                                                                        
        OPEN ( UNIT   = 12,                                              &
      &        FILE   = 'JPLEPH',                                        &
      &        ACCESS = 'DIRECT',                                        &
      &        FORM   = 'UNFORMATTED',                                   &
      &        RECL   = IRECSZ,                                          &
-     &        STATUS = 'UNKNOWN' )                                          
+     &        STATUS = 'NEW' )                                          
                                                                         
-                                                                        
-!                                                                       
 !     Read and write the ephemeris data records (GROUP 1070).           
-!                                                                       
+                                                                        
       CALL  NXTGRP ( HEADER ) 
                                                                         
-      IF ( HEADER .NE. 'GROUP   1070' ) CALL ERRPRT(1070,'NOT HEADER') 
+      IF ( HEADER.NE.'GROUP   1070' ) CALL ERRPRT(1070,'NOT HEADER') 
                                                                         
       NROUT  = 0 
       IN     = 0 
       OUT    = 0 
                                                                         
-      READ (*,'(2I6,3000(/3D26.18))',IOSTAT =IN)                        &
-     &      NRW, NCOEFF, (DB(K),K=1,NCOEFF)                             
+    1 continue 
                                                                         
+      READ(*,'(2I6)')NRW,NCOEFF 
+      IF(NRW.EQ.0) GO TO 1 
                                                                         
-      DO WHILE (       ( IN    .EQ. 0 )                                 &
-     &           .AND. ( DB(2) .LT. T2) )                               
+      DO K=1,NCOEFF,3 
+        KP2 = MIN(K+2,NCOEFF) 
+        READ(*,*,IOSTAT = IN)(DB(KK),KK=K,KP2) 
+        IF(IN.NE.0)STOP ' Error reading 1st set of coeffs' 
+      ENDDO 
                                                                         
-          IF ( 2*NCOEFF .NE. KSIZE ) THEN 
+      DO WHILE (       ( IN.EQ.0 ).AND.( DB(2).LT.T2) )                               
+                                                                        
+          IF ( 2*NCOEFF.NE.KSIZE ) THEN 
              CALL ERRPRT(NCOEFF,' 2*NCOEFF not equal to KSIZE') 
           ENDIF 
                                                                         
-!                                                                       
 !         Skip this data block if the end of the interval is less       
 !         than the specified start time or if the it does not begin     
 !         where the previous block ended.                               
-!                                                                       
-          IF  ( (DB(2) .GE. T1) .AND. (DB(1) .GE. DB2Z) ) THEN 
+                                                                        
+          IF  ( (DB(2).GE.T1) .AND. (DB(1).GE.DB2Z) ) THEN 
                                                                         
              IF ( FIRST ) THEN 
-!                                                                       
+                                                                        
 !               Don't worry about the intervals overlapping             
 !               or abutting if this is the first applicable             
 !               interval.                                               
-!                                                                       
+                                                                        
                 DB2Z  = DB(1) 
                 FIRST = .FALSE. 
              ENDIF 
                                                                         
-             IF (DB(1) .NE. DB2Z ) THEN 
-!                                                                       
+             IF (DB(1).NE.DB2Z ) THEN 
+                                                                        
 !               Beginning of current interval is past the end           
 !               of the previous one.                                    
-!                                                                       
+                                                                        
                 CALL ERRPRT (NRW, 'Records do not overlap or abut') 
              ENDIF 
                                                                         
@@ -226,26 +282,24 @@
                                                                         
              WRITE (12,REC=NROUT+2,IOSTAT=OUT) (DB(K),K=1,NCOEFF) 
                                                                         
-             IF ( OUT .NE. 0 ) THEN 
+             IF ( OUT.NE.0 ) THEN 
                 CALL ERRPRT (NROUT,                                     &
      &                     'th record not written because of error')    
              ENDIF 
                                                                         
-!                                                                       
 !            Save this block's starting date, its interval span, and its
 !            date.                                                      
-!                                                                       
-             IF (NROUT .EQ. 1) THEN 
+                                                                        
+             IF (NROUT.EQ.1) THEN 
                 SS(1) = DB(1) 
                 SS(3) = DB(2) - DB(1) 
              ENDIF 
              SS(2) = DB(2) 
                                                                         
-!                                                                       
-!            Update the user as to our progress every 10th block.       
-!                                                                       
-             IF ( MOD(NROUT,10) .EQ. 1 ) THEN 
-                IF ( DB(1) .GE. T1 ) THEN 
+!            Update the user as to our progress every 100th block.      
+                                                                        
+             IF ( MOD(NROUT,100).EQ.1 ) THEN 
+                IF ( DB(1).GE.T1 ) THEN 
                    WRITE (*,271) NROUT, DB(2) 
                 ELSE 
                    WRITE (*,*)                                          &
@@ -258,52 +312,67 @@
                                                                         
           ENDIF 
                                                                         
-          READ (*,'(2I6,3000(/3D26.18))',IOSTAT =IN)                    &
-     &          NRW, NCOEFF, (DB(K),K=1,NCOEFF)                         
+          READ (*,'(2I6)',IOSTAT =IN) NRW, NCOEFF 
                                                                         
-       END DO 
+          IF(IN.EQ.0)then 
+            DO K=1,NCOEFF,3 
+              KP2 = MIN(K+2,NCOEFF) 
+              READ(*,*,IOSTAT = IN)(DB(KK),KK=K,KP2) 
+              IF(IN.NE.0)STOP ' Error reading nth set of coeffs' 
+            ENDDO 
+          ENDIF 
                                                                         
-       WRITE (*,275) NROUT, DB(2) 
-  275  FORMAT(/I6, ' EPHEMERIS RECORDS WRITTEN.  LAST JED = ',F12.2) 
+      END DO 
                                                                         
+      WRITE (*,275) NROUT, DB(2) 
+  275 FORMAT(I6, ' EPHEMERIS RECORDS WRITTEN.  LAST JED = ',F12.2) 
                                                                         
-!                                                                       
-!      Write header records onto output file.                           
-!                                                                       
-       NROUT = 1 
-       WRITE(12,REC=1,IOSTAT=OUT) TTL,CNAM,SS,NCON,AU,                  &
-     &                            EMRAT,IPT,NUMDE,LPT                   
-       IF ( OUT .NE. 0 ) THEN 
-          CALL ERRPRT ( NROUT, 'th record not written because of error') 
-       ENDIF 
+!     Write header records onto output file.                            
                                                                         
-       NROUT = 2 
-       WRITE(12,REC=2,IOSTAT=OUT)CVAL 
-       IF ( OUT .NE. 0 ) THEN 
-          CALL ERRPRT ( NROUT, 'th record not written because of error') 
-       ENDIF 
+      NROUT = 1 
                                                                         
+      IF(NCON .LE. OLDMAX)THEN 
+         WRITE(12,REC=1,IOSTAT=OUT) TTL,(CNAM(I),I=1,OLDMAX),SS,NCON,AU,&
+     &              EMRAT,IPT,NUMDE,LPT,RPT,TPT                         
+      ELSE 
+         K = OLDMAX+1 
+         WRITE(12,REC=1,IOSTAT=OUT) TTL,(CNAM(I),I=1,OLDMAX),SS,NCON,AU,&
+     &              EMRAT,IPT,NUMDE,LPT,(CNAM(J),J=K,NCON),RPT,TPT      
+      ENDIF 
                                                                         
-!                                                                       
-!      We're through.  Wrap it up.                                      
-!                                                                       
-       CLOSE (12) 
-       STOP ' OK' 
+      IF ( OUT .NE. 0 ) THEN 
+          CALL ERRPRT ( NROUT, 'st record not written because of error') 
+      ENDIF 
                                                                         
+      NROUT = 2 
+                                                                        
+      IF(NCON .LE. OLDMAX) THEN 
+         WRITE(12,REC=2,IOSTAT=OUT)(CVAL(I),I=1,OLDMAX) 
+      ELSE 
+         WRITE(12,REC=2,IOSTAT=OUT)(CVAL(I),I=1,NCON) 
+      ENDIF 
+                                                                        
+      IF ( OUT .NE. 0 ) THEN 
+          CALL ERRPRT ( NROUT, 'nd record not written because of error') 
+      ENDIF 
+                                                                        
+!     We're through.  Wrap it up.                                       
+                                                                        
+      CLOSE (12) 
+      STOP ' OK' 
                                                                         
       END                                           
                                                                         
-!      $Header: asc2eph.oth,v 1.1 93/08/23 14:53:39 faith Exp $         
-!                                                                       
-       SUBROUTINE  ERRPRT (I, MSG) 
                                                                         
-       CHARACTER*(*)  MSG 
-       INTEGER        I 
+      SUBROUTINE  ERRPRT (I, MSG) 
                                                                         
-       WRITE (*,200)  I, MSG 
-  200  FORMAT('ERROR #',I8,2X,A50) 
+      CHARACTER*(*)  MSG 
+      INTEGER        I 
                                                                         
-       STOP ' ERROR ' 
+      WRITE (*,200)  I, MSG 
+  200 FORMAT('ERROR #',I8,2X,A50) 
+                                                                        
+      STOP ' ERROR ' 
       END                                           
                                                                         
                                                                         
@@ -312,21 +381,20 @@
       CHARACTER*(*)  HEADER 
       CHARACTER*12   BLANK 
                                                                         
-!                                                                       
 !     Start with nothing.                                               
-!                                                                       
+                                                                        
       HEADER = ' ' 
                                                                         
-!                                                                       
 !     The next non-blank line we encounter is a header record.          
 !     The group header and data are seperated by a blank line.          
-!                                                                       
+                                                                        
       DO WHILE ( HEADER .EQ. ' ' ) 
           READ (*,'(A)') HEADER 
       ENDDO 
                                                                         
 !     Found the header.  Read the blank line so we can get at the data. 
-      READ (*, '(A)') BLANK 
+                                                                        
+      IF ( HEADER .NE. 'GROUP   1070' )READ (*, '(A)') BLANK 
                                                                         
       RETURN 
       END                                           
