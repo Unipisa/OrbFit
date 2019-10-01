@@ -1,5 +1,7 @@
 # OrbFit Workbench
 
+OrbFit is an astronomy library to compute orbits and ephemerides.
+
 Folder [raw materials](./raw_materials) is for the original materials, as they have been found or submitted.
 
 Folder [browsable source](./browsable_source) is for a browsable version of the source code. Source files, with the right extension, have to be accessible through the GitHub web interface, e.g., archives should be decompressed, code should be transcribed if provided by images, etc.
