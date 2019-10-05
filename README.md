@@ -10,4 +10,4 @@ Folder [source](./source) is for the curated revision of the source code, as a b
 
 Folder [metadata](/.metadata) holds various files with meta information (catalogue, actors, journal) used throughout the process. 
 
-Please refear to the [SWHAPPE](https://github.com/Unipisa/SWHAPPE) guidelines for greater details. 
+Please refer to the [SWHAPPE](https://github.com/Unipisa/SWHAPPE) guidelines for greater details. 
