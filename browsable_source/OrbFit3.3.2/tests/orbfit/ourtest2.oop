@@ -1,0 +1,9 @@
+object1.
+	.name = '1220 T-2'
+
+input_files.incond = 'ourtest.oel'
+
+output.epoch = CAL 1998/Jun/18 22:35:40.00 UTC
+
+
+

@@ -1,0 +1,14 @@
+# Modify the following definitions according to your operating system
+# and compiler, then erase the following lines (up to "######...")
+error:
+	@ echo "Please edit the file make.flags and customize it"
+	@ exit 1
+#########################################################################
+# Fortran compiler
+FC=f77
+# Options for Fortran compiler:
+FFLAGS=-g -C -I../include
+# "ranlib" command: if it is not needed, use "RANLIB=touch"
+RANLIB=ranlib
+# include directory for makefile input
+VPATH=../include

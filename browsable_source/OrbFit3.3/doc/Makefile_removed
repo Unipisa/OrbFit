@@ -1,0 +1,9 @@
+#orb9dist:
+#	cd src/orb9; make distclean; cd ../..; cd tests/orbit9; make clean; \
+#	cd ../..; tar -cf ../orbit9.tar src/orb9 tests/orbit9 doc/ORBIT9 \
+#	doc/ORBHELP doc/READMEorb ; gzip ../orbit9.tar
+
+#skymapdist:
+#	cd src/starcat;make clean; cd ../skymap; make clean; cd ../..;\
+#	tar -czf ../skymap.tgz --exclude src/starcat/cfitsio src/skymap src/starcat 
+

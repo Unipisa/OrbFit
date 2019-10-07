@@ -1,0 +1,63 @@
+
+ofclrf.o: \
+	../suit/output_control.mod 
+
+ofephe.o: \
+	../propag/orbit_elements.mod \
+	comeph.h90 
+
+ofiden.o: \
+	../include/parcmc.h90 \
+	../include/parobx.h90 \
+	../propag/least_squares.mod \
+	../propag/orbit_elements.mod \
+	../suit/astrometric_observations.mod \
+	comidn.h90 \
+	parnob.h90 
+
+ofinip.o: \
+	../suit/output_control.mod 
+
+ofinod.o: \
+	../include/parcmc.h90 \
+	../propag/orbit_elements.mod \
+	../suit/astrometric_observations.mod 
+
+ofiobs.o: \
+	../include/parobx.h90 \
+	../suit/astrometric_observations.mod 
+
+ofiorb.o: \
+	../propag/orbit_elements.mod \
+	parnob.h90 
+
+ofofit.o: \
+	../include/parcmc.h90 \
+	../include/parobx.h90 \
+	../propag/least_squares.mod \
+	../propag/orbit_elements.mod \
+	../propag/propag_state.mod \
+	../suit/astrometric_observations.mod \
+	../suit/fund_const.mod \
+	comlsf.h90 
+
+ofprop.o: \
+	../include/parcmc.h90 \
+	../propag/orbit_elements.mod \
+	../propag/propag_state.mod 
+
+orbfit.o: \
+	../include/parobx.h90 \
+	../propag/orbit_elements.mod \
+	../suit/astrometric_observations.mod \
+	../suit/output_control.mod \
+	parnob.h90 
+
+rdopt_of.o: \
+	../include/sysdep.h90 \
+	comeph.h90 \
+	comidn.h90 \
+	comlsf.h90 
+
+seltid.o: \
+	../suit/fund_const.mod 

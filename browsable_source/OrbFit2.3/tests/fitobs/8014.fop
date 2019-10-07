@@ -1,0 +1,17 @@
+! input file for fitobs
+fitobs.
+        .astna0='8014'       ! asteroid name
+        .obsdir0='obsdata'    ! directory of observs. file, first arc 
+        .nam0='8014'        ! name of first arc asteroid
+        .elefi0='8014.eq0'  ! first arc elements file
+
+propag.
+        .imet=0 !numerical method automatic choice
+	.ilun=1
+        .iast=3 ! massive asteroids
+	.irel=1
+
+errmod.
+	.use= .F.
+	.name= 'num03'
+!

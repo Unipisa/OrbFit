@@ -1,0 +1,38 @@
+To create an OrbFit Distribution for Windows complete the following steps:
+
+============ Compile UNIX Distribution ==============
+
+1) Use WinZip to untar the .tar.gz file into an empty C:\OrbFit
+   directory.
+
+2) In Windows Explorer double-click compile.bat in the C:\OrbFit
+   directory. This will copy the windows specific files from the conf/
+   directory to their appropriate places. Next it will compile all
+   executables. Alt+F4 will close the batch window when it is
+   finished.
+
+3) Again in Windows Explorer double-click windist.bat in the C:\OrbFit
+   directory. This will remove all unnecessary object and link files,
+   leaving the executables in bin/. It also runs the cleaning batches
+   under tests/ and removes the jpleph file if it exists.
+
+============ Test New Distribution ==============
+
+1) Transfer the jpleph file to the C:\OrbFit\lib directory.
+
+2) Under C:\OrbFit\tests\ directory execute the batch files
+   fitobs\testfit.bat and orbfit\testorb.bat. Make any other tests you
+   can think of including graphics if appropriate.
+
+============ Make WINDOWS Distribution ==============
+
+1) Again run windist.bat. (This will remove jpleph!)
+
+2) In Windows Explorer right-click the C:\OrbFit directory and select
+   "Add to Zip". In the dialog box be sure to:
+	a) Enter a filename with the form OrbFit190.zip
+	b) Select "Include subfolders"
+	c) Select "Save extra folder info"
+	d) Click "Add"
+
+3) Upload the zip file to the ftp site. (!!! USING BINARY MODE !!!)

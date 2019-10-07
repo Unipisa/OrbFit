@@ -1,0 +1,51 @@
+DISTRIBUTION 4.2 (03 June 2009)
+
+New fatures involving the atrometric star catalog debiasing.
+It makes use of some HEALpix routines.
+New modules:
+/src/suit/healpix_types.f90                ! From HEALpix routines 
+/src/suit/cat_debias.f90                   ! Interface for star catalog debiasing
+
+New file in lib:
+/lib/xcat.bias                             ! Star catalogs bias data file
+
+Major changes to adapt with dabiasing interface:
+/src/suit/astrometric_observations.f90
+/src/suit/observ_rms.f90
+
+New dependencies:
+/src/suit/Makefile
+
+Minor changes related to the set up of the variable change_format.
+change_format='INPUT' for the transition from old to new .rwo format.
+change_format=' ' no transition.(It may need some improvement, like 
+reading the version number of the .rwo file.)
+/src/allobs/rej_stat.f90
+/src/allobs/reampn.f90
+/src/allobs/mfitobs3.f90
+/src/allobs/obs_stat.f90
+/src/fitobs/fitobs.f90
+
+
+DISTRIBUTION 4.0 (November 2008)
+
+It incorporates many new features, including:
+
+
+PATCHES TO DISTRIBUTION 4.0
+
+[these files should be included in every patch, to make sure the patch
+itself is well defined:]
+
+./patchlist           
+./dellst
+./README.patches
+./Makefile
+./README.workinprog
+./src/vers.h
+./notar
+./lib/OBSCODE.dat
+./lib/eopc04/eopc04.62-now
+./lib/astorb.rad
+
+

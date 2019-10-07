@@ -1,0 +1,29 @@
+! Options for neofit.x 
+neofit.
+        .neolist='neofit.names'	! list of asteroid names
+        .tcur=51200.		! "current" time for propagation
+        .eledir='epoch'		! directory of orbit elements
+	.obsdir0='mpcobs'	! location of obsfiles
+	.generate_catalog=.T.	! Flag for generating single line catalog
+	.generate_closeapp=.T.	! Flag for generating close approach data
+	.generate_ephem=.F.	! Flag for generating ephemeris file
+	.generate_moid =.F.	! Flag for generating moid file
+
+reject.
+!	.auto = .false.	! Turns automatic outlier rejection on and off
+
+propag.
+!	.imet=3  	! numerical method automatic choice
+	.ilun=1		! 0=no moon 1= yes 
+	.imerc=1	! 0=no mercury 1=yes (recommended =1 for asteroids)
+!	.iast=0		! 0=no asteroids with mass n=no. of massive asteroids 
+!	.filbe='CPV'	! name of the asteroid ephemerides file
+	.irel=1		! 0=newtonian 1=gen. relativity 
+!	.llev=12	! control for Everhart method convergence at 10^-llev
+!	.hev=1.d0	! Everhart's method: initial (maximum) step
+	.npoint=200	! minimum number of data points for a deep close appr
+	.iclap=1	! 0=no close approach control 1=yes 
+!	.dmea=0.000	! min. distance for control of close-app. to terrest. planets  
+!	.dmoon=0.003	! min. distance for control of close-app. to the moon
+
+!

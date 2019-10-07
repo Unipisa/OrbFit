@@ -1,0 +1,17 @@
+catpro.o: proout.h sunmass.h
+
+fgauss.o: parobx.h trig.h parcmc.h sunmass.h pariod.h comiod.h
+
+finele.o: sunmass.h
+
+finobs.o: parobx.h sysdep.h
+
+finopt.o: proout.h
+
+fitobs.o: parobx.h mag.h radar.h phase.h npoint.h parmul.h trig.h \
+          sunmass.h proout.h verbosity.h
+
+fobpre.o: npoint.h phase.h
+
+mult_subs.o: parmul.h trig.h phase.h npoint.h sysdep.h
+

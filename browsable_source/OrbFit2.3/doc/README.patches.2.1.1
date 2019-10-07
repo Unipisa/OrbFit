@@ -1,0 +1,109 @@
+DISTRIBUTION 2.1.1 (May 2000)
+
+Main improvements with respect to 2.0 are:
+
+1) New observation weighing, according to past performance of
+each observatory, with adaptive time intervals.
+
+2) Radar observations are handled with more accuracy, thanks to a
+better Earth rotation model.
+
+3) Software to detect and track Virtual Impactors is now included in
+the distribution.
+
+4) A new main program, catpro, allows to propagate the catalogs of
+orbital elements, in both the single-line and multi-line formats.
+
+5) The Radau integrator has been written in a modern, structured form;
+moreover, when the orbit is computed with Radau and the variations
+equations are being solved, the state transition matrix is
+renormalized after each close approach; this is important for
+performance in presence of multiple close approaches.
+
+PATCHES TO DISTRIBUTION 2.1.1
+
+[these files should be included in every patch, to make sure the patch
+itself is well defined:]
+
+./patchlist           
+./dellst
+./doc/README.patches
+./Makefile
+./doc/README.workinprog
+./src/vers.h
+./notar
+
+Patch 2.1.2
+src/include/comiod.h   messages from preliminary orbit determination
+src/prelim/gaussn.f
+src/orbfit/ofiden.f
+src/orbfit/ofiorb.f
+src/orbfit/ofofit.f
+src/orbfit/ofprop.f
+src/prelim/iodet.f
+src/suit/outele.f
+src/prelim/iodini.f
+src/prelim/vaisala.f 
+lib/prelim.key
+lib/orbfit.def
+lib/fitobs.def
+src/fitobs/finopt.f
+src/fitobs/catpro.f     compilation error
+src/Makefile            make clean 
+config                  HP90 option added
+conf/mf.HP90.O
+conf/mf.HP90.d
+conf/mf.HP90.p
+Makefile                nondistclean
+src/fitobs/preob4.f     compilation error
+src/propag/ra15v.f      problem with HP compilation
+doc/doclib.h            symbolic link
+src/suit/iaucod2.f      asteroid names
+src/fitobs/catpro.f                uninitialised variable
+
+Patch 2.1.3
+
+src/propag/subclan.f    MTP rotated to resemble Opik plane
+src/fitobs/fclanout.f      "
+src/fitobs/fclan.f         "
+src/fitobs/clanew.f        "
+src/suit/outel1.f       Substituted CHARACTER PARAMETER with a DATA
+src/prelim/             "All" the changes performed by Mario
+lib/random.dat               "    
+src/include/comiod.h         "
+src/suit/posobs.f            "
+src/suit/outel1.f.v1         "
+src/suit/Makefile            "
+src/suit/outele.f            "
+src/orbfit/ofiden.f          "
+src/orbfit/ofiorb.f          "
+src/orbfit/ofofit.f          "
+src/orbfit/ofprop.f          "
+src/propag/difcor.f      better bizarre orbit control
+src/suit/wromlr.f        negative mean longitude fix
+src/include/elarray.h    inoput asteroid names
+doc/make.flags.win       Forced optimization for interp.f
+doc/README.ftp           Documentation update
+doc/help.html                "
+doc/usg.help                 "
+src/propag/Makefile      Added $(CLOAP) to prop.lib dependencies
+src/fitobs/fitobs.f      Declaration of astnaj
+src/fitobs/fclanout.f    Unused variables
+src/suit/gmstd.f         Changed name of user-defined function (sum => ssum)
+src/suit/nutarg.f            "
+src/suit/nutwhr.f            "
+src/suit/obleqd.f            "
+src/suit/precd.f             "
+src/suit/rdbula.f        Corrected bad call to filclo
+src/fitobs/virimp.f      Corrected bad call to plocbd  
+doc/README               Documentation update
+doc/README.compile           "
+doc/README.options           "
+doc/README.orbit9            "
+doc/README.tcl               "
+doc/README.tests             "
+doc/about.help               "
+doc/orbit9.help              "
+tests/orbfit/doclib.h    Symbolic link
+tests/fitobs/doclib.h        "
+tests/bineph/doclib.h        "

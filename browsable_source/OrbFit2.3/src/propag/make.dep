@@ -1,0 +1,40 @@
+close_app.o: parbep.h masses.h proout.h closapl.h cloapp.h closta.h \
+             iclap.h dx0de.h covariance.h tpcana.h nvarx.h sunmass.h \
+             trig.h parint.h comint.h rkcoef.h maxclo.h comdif.h
+
+ephem_prop.o: trig.h sunmass.h phase.h
+
+fitsubs.o: timespan.h trig.h
+
+force_model.o: radar.h model.h iclap.h bifina.h proout.h parbep.h \
+               combep.h selast.h closapl.h yarkov.h yarkom.h \
+               verbosity.h comint.h masses.h jplhdr.h vlight.h \
+               sunmass.h trig.h sysdep.h
+
+force_model_fast.o: radar.h model.h iclap.h bifina.h proout.h \
+                    parbep.h combep.h selast.h closapl.h yarkov.h \
+                    yarkom.h verbosity.h comint.h masses.h jplhdr.h \
+                    vlight.h sunmass.h trig.h sysdep.h
+
+least_sq.o: parobx.h comrej.h comdif.h verbosity.h iunrad.h trig.h \
+            jplhdr.h codode.h mag.h phase.h proout.h
+
+moid_compute.o: parbep.h masses.h sunmass.h
+
+mult_sol.o: parmul.h comdif.h parobx.h verbosity.h trig.h phase.h \
+            mag.h
+
+obs_compute.o: phase.h trig.h model.h vlight.h radius.h sunmass.h \
+               jplhdr.h
+
+plocbd.o: trig.h jplhdr.h
+
+predict_obs.o: phase.h sunmass.h npoint.h jplhdr.h trig.h
+
+propag_state.o: restart.h model.h iclap.h comint.h sunmass.h nvarx.h \
+                dx0de.h closta.h parint.h proout.h mscoef.h rkcoef.h \
+                parbep.h masses.h trig.h
+
+target_plane.o: cloapp.h closapl.h tpcana.h parbep.h masses.h \
+                comdif.h parobx.h phase.h trig.h npoint.h sunmass.h
+

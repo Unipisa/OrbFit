@@ -1,0 +1,55 @@
+[Note: the link to JPL ephemerides MUST be set up in ./lib with name
+"jpleph". The location of the binary JPL ephemerides file is site
+dependent. A binary file, but only for LINUX or Windows, can be
+downloaded from our site.]
+
+% cd ..
+/prop/orbfit/orb211
+% cd lib
+/prop/orbfit/orb211/lib
+% ln -s ../../jpleph jpleph
+[REMARK: ../../jpleph should be replaced with the actual path and file
+for the binary JPL ephemerides for your system.]
+% cd ..
+/prop/orbfit/orb211
+% make tests
+        (cd tests; make)
+        (cd orbfit; make)
+        echo 4067 | ../../src/orbfit/orbfit.x
+ Run name =
+ Run name = 4067
+ WARNING: no run-specific option file (4067.oop) found
+ No .rwo file, so reading .obs and/or .rad files.
+ mpcin:  130  obs in 4067.obs
+ starting values
+    2.6250248     .1517819     .1008883    -.0304014     .2576490    2.1804830
+
+.....
+
+[This is the test sequence for all the main programs, orbfit, fitobs
+and bineph; could take several minutes; much longer message,
+terminating with:]
+
+.....
+
+
+        (cd bineph; make)
+        echo CPV | bineph.x
+ Run name =
+ Run name = CPV
+ Epoch of initial conditions:  50400.00000 (MJD, TDT)
+
+[Note that the test attempts to generate graphics on your printer;
+this will actually work only if you have a PostScript printer on the
+default print queue.]
+
+[If you get any error message from the tests, please send a complete
+copy of the standard output to some of the members of the ORBFIT
+consortium, e.g. milani@dm.unipi.it, carpino@dm.unipi.it,
+chesley@dm.unipi.it, giovanni@saturn.ias.fra.cnr.it]
+
+[Now ORBFIT 2.1.1 is up and ready; you can use it immediately, by
+modifying one of the .fop files in ./tests/fitobs and/or one of the
+.oop files in ./tests/orbfit]
+
+

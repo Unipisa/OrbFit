@@ -1,0 +1,11 @@
+input_files.
+	.incond = CPV.inc
+bineph.
+	.eph_obj= 1 2 4
+	.epoch.start = CAL 1989/Jan/01 0:0:0 TDT
+	.epoch.end   = CAL 1991/Jan/01 0:0:0 TDT
+	.step = 50
+force.JPLDE.
+	.planets = Mercury Venus Earth+Moon Mars Jupiter Saturn Uranus Neptune
+JPLDE.
+!	.file = c:\users\zoran\jpl\jpleph

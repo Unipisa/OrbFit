@@ -1,0 +1,75 @@
+#!	/bin/sh
+
+usage () {
+	echo "Usage: config [options] <configuration>"
+	echo "       where options can be:"
+	echo "          -d  (debug)"
+	echo "          -O  (optimized)"
+	echo "          -p  (profiling)"
+	echo "       and <configuration> is one of the following:"
+        echo "          HP90    (HP FORTRAN 90)"
+	echo "          HP      (HP PA RISC)"
+	echo "          IBM     (IBM RISC 6000)"
+	echo "          MIPS    (MIPS, Silicon Graphics)"
+	echo "          NAG     (NAG FORTRAN90 compiler)"
+        echo "          PGI     (Portland group fortran90 compiler"
+	echo "          SunOS   (SunOS 4, f77)"
+	echo "          SOLARIS (SOLARIS/SunOS 5, f77)"
+	echo "          SilGra  (Silicon Graphics, f77)"
+	echo "          fort77  (f2c through fort77 script)"
+	echo "          g77     (GNU g77 compiler)"
+	echo "          ALPHA   (Digital alpha f90 compiler)"
+	exit 1
+}
+
+if [ $# -lt 1 ]; then
+	usage
+fi
+
+# Compilation options (debug/optimize)
+opt="d"
+if [ "$1" = "-d" ]; then
+	opt="d"
+	shift
+elif [ "$1" = "-p" ]; then
+	opt="p"
+	shift
+elif [ "$1" = "-O" ]; then
+	opt="O"
+	shift
+fi
+if [ $# -ne 1 ]; then
+	usage
+fi
+
+# Configuration
+conf=$1
+
+mffile=conf/mf.$conf.$opt
+optfile=conf/opt.$conf
+
+if [ ! -f $mffile ]; then
+	usage
+fi
+
+# Makefile options
+cp $mffile src/make.flags
+
+# Selection of installation-dependent source files
+if [ -f $optfile ]; then
+. $optfile
+fi
+
+for dir in ephem propag suit orbfit include
+do
+	if [ -d src/$dir ]; then
+		cd src/$dir
+#		../lib/inst_src $SRCSEL
+		if [ -f config.sh ]; then
+			./config.sh
+		fi
+		cd ../..
+	fi
+done
+
+echo $conf $opt > .conf.status

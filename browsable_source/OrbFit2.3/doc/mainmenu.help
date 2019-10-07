@@ -1,0 +1,48 @@
+% help file, orbfit 1.7.1 and later
+% this is the main menu of the fitobs main
+
+MAIN MENU
+
+From this menu all the functionalities of FITOBS are accessed.
+
+1 = input of observational data ...is performed automatically at
+startup, but can be redone if the observation file(s) have been
+changed and/or the selection flags have been modified.
+
+2 = acquire orbital elements ...is performed automatically at startup,
+but can be redone to go back to the values of the orbital elements
+supplied from the catalogues. If orbital elements are not available,
+they can be computed from 3 observations by Gauss' method.
+
+3 = differential corrections ...to improve the orbital elements by
+least square fit to the observations. Note that some first guess is
+needed to start; menus 2 and 4 can be used.
+
+4 = first guess for identification ...to identify two sets of
+observations as belonging to the same asteroid/comet, some first guess
+for the common orbital elements is required before going to menu 3.
+
+5 = state propagation ...available orbital elements can be brought
+forward/backward to some other epoch, by an accurate N-body
+computation.
+
+6 = predictions of observations ...for a given set of orbital
+elements, the observations can be predicted at any given time,
+together with their uncertainties.
+  
+7 = multiple solutions ...for an object observed only over a short
+arc, the solutions compatible with the observations cannot be
+described by the confidence ellipsoid, but form a nonlinear set.
+  
+8 = close approach analysis ...given an orbit, with its uncertaitny,
+it is possible to analyse the closest approaches to the planets
+(including Earth) possible over a given time span.
+  
+9 = status ...show all the status flags, showing which data are
+available at a given stage of the computation; also the initial
+condition and observation epochs.
+ 
+10 = date conversion ...from calendar to MJD.
+
+0 = exit ... stop FITOBS
+

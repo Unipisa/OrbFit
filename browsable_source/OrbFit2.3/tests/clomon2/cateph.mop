@@ -1,0 +1,19 @@
+cateph.
+        .ephdir='clodata2'    	! directory for ephemerides
+        .tf=81200.0             ! Final time 2080
+
+!       .tf=52500.0             ! Final time 2001
+!       .tf=54500.0             ! Final time 2008
+!       .tf=64000.0 		! Final time 2034
+!       .tf=70172.0 		! Final time 2050
+!       .tf=73500.0             ! Final time 2060
+!       .tf=87825.0 		! Final time 2100
+!	.tf=124075.0 		! Final time 2200
+
+propag.
+        .imet=0 !numerical method automatic choice
+        .iast=3 !
+        .npoint=300 ! 
+        .dmea=0.2d0     ! min. distance for control close-app. to Earth only
+        .dter=0.05d0    ! min. distance for control close-app. to MVM
+!

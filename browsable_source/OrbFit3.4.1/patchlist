@@ -1,0 +1,9 @@
+./patchlist
+./README.patches
+./Makefile
+./README.workinprog
+./src/vers.h90
+./notar
+./src/suit/Makefile
+./src/suit/triangles.f90
+./src/suit/delaunay_triang.f90

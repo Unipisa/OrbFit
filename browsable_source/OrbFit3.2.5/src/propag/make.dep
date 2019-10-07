@@ -1,0 +1,155 @@
+
+close_app.o: \
+	../include/nvarx.h90 \
+	../suit/ever_pitkin.mod \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod \
+	../suit/planet_masses.mod \
+	close_app.o \
+	runge_kutta_gauss.o \
+	tp_trace.o 
+
+count_opp.o: \
+	../include/parobx.h90 \
+	../suit/astrometric_observations.mod \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	pred_obs.o \
+	propag_state.o 
+
+count_opp2.o: \
+	../include/parobx.h90 \
+	../suit/astrometric_observations.mod \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	pred_obs.o \
+	propag_state.o 
+
+ephem_prop.o: \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	pred_obs.o \
+	propag_state.o 
+
+fitsubs.o: \
+	../include/timespan.h90 \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/util_suit.mod 
+
+force_model.o: \
+	../include/jplhdr.h90 \
+	../suit/fund_const.mod \
+	../suit/name_rules.mod \
+	../suit/planet_masses.mod \
+	../suit/reference_systems.mod \
+	force_model.o \
+	yark_pert.o 
+
+least_squares.o: \
+	../include/parobx.h90 \
+	../suit/astrometric_observations.mod \
+	../suit/fund_const.mod \
+	../suit/name_rules.mod \
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod \
+	../suit/util_suit.mod \
+	close_app.o \
+	least_squares.o \
+	obs_correl.o \
+	pred_obs.o 
+
+moid_compute.o: \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/planet_masses.mod 
+
+multiple_sol.o: \
+	../include/sysdep.h90 \
+	../suit/astrometric_observations.mod \
+	../suit/fund_const.mod \
+	../suit/name_rules.mod \
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod \
+	../suit/util_suit.mod \
+	least_squares.o \
+	pred_obs.o \
+	propag_state.o 
+
+obs_correl.o: \
+	../suit/astrometric_observations.mod \
+	../suit/fund_const.mod \
+	fcfund.h90 
+
+plocbd.o: \
+	../suit/fund_const.mod \
+	../suit/util_suit.mod 
+
+pred_obs.o: \
+	../suit/astrometric_observations.mod \
+	../suit/attributable.mod \
+	../suit/ever_pitkin.mod \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod \
+	../suit/reference_systems.mod \
+	../suit/station_coordinates.mod \
+	close_app.o \
+	force_model.o \
+	propag_state.o 
+
+propag_state.o: \
+	../include/nvarx.h90 \
+	../suit/ever_pitkin.mod \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod \
+	../suit/planet_masses.mod \
+	close_app.o \
+	force_model.o \
+	propag_state.o \
+	ra15_mod.o \
+	runge_kutta_gauss.o \
+	tp_trace.o 
+
+ra15_mod.o: \
+	../include/nvarx.h90 \
+	../suit/output_control.mod \
+	close_app.o \
+	force_model.o 
+
+rmodel.o: \
+	../suit/astrometric_observations.mod \
+	../suit/output_control.mod \
+	../suit/planet_masses.mod \
+	../suit/reference_systems.mod \
+	close_app.o \
+	force_model.o \
+	least_squares.o \
+	propag_state.o \
+	tp_trace.o \
+	yark_pert.o 
+
+runge_kutta_gauss.o: \
+	../include/nvarx.h90 \
+	../suit/output_control.mod \
+	../suit/planet_masses.mod \
+	force_model.o 
+
+semi_linear.o: \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	pred_obs.o 
+
+tp_trace.o: \
+	../include/nvarx.h90 \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod \
+	../suit/output_control.mod \
+	../suit/planet_masses.mod 
+
+yark_pert.o: \
+	../include/sysdep.h90 \
+	../suit/fund_const.mod \
+	../suit/orbit_elements.mod 

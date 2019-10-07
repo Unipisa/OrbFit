@@ -1,0 +1,69 @@
+===========================================================================
+================== README FILE for STATCOMP PROGRAM =======================
+===========================================================================
+
+In this directory there is the files for the distribution of
+
+                  STATCOMP 1.0 
+
+computing all the stationary points of the squared distance function
+between two elliptic orbits.  ellittiche.
+ 
+Output check files:
+1) CHECK.hi-st
+2) CHECK.morse_weier
+3) CHECK.fft
+4) CHECK.double
+
+====================== STRUCTURE of the PROGRAM =======================
+
+statcomp.f: MAIN PROGRAM    
+
+called subroutines: refsyscha.f,statpts2.f 
+
+-----------------------------------------------------------------------
+      1) refsyscha.f: changing to mutual reference system    
+
+
+-----------------------------------------------------------------------
+      2) statpts2.f: routine che calcola i punti stazionari
+
+         called subroutines: Aical.f, maxminrel2.f, D2eval.f, choosedeg.f
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
+            i) Aical.f: coefficients of Sylvester matrix
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
+           ii) maxminrel2.f: is the heart of the program
+
+               called subroutines: matrixdat.f, rvfft.f, decode_out.f,
+                                   clevcompsylv.f, cdetcomp.f, code_inp.f,
+                                   irvfft.f, solv20.f, solvesys4.f, hess.f 
+
+                 a) matrixdat.f
+
+                 b) rvfft.f
+
+                 c) decode_out.f
+     
+                 d) clevcompsylv.f
+
+                 e) cdetcomp.f
+
+                 f) code_inp.f
+
+                 g) irvfft.f
+
+                 h) solv20.f
+
+                 i) solvesys4.f
+
+                 j) hess.f
+
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
+          iii) D2eval.f
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  
+           iv) choosedeg.f
+

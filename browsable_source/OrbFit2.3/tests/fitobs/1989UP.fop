@@ -1,0 +1,13 @@
+! input file for fitobs
+fitobs.
+! first arc
+        .astna0='1989UP'    ! full name, first arc
+        .obsdir0='obsdata'    ! directory of observs. file, first arc 
+        .elefi0='1989UP.eq0' ! first arc elements file
+
+propag.
+        .imet=0 !numerical method automatic choice
+        .ilun=1 !
+
+
+

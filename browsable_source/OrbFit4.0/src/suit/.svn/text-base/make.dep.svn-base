@@ -1,0 +1,143 @@
+
+admis_reg.o: \
+	fund_const.o \
+	reference_systems.o \
+	station_coordinates.o 
+
+angle_var.o: \
+	fund_const.o 
+
+astrometric_observations.o: \
+	../include/parcmc.h90 \
+	../include/parobx.h90 \
+	../include/sysdep.h90 \
+	fund_const.o \
+	name_rules.o \
+	output_control.o \
+	reference_systems.o \
+	station_coordinates.o 
+
+attributable.o: \
+	../include/parobx.h90 \
+	astrometric_observations.o \
+	fund_const.o \
+	name_rules.o \
+	output_control.o \
+	reference_systems.o 
+
+bin_search.o: \
+	name_rules.o 
+
+char_str.o: \
+	char_str.o 
+
+delaunay_triang.o: \
+	fund_const.o 
+
+ever_pitkin.o: \
+	fund_const.o \
+	output_control.o 
+
+fidinam4.o: \
+	../include/sysdep.h90 \
+	output_control.o 
+
+file_oper.o: \
+	../include/parlib.h90 \
+	../include/sysdep.h90 \
+	comlib.h90 \
+	file_oper.o 
+
+header_input.o: \
+	../include/parcmc.h90 \
+	char_str.o \
+	comlib.h90 \
+	option_input.o \
+	reference_systems.o 
+
+iers_ser.o: \
+	chebi_pol.o \
+	comlib.h90 \
+	fund_const.o 
+
+io_elems.o: \
+	../include/parcmc.h90 \
+	fund_const.o \
+	io_elems.o \
+	name_rules.o \
+	reference_systems.o 
+
+iorwo_old.o: \
+	../include/jplhdr.h90 \
+	../include/parcmc.h90 \
+	../include/parobx.h90 \
+	fund_const.o \
+	output_control.o \
+	station_coordinates.o 
+
+jpl_ephem.o: \
+	../include/jplhdr.h90 \
+	comlib.h90 
+
+math_lib.o: \
+	output_control.o 
+
+obs_simul.o: \
+	astrometric_observations.o \
+	fund_const.o \
+	name_rules.o \
+	reference_systems.o \
+	station_coordinates.o 
+
+observ_rms.o: \
+	astrometric_observations.o \
+	fund_const.o \
+	parobc.h90 \
+	parrms.h90 \
+	rmscl.h90 \
+	station_coordinates.o 
+
+obsvarie.o: \
+	astrometric_observations.o \
+	name_rules.o \
+	output_control.o 
+
+option_input.o: \
+	../include/parcmc.h90 \
+	char_str.o \
+	option_input.o \
+	reference_systems.o 
+
+orb_els.o: \
+	fund_const.o 
+
+read_ephem.o: \
+	../include/jplhdr.h90 \
+	../include/timespan.h90 \
+	fund_const.o \
+	planet_masses.o 
+
+reference_systems.o: \
+	fund_const.o \
+	iers_ser.o \
+	station_coordinates.o 
+
+station_coordinates.o: \
+	fund_const.o \
+	output_control.o 
+
+time_scales.o: \
+	../include/timespan.h90 
+
+util_suit.o: \
+	../include/doclib.h90 \
+	name_rules.o \
+	output_control.o 
+
+very_short_arc.o: \
+	../include/par_sharc.h90 \
+	astrometric_observations.o \
+	attributable.o \
+	fund_const.o \
+	name_rules.o \
+	output_control.o 

@@ -1,0 +1,50 @@
+
+This contains the plans for the immediate future of ORBFIT, that is
+the improvements we are either working on, or at least thinking to.
+
+Category 0: things being done now:
+
+
+Category 1: things almost ready, expected for the next release:
+
+1) Star maps superimposed on observation predictions.  This requires
+to use gnuplot 2.7, not yet available under some Operating Systems.
+
+2) Light version without JPL ephemerides. 
+
+3) Yarkovsky effect.  Already available non documented feature, not
+properly tested.
+
+Category 2: things needed, not yet scheduled:
+
+1) Multiple solution from Gauss's preliminary orbit.
+
+2) Processing of satellite observations not yet reduced to geocenter. 
+Also roving observer.
+
+3) Cometary version, with support for non gravitational perturbations
+and hyperbolic/parabolic orbits. 
+
+4) More readable output files, in particular the log files,
+runname.fou, runname.olg, but also runname.fga, etc.
+
+Category 3: things under consideration:
+
+1) Recovery planning. 
+
+2) Observation planning. 
+
+3) Uncertainty of predictions from very short arcs.  
+
+4) Integration with Holvorcem's software.
+
+
+KNOWN BUGS:
+
+
+
+Updated 28 October 2000.
+
+
+
+

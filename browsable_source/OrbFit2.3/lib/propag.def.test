@@ -1,0 +1,36 @@
+! input options for propagator library, including force model
+!   and numerical integrator options
+propag.
+! input options for phisical model! version 1.2 of propagator
+.ilun=0!  0=no moon 1= yes 
+.imerc=1! 0=no mercury 1=yes (recommended =1 for asteroids)
+.iplut=0! 0=no pluto 1=yes (recommended  0 for asteroids, 1 for Transneptunian)
+.irel=0!  0=newtonian 1=gen. relativity 
+.iast=0!  0=no asteroids with mass n=no. of massive asteroids 
+.filbe='CPV'! name of the asteroid ephemerides file
+.iclap=0! 0=no close approach control 1=yes 
+.iaber=1! aberration 0=no 1=yes (recommended 1 always)
+.istat=1! 0=no topocentric corr 1= yes (recommended 1 always)
+! choice of numerical integration method
+.imet=0! 0=smart choice 1=multistep 2=rkimpl 3=Everhart
+! input options for numerical integrator (do not change unless you know)
+.llev=12! control for Everhart method convergence at 10^-llev
+.hev=30.d0! Everhart's method: initial (maximum) step
+.h=10.d0! maximum step for multistep 
+.deltos=1.d-8! must be smaller than the accuracy of observation time
+.error=1.d-13! target truncation error (radians/revolution^2)
+.iord=8! order of multistep predictor
+.epms= 1.0d-12! convergence control for corrector $
+.iork= 8!  order of starter
+.eprk= 1.00d-10! convergence control for implicit Runge-Kutta
+.lit1= 6! iterations for first step
+.lit2= 2! iterations for following steps
+.iusci=1! output of numerical convergence controls 0 no
+.icha=0! what to do if non convergent 0 interactive 1 batch, change step $
+! parameters relatives to compression of close-approach records
+.npoint=40! minimum number of data points for a deep close appr
+.ndeg=10!   degree for polinomial interpolation
+.dmea=0.1d0! min. distance for control of close-app. to terrestrial planets  
+.dmoon=0.d0! min. distance for control of close-app. to the moon
+.dmjup=0.7d0! min. distance for control of close-app. to giant planets
+.dmast=0.05d0!min. distance for control of close-app. to massive asteroids

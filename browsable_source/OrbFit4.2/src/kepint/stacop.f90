@@ -1,0 +1,1 @@
+../fitobs/stacop.f90
