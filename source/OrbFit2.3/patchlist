@@ -1,0 +1,7 @@
+patchlist
+doc/README.patches
+Makefile
+doc/README.workinprog
+src/vers.h
+notar
+

@@ -1,0 +1,61 @@
+DISTRIBUTION 2.2.7 (experimental, September 2001)
+
+Main improvements with respect to 2.2.1 are:
+
+
+
+
+
+PATCHES TO DISTRIBUTION 2.2.7
+
+[these files should be included in every patch, to make sure the patch
+itself is well defined:]
+
+./patchlist           
+./dellst
+./doc/README.patches
+./Makefile
+./doc/README.workinprog
+./src/vers.h
+./notar
+
+PATCH 2.2.8  September 2001
+
+./src/suit/math_lib.f
+./src/suit/orb_els.f
+./src/suit/pol_zeros.f
+./src/suit/chebi_pol.f
+./src/suit/util_suit.f
+./src/suit/Makefile
+./src/suit/LIST.suit
+./src/suit/notactual/
+./src/suit/ref_syst.f
+./src/suit/obs_wei.f
+./src/suit/jpl_ephem.f
+./src/stat/fitcov.f
+removed ./src/suit/comeps.h
+
+./src/propag/target_plane.f
+./src/neodys/clonew.f
+./lib/neomul.key
+./lib/cateph.key
+./lib/resret.key
+./src/newret/catephopt.f
+./src/newret/cateph2.f
+./src/newret/Makefile
+./src/newret/resret2b.f
+./src/newret/findminb.f
+./src/newret/falslog.f
+./tests/clomon2/
+
+./src/include/verbosity.h
+./src/propag/force_model.f
+./src/propag/least_sq.f
+./src//fitobs/fitobs.f
+./src/orbfit/orbfit.f
+./src/propag/mult_sol.f
+./src/fitobs/fitobs.f
+./src/mult_subs.f
+./src/propag/target_plane.f
+./src/neodys/clonew.f
+

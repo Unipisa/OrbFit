@@ -1,0 +1,20 @@
+! input file for fitobs
+fitobs.
+! first arc
+        .astna0='2004 FU4'    ! full name, first arc
+        .obsdir0='obsdata/'    ! directory of observs. file, first arc 
+ 	.elefi0='2004FU4.eq0'     ! first arc elements file
+! bizarre  control; 
+        .ecclim=         1.2   ! max eccentricity for non bizarre orbit 
+        .samax=100000d0        ! max a for non bizarre orbit 
+        .ahmax=1e10            ! max Q for non bizarre orbit 
+propag.
+        .imet=0 !numerical method automatic choice
+        .iast=3 !
+        .npoint=600 ! number of points in close approach
+        .dmea=0.2d0     ! min. distance for control of close-app. to the Earth only
+        .dter=0.05d0    ! min. distance for control of close-app. to Mercury, Venus and Mars
+IERS.
+        .extrapolation=.T. ! extrapolation of Earth rotation
+!
+

@@ -1,0 +1,202 @@
+9
+
+dir
+105
+file:///home/orbfit/orbfit_subv/trunk/src
+file:///home/orbfit/orbfit_subv
+
+
+
+2009-01-09T12:08:59.413030Z
+105
+orbfit_amc
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+8274e527-0b42-0410-9bf8-b60396510e46
+
+test
+dir
+
+jpleph
+dir
+
+include
+dir
+
+idconf2
+dir
+
+suit
+dir
+
+triang
+dir
+
+orbfit
+dir
+
+panst
+dir
+
+fitobs
+dir
+
+util90
+dir
+
+prelim
+dir
+
+propag
+dir
+
+kepint
+dir
+
+neodys
+dir
+
+moid_research
+dir
+
+newret
+dir
+
+propneo2
+dir
+
+conta
+file
+
+
+
+
+2008-11-12T09:01:24.000000Z
+a298f7618e9f967716cec741790f22c4
+2007-12-24T17:00:34.975856Z
+1
+orbfit
+has-props
+
+bineph
+dir
+
+lib
+dir
+
+astdys
+dir
+
+make.flags
+file
+108
+
+
+
+2009-01-23T19:16:41.000000Z
+66705c02c4dfd297872c5f0a30534238
+2009-01-23T19:16:27.381252Z
+108
+orbfit_amc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+234
+
+debris
+dir
+
+orb9
+dir
+
+allobs
+dir
+
+Makefile
+file
+107
+
+
+
+2009-01-23T18:44:45.000000Z
+67ab6e4ed4999a8802b56be6a18062bb
+2009-01-23T19:15:07.825110Z
+107
+orbfit_amc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+2045
+
+LIST.types
+file
+
+
+
+
+2008-11-12T09:01:24.000000Z
+7387a168324d3f4092bc8f8c59bfc19f
+2007-12-24T17:00:34.975856Z
+1
+orbfit
+
+vers.h90
+file
+
+
+
+
+2008-11-12T09:06:07.000000Z
+571ccbccc79a995c06a3ea0012631017
+2008-11-12T09:07:30.002236Z
+70
+orbfit_amc
+

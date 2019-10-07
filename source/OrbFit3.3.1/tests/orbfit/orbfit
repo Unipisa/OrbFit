@@ -1,0 +1,8 @@
+#!	/bin/sh
+
+if [ $# -ne 1 ]; then
+	echo "Usage: orbfit <run>" 1>&2
+	exit 1
+fi
+
+echo $1 | orbfit.x | tee $1.log

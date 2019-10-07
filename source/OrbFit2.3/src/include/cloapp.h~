@@ -1,0 +1,24 @@
+* Close approaches parameters
+c Vers. 2.2.2, 20 February 2001; A. Milani
+c storage space for multiple minima/multiple target plane crossing
+      INTEGER njcx,njtx,njc,njt
+      PARAMETER (njcx=20,njtx=20)
+c modified target plane analysis: unit vector perpendicular to MTP,
+c planetary coordinates 
+      DOUBLE PRECISION vmtp(3,njcx),xplaj(6,njcx)
+c currently (last) approached planet
+      INTEGER iplam
+c LOCAL MOID at beginnign of encounter, angle of planetary position w.r. to MOID point
+      DOUBLE PRECISION moid0,angmoid
+c control on angular distance from MOID point
+      INTEGER angx
+      PARAMETER (angx=3.d1)
+c close approach time, relative position and velocity, with 
+c partial derivatives with respect to cartesian coord, min. distance
+      DOUBLE PRECISION tcla(njcx),xcla(21,njcx),vcla(21,njcx),rmin(njcx)
+c modified target plane intersection
+      DOUBLE PRECISION ttar(njtx),xtp(3,njtx),vtp(3,njtx)
+c common for al that
+      COMMON/clos7/njc,njt,vmtp,tcla,xcla,vcla,xplaj,rmin,moid0,angmoid,
+     +      ttar,xtp,vtp,iplam
+

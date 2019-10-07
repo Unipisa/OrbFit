@@ -1,0 +1,4 @@
+INPUT: propag.def
+
+init_orbdet.methods = Gauss Vaisala
+init_orbdet.verbose = 2

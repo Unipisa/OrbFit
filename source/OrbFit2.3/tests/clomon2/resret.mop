@@ -1,0 +1,32 @@
+! option file for resret2.f
+
+resret.
+        .dt = 90.d0            ! shower length (days)
+        .tgap = 30.d0          ! shower gap (days)
+        .dnewton = 100.d0      ! control for startup of newton (earth radii)
+! where to find input/ to write output
+        .clodir = 'clodata2'   ! directory for close approach records (input)
+        .repdir = 'clodata2'   ! directory for report files (output)
+        .mulsodir= 'multsol'   ! directory containing multiple solutions
+        .obsdir= 'mpcobs'      ! directory containing observation data
+! data from neomul.nop/cateph.mop
+        .smax  = 3.d0          ! span on sigma space
+        .deltasig = 0.005d0    ! delta sigma (between two multiple solutions)
+        .nmul  = 1201          ! number of multiple solutions
+        .dmin_used = 0.2d0     ! radius of target plane (AU)
+!
+propag.
+        .iast=3         ! 0=no asteroids with mass n=no. of massive asteroids 
+        .npoint=300     ! minimum number of data points for a deep close appr
+        .dmea=0.2d0     ! min. distance for control of close-app. to Earth only
+        .dter=0.05d0    ! min. distance for control of close-app. to MVM
+errmod.
+	.use = .F.
+reject.
+        .rejopp = .F.  ! reject entire oppositions
+IERS.
+        .extrapolation=.T. ! extrapolation of Earth rotation
+!
+
+
+

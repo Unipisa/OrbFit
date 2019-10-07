@@ -1,0 +1,33 @@
+#########################################################################
+# MS-WINDOWS MAKE FLAGS FOR THE DIGITAL VISUAL FORTRAN () COMPILER
+# Modify the following definitions according to your operating system
+# and compiler.
+#########################################################################
+
+FC=DF # Fortran compiler
+
+FFLAGS= /nologo
+
+.SUFFIXES: .f
+
+# Default inference rule. This should overwrite the UNIX rules
+# specified in the Makefiles.
+
+.f.o:
+	$(FC) $(FFLAGS) /I"../include/" /c /Fo$*.o $<
+
+# This is necessary to "overwrite" the UNIX target in the ./suit/Makefile.
+# This is due to the "nonstandard" array handling in the JPL code.
+#jplsub.o: jplsub.f
+#	$(FC) /nologo /I"../include/" /c /Fojplsub.o jplsub.f
+
+# This is necessary to "overwrite" the UNIX target in the ./suit/Makefile.
+# This is due to the "nonstandard" array handling in the JPL code.
+interp.o: interp.f
+	$(FC) /nologo /I"../include/" /c /Fointerp.o interp.f
+
+# This is necessary to "overwrite" the UNIX target in the
+# ./propag/Makefile. If we ever understand why rrdot is "funny" then we
+# can remove this in both places 
+rrdot.o: rrdot.f
+	$(FC) /nooptimize /nologo /I"../include/" /c /Forrdot.o rrdot.f

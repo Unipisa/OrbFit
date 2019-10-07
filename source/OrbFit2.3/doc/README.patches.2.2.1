@@ -1,0 +1,90 @@
+DISTRIBUTION 2.2 (November 2000)
+
+Main improvements with respect to 2.1.1 are:
+
+1) More robust programming, due to tests on different machines
+
+2) the modified target plane is now rotated to have a reference system
+   very close to the one of Opik b-plane
+
+3) the multiple solution algorithm has been upgraded, and is now very stable
+   (it is being used to compute hundreds of thousands alternate orbits). 
+
+4) the ra15v bug has finally been found, and the error messages have 
+   disappeared. In practice this means that the sofware is now stable
+   even under extremely unstable situations.
+
+
+
+PATCHES TO DISTRIBUTION 2.2
+
+[these files should be included in every patch, to make sure the patch
+itself is well defined:]
+
+./patchlist           
+./dellst
+./doc/README.patches
+./Makefile
+./doc/README.workinprog
+./src/vers.h
+./notar
+
+Patch 2.2.1
+
+src/suit/carequ.f non stop version of Vaisala (and others)
+src/suit/coocha.f    "        " 
+src/propag/fdifco.f  radar output
+src/propag/cloapp.f  true anomaly time step control
+src/propag/ra15v.f    "
+src/propag/srtoss.f  sorting non-quadratic 
+src/suit/heapsort.f    "       (./src/suit/sortob.f removed)
+src/suit/wrirwo.f      "
+src/suit/inobs.f       "
+src/suit/wrirwg.f      "
+src/suit/wrirms.f      "
+src/suit/Makefile      "
+src/propag/Makefile      "
+src/fitobs/fsteph.f    time step problem
+lib/propag.def         deltos for radar
+src/propag/rmodel.f    icrel
+src/propag/rrdot.f     2-body short step
+src/propag/selste.f    output step selected
+src/suit/rdnlog.f        Lahey fortran compilation
+src/suit/rdnrea.f        "
+src/suit/rdnint.f        "
+src/suit/rdncah.f        "
+src/suit/sv2int.f        "
+src/suit/pcwlgi.f        "
+src/suit/tee.f           "
+src/fitobs/finobs.f      "
+src/fitobs/fitobs.f      "
+src/propag/preobs.f      "
+src/propag/preobn.f      "
+src/propag/clocms.f      "
+src/suit/rearwo.f        "
+src/propag/force.f       " + nd bug
+src/suit/inobs.f        lf95 problem with rmsmag
+src/suit/jplin.f         "     "           "
+src/fitobs/finele.f     call rdelem; but there are ten more....
+src/propag/lowmoid.f    flag???
+src/prpoag/proele.f     matin bug
+src/Makefile            new nondistribution directories
+
+Patch 2.2.5 (experimental, not to be distributed)
+
+src/propag/falsi.f     online linear target plane analysis
+--src/propag/cloapp.f      "
+--src/propag/ra15v.f       "
+src/propag/strclan.f     "
+src/propag/wriclan.f     "
+src/propag/propin.f      "
+src/propag/propag.f      "
+src/include/cloapp.h      "
+src/include/covariance.h "
+src/include/dx0de.h      "
+src/propag/rrdot.f       " (change to rkg)
+
+--src/fitobs/plocbd.f     lf95 incompatibility ii=system(string)
+
+
+

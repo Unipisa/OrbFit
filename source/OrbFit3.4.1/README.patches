@@ -1,0 +1,19 @@
+DISTRIBUTION 3.4 (November 2006)
+
+It incorporates many new features, including:
+
+
+PATCHES TO DISTRIBUTION 3.4
+
+[these files should be included in every patch, to make sure the patch
+itself is well defined:]
+
+./patchlist           
+./dellst
+./README.patches
+./Makefile
+./README.workinprog
+./src/vers.h
+./notar
+
+

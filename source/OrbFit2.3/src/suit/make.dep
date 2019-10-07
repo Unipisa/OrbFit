@@ -1,0 +1,32 @@
+char_str.o: spaces1.h spaces2.h parch.h
+
+chebi_pol.o: parlgi.h parsmo.h
+
+file_oper.o: comfil.h comlib.h sysdep.h parlib.h proout.h
+
+header_input.o: parnam.h parch.h parcmc.h comfnm.h
+
+iers_ser.o: trig.h parier.h cmiers.h comlib.h etmtai.h parlgi.h \
+            bessyr.h parnam.h comkls.h
+
+jpl_ephem.o: jplhdr.h sunmass.h parbep.h masses.h combep.h comlib.h \
+             model.h iclap.h bifina.h selast.h timespan.h vlight.h
+
+math_lib.o: trig.h
+
+obs_wei.o: jplhdr.h trig.h parcmc.h parobx.h proout.h sysdep.h \
+           astrow.h parobc.h parrms.h rmscl.h parcor.h comcor.h \
+           fcfund.h vlight.h radius.h
+
+option_input.o: parnam.h comnam.h parch.h parcmc.h comkls.h
+
+orb_els.o: trig.h parcmc.h comorb.h
+
+prop2b.derivs.o: trig.h
+
+ref_syst.o: trig.h t2000.h proout.h
+
+time_scales.o: partai.h timespan.h bessyr.h
+
+util_suit.o: trig.h doclib.h parobx.h
+

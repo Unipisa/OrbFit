@@ -1,0 +1,524 @@
+OBSOLETE; to be rewritten, when and if we have time
+
+----------------------------------------------------------------
+This document is the public interface of the propagator package
+of the OrbFit distribution, version 1.8.0
+----------------------------------------------------------------
+ 
+1. PURPOSE
+
+The propagator package includes the routines needed to propagate the
+orbit, improve it by differential corrections, to predict future
+observations, [to identify two separately discovered objects,] and to
+perform changes of coordinates (between different elements set).
+
+The public interface contains so far only the following routines:
+
+PROELE - PROELC (orbit propagation)
+
+PREOBS - PREOBC - PREOBN (prediciton of observations)
+
+DIFCOR (differential correction)
+
+COOCHA - COODER (coordinate change)
+
+RMODEL (initialization, model and integrator choice)
+
+whose interface are specified in this document. Most of these routines
+exist in two (or more) versions, a simpler one with the minimal set of
+arguments, and a more complex one with a more complex interface but
+more powerful functionalities. This could be replaced, in a future
+Fortran90 version, by a single routine with optional arguments.
+
+The formal interface is between the two comment lines with keywords
+INTERFACE - END INTERFACE. This is provided to make straightforward
+the transition to the explicit interfaces of Fortran90.
+
+2. ORBIT PROPAGATION
+
+The basic functionality is to provide the values of orbital elements
+at some future (previous) time, given the value at some epoch. The
+advanced version allows to propagate the covariance matrix, provided
+it is available at epoch.
+
+The types of orbital elements supported are cartesian coordinates,
+keplerian elements, and equinoctal elements; equinoctal polar
+coordinates are only partially supported (they are not useful for
+asteroids).
+
+c =====================================================================
+c PROELE-PROELC 
+c =====================================================================
+c interface to N+1-body problem propagator (subroutine propag)
+c
+c This version uses JPL ephemerides as source for the planetary positions
+c
+c  WARNING: the input and output elements east0, east1 
+c           are in the ecliptic (mean of J2000.0) system
+c
+c  WARNING: input and output use the same coo. To transform
+c           also the coordinate type, combine with coocha/cooder
+c =====================================================================
+c PROELE- version with elements only, no covariance
+c =====================================================================
+c
+c  input: coo coordinate type EQU, KEP, CAR, EQP
+c         t0 epoch time (MJD)
+c         t1 prediction time (MJD)
+c         east0  orbital elements vector  at time t0
+c  output:
+c         east1  orbital elements for the asteroid at time t1
+c ============INTERFACE===================================================
+      subroutine proele(coo,t0,east0,t1,east1)
+      implicit none
+c equinoctal elements and epoch times
+      character*3 coo
+      double precision east0(6),east1(6),t0,t1
+c ============END INTERFACE===============================================
+
+c =====================================================================
+c PROELC- version with elements and covariance propagation
+c =====================================================================
+c
+c  input: coo coordinate type EQU, KEP, CAR, EQP
+c         t0 epoch time (MJD)
+c         t1 prediction time (MJD)
+c         east0 orbital elements vector at time t0
+c         gamma0 covariance matrix for the elements east0 at epoch t0
+c         c0 normal matrix for the same
+c  output:
+c         east1 orbital elements for the asteroid at time t1
+c         gamma1 covariance matrix for the elements east1 at epoch t1
+c         c1 normal matrix for the same 
+c ============INTERFACE===================================================
+      subroutine proelc(coo,t0,east0,gamma0,c0,t1,east1,gamma1,c1)
+      implicit none
+c elements and epoch times
+      character*3 coo
+      double precision east0(6),east1(6),t0,t1
+c normal matrices
+      DOUBLE PRECISION c0(6,6),c1(6,6)
+c covariance matrices
+      double precision gamma0(6,6),gamma1(6,6)
+c ============END INTERFACE===============================================
+
+
+3. OBSERVATION PREDICTIONS
+
+The basic functionality is to predict the observations at some given
+time, and from a given observatory, for an object with known orbital
+elements at some epoch. The apparent magnitude is also computed, for
+the given values of the absolute magnitude H and of the opposition
+effect coefficient G.
+
+If the covariance matrix is available for the reference epoch, the
+version PREOBC provides the full 2 x 2 covariance matrix of
+the observations, the length of the semiaxes of the confidence ellipse
+and the direction of these axes.
+
+The version PREOBN gives a semilinear confidence boundary; the
+graphics interface is still primitive; at present, it alsso writes in
+a .cbd file the data.
+
+After each call to any one of these routines, additional information
+is available through a common contained in the header file 'phase.h',
+including phase, elongation, apparent motion, galactic latitude, etc..
+
+
+c =====================================================================
+c PREOBS- version with angles only, no covariance
+c =====================================================================
+c  input:  coo   = coordinate type EQU, KEP, CAR, EQP
+c          t0    = epoch time (MJD)
+c          idsta = station code
+c          t1    = prediction time (MJD)
+c          east0 = orbital elements vector at time t0
+c          h     = absolute magnitude
+c          g     = opposition effect coefficient
+c  output: alpha = right ascension (equatorial J2000), radians
+c          delta = declination (equatorial J2000), radians
+c          hmagn = apparent magnitude, as predicted, from h and g given
+c
+c  WARNING: the magnitudes are often very poorly predictable
+c ============INTERFACE===================================================
+      subroutine preobs(coo,t0,idsta,t1,east0,h,g,alpha,delta,hmagn)
+      implicit none
+c elements and epoch times
+      character*3 coo
+      double precision east0(6),t0,t1
+c magnitude
+      double precision h,g,hmagn
+c station code
+      integer idsta
+c observations
+      double precision alpha,delta
+c ============END INTERFACE===============================================
+
+c =====================================================================
+c PREOBC- version with covariance, linear theory
+c =====================================================================
+c  input:  coo   = coordinate type EQU, KEP, CAR
+c          t0    = epoch time (MJD)
+c          idsta = station code
+c          t1    = prediction time (MJD)
+c          east0 = orbital elements vector at time t0
+c          h     = absolute magnitude
+c          g     = opposition effect coefficient
+c          gamm0 = covariance at time t0 for elements east0
+c  output: alpha = right ascension (equatorial J2000), radians
+c          delta = declination (equatorial J2000), radians
+c          hmagn = apparent magnitude, as predicted, from h and g given
+c          gamad = covariance matrix of observations alpha, delta
+c          sig   = sqrt(eigenvalues) of gamad
+c          axes  = the eigenvectors of gamad are the columns of this matrix
+c
+c  In the linear approximation, the ellipse of confidence has principal axes
+c          along axes; the semiaxes lenghts are sig 
+c
+c  WARNING: the magnitudes are often very poorly predictable
+c ============INTERFACE===================================================
+      subroutine preobc(coo,t0,idsta,t1,east0,h,g,gamm0,
+     +    alpha,delta,hmagn,gamad,sig,axes)
+      implicit none
+c ============= input ====================================================
+c elements and epoch times, covraiance at t0
+      character*3 coo
+      double precision east0(6),t0,t1,gamm0(6,6)
+c magnitude
+      double precision h,g,hmagn
+c station code
+      integer idsta
+c ============= output ===================================================
+c observations
+      double precision alpha,delta
+c covariance
+      double precision gamad(2,2),axes(2,2),sig(2)
+c ============END INTERFACE===============================================
+
+c =====================================================================
+c PREOBN- version with confidence region, nonlinear theory
+c =====================================================================
+c  input:  coo   = coordinate type EQU, KEP, CAR
+c          t0    = epoch time (MJD)
+c          idsta = station code
+c          t1    = prediction time (MJD)
+c          east0 = orbital elements vector at time t0
+c          h     = absolute magnitude
+c          g     = opposition effect coefficient
+c          gamm0 = covariance at time t0 for elements east0
+c          c0    = normal matrix at time t0 (should be the inverse of gamm0)
+c          sigma = level of the confidence boundary in RMS values
+c          npo   = number of points in the boundary
+c          ibv   = 1 for confidence boundary, =2 for line of maximum variation
+c          inl   = handling of nonlinearity =1 for linear ellipse
+c                  =2 for 2-Body nonlinear propagation of covariance
+c                  =3 for n-body nonlinear propagation of covariance
+c
+c  output: alpha = right ascension (equatorial J2000), radians
+c          delta = declination (equatorial J2000), radians
+c          hmagn = apparent magnitude, as predicted, from h and g given
+c          gamad = covariance matrix of observations alpha, delta
+c          sig   = sqrt(eigenvalues) of gamad
+c          axes  = the eigenvectors of gamad are the columns of this matrix
+c          npo1  = number of output dta points 9could be less than npo)
+c          al(npo1),de(npo1) points on the confidence boundary  
+c                   (difference with respect to best prediciton, radians)
+c          elm(npo1) alternate elements for observation time
+c
+c  In the linear approximation, the ellipse of confidence has principal axes
+c          along axes; the semiaxes lenghts are sig
+c  In the nonlinear approximation, the boundary is a map of the
+c          confidence ellipse in the elements space 
+c
+c  WARNING: the magnitudes are often very poorly predictable
+c ============INTERFACE===================================================
+      SUBROUTINE preobn(coo,t0,idsta,t1,east0,h,g,gamm0,
+     +    c0,sigma,npo,ibv,inl,al,de,elm,
+     +    alpha,delta,hmagn,gamad,sig,axes,npo1)
+      IMPLICIT NONE      
+c ============= input ====================================================
+c elements and epoch times, covariance and normal matrices at t0,
+c sigmas for the boundary
+      character*3 coo
+      DOUBLE PRECISION east0(6),t0,t1,gamm0(6,6),c0(6,6),sigma
+c number of points, flag for confidence bd/line of variation, nonlinearity
+      INTEGER npo,ibv,inl
+c magnitude
+      DOUBLE PRECISION h,g,hmagn
+c station code
+      INTEGER idsta
+c ============= output ===================================================
+c points on the confidence boundary (difference w.r. to alpha,delta)
+c WARNING! the output number of points is npo1.le.npo; 
+c this beacuse hyperbolic points are discarded
+      INCLUDE 'npoint.h'
+      INTEGER npo1
+      DOUBLE PRECISION al(npo),de(npo),allin,delin
+c line of elements
+      DOUBLE PRECISION elm(6,npo)
+c best fit observations
+      DOUBLE PRECISION alpha,delta
+c covariance
+      DOUBLE PRECISION gamad(2,2),axes(2,2),sig(2)
+c ============END INTERFACE===============================================
+
+4. DIFFERENTIAL CORRECTIONS
+
+Given the observations of an object, and a first approximation of the
+orbital elements at some epoch, this routine provides orbit
+improvement, that is it determines a new set of orbital elements for
+the same epoch, by solving a least square problem. If the process
+converges, this provides both a new set of orbital elements for which
+the sum of squares of the residuals (observation - prediction) is
+minimum, and the 6 x 6 covariance matrix of the result.
+
+This version gives to the user the possibility to choose
+many control parameters for the iteration process, plus the
+possibility to solve for only some of the 6 orbital elements.
+
+The input data should be provided by other routines of the system; as
+an example, the initial value of the orbital elements could come from
+the preliminary orbit determination routines (e.g. Gauss and/or
+Vaisala method), as well as coming from a catalogue of asteroid/comet
+orbits; the weights come from some weighing algorithm (provideg
+e.g. by routine fitwgt).
+
+c ===================================================================
+c DIFCOR  differential corrector
+c ===================================================================
+c version 1.8 Steven Chesley, Dec. 15, 1998
+c        works on equinoctal elements: 
+c        a,h=e sin(long.peri),k=e cos(long.peri),
+c        p=tg I/2 sin(long.node),q=tg I/2 cos(long.node), lambda=mean long.
+c Input: m observations number
+c        w weights (only diagonal matrix)
+c        sel selection flags
+c        t0 epoch time for asteroid elements
+c        tau observations time vector
+c        ioco station codes vector
+c        eq0 asteroid equinoctal elements at time t0 (first guess)
+c        al,de real observations vectors
+c        icor(6) flags .ne.0 to correct this element, 0 to leave it as in eq0 
+c        inew =2 for pseudo-Newton (use this), =1 for Newton (not well tested)
+c        iunf = unit file for output; if <0, no residuals output
+c        itmax=max. no iterations, if =0 then only calculate covariance...
+c        itgmax= max no iterations with target function paralysed/increasing
+c        delcr=control for stop due to small corrections
+c        divrat=control for paralyzed target function
+c Output eq corrected orbital elements at time t0
+c        gamma covariance matrix
+c        gtwg inverse of covariance matrix
+c           warning: if only some elements are corrected, only the 
+c              corresponding entries in gamma and gtwg are nonzero 
+c        csinor residuals norm
+c        delnor differential corrections norm
+c        csir residuals (in radians) 
+c                r.a. first, then declination, for each obs
+c        x2 chi**2 value for each observation
+c        succ logical success flag
+c =============INTERFACE===== =========================================
+      SUBROUTINE difcor(m,w,sel,t0,tau,ioco,eq0,al,de,icor,inew,iunf,
+     +     delcr,eq,gamma,gtwg,csinor,delnor,csir,x2,succ)
+c =====================================================================
+      IMPLICIT NONE
+c include files
+      INCLUDE 'parobx.h'
+      INCLUDE 'codode.h'
+      INCLUDE 'trig.h'
+      INCLUDE 'comdif.h'
+      INCLUDE 'comrej.h'
+c ================input data==========================
+c  times, alpha, delta, no. observations, observatory codes 
+      INTEGER m, ioco(m), sel(m)
+      DOUBLE PRECISION tau(m),al(m),de(m)
+c weights
+      DOUBLE PRECISION w(2*m)
+c unit file to write output
+      INTEGER iunf
+c controls 
+      INTEGER inew,icor(6)
+c  corr. and residuals  controls
+      DOUBLE PRECISION delcr
+c epoch time, initial equinoctal elements 
+      DOUBLE PRECISION t0, eq0(6)
+c ================output ==========================
+c corrected equinoctal elements 
+      DOUBLE PRECISION eq(6)
+c normal and covar. matrix
+      DOUBLE PRECISION gtwg(6,6),gamma(6,6)
+c success flag
+      LOGICAL succ
+c  corr. and residuals norm
+      DOUBLE PRECISION delnor,csinor
+c residuals
+      DOUBLE PRECISION csir(nob2x)
+c =============END INTERFACE============================================
+
+5. COORDINATE CHANGE
+
+These routines convert the elments set from one to another type of
+elements.  Both routines require only the input 6-vector of elements,
+the string indicating its type, the mass of the central body (the Sun
+for asteroids) multiplied by the gravitational constant, and the type
+of the desired output. The simpler version outputs only the new
+element set; the advanced version also provides derivatives.
+
+The types of orbital elements supported are cartesian coordinates,
+keplerian elements, and equinoctal elements; equinoctal polar
+coordinates are only supported in the simpler version, without
+derivatives (they are not useful for asteroids).
+
+WARNING: these two routines have been moved to the directory ../suit
+and to the library libsuit.a
+
+c ===================================================================
+c COOCHA-COODER
+c ===================================================================
+c   general purpose coordinate to/from
+c   elements change
+c
+c  specifically designed to handle correctly low
+c  eccentricity and low inclination orbits;
+c  polar orbits are supported without derivatives
+c
+c  limitations: only elliptic orbits are handled in this
+c  version; singularity for 180 degrees inclination
+c
+c  coordinate types implememted:
+c    'CAR' : cartesian positions and velocities in a vector
+c            of length 6
+c    'EQU' : equinoctal elements, see carequ, in a vector of
+c            length 6; the mean motion enne is also provided
+c    'EQP' : equinoctal elements for highly inclined orbit
+c    'KEP' : classical keplerian elements,  see kepequ, in a
+c             vector of length 6; singular for
+c             0 eccentricity, 0 and 180 degrees inclination;
+c
+c    INPUT:  x(6), coox (string defining the coord. type of x)
+c            gm=G x Mass of the Sun (anyway the central mass, e.g.
+c                 mass of Sun + mass of planet for a massive planet)
+c            cooy (string defining the coord. type)
+c
+c    OUTPUT: y(6)
+c            enne=mean motion; WARNING: enne is not computed
+c            for identical transformation
+c ====================================================================
+c COOCHA
+c ====================================================================
+c in this simper version the elements are computed without derivatives
+c ===============INTERFACE========================================
+      subroutine coocha(x,coox,gm,y,cooy,enne)
+      implicit none
+c ================= input/output ================
+      double precision x(6),y(6),gm,enne
+      character*3 coox,cooy
+c =============END INTERFACE====================
+
+c ======================================================
+c COODER
+c ======================================================
+c   general purpose coordinate to/from
+c   elements change: version with partial derivatives
+c   definitions and input as for coocha (but no equinoctal polar)
+c   in output, derpar(6,6) = matrix of partial derivatives
+c ==============INTERFACE============================
+      subroutine cooder(x,coox,gm,y,cooy,enne,derpar)
+      implicit none
+c ================= input/output ================
+      double precision x(6),y(6),gm,enne,derpar(6,6)
+      character*3 coox,cooy
+c =============END INTERFACE====================
+
+6. INITIALIZATION OF THE PROPAGATOR
+
+The engine of the system is the orbit propagator, which includes both
+a model of the accelerations acting on the asteroid/comet and a
+numerical integration scheme to solve the corresponding differential
+equation of motion. The propagation also provides, if required, the
+state transition 6 x 6 matrix, which is the differential of the
+solution with respect to the initial conditions [and an approximation
+to the second derivatives]; this is used for differential corrections,
+and to compute the covariance matrix.
+
+To turn on the propagator and select all the options, the user should
+do only two things. First, add a call to RMODEL at the beginning of
+the main program; second, select the options by editing the file
+'propag.def'. However, if either the file propag.def is not there, or
+it is not changed from the one provided with the distribution, default
+options are selected, and they have been shown to work satisfactorily
+and efficiently in most cases. WARNING: the user should change the
+options contained in the propag.def file only if he/she underatands
+what they mean.
+
+The acceleration model includes: gravitational perturbations from the
+Sun and from the major planets (plus possibly the Moon), whose
+positions and masses are desumed from the JPL ephemerides;
+gravitational perturbations from other asteroids, whose positions and
+masses are read in a file generated by the BINEPH program;
+general relativistic corrections, from a full PPN of the gravitational
+attraction of the Sun; [non gravitational perturbation on cometary nuclei].
+
+The model for the observations is also fixed by RMODEL and propag.def;
+it includes the displacement of the observatory from the center of the
+Earth, aberration, and the displacement of the center of the Earth due
+to the Moon (even when the mass of the Moon is neglected in the
+acceleration model).
+
+An important feauture of the propagator is the monitoring of the close
+approaches of the asteroid/comet to the major planets (and even to
+other asteroids, if their orbits are provided by BINEPH). If this
+feature is turned on (it is turned on by default), a warning is issued
+at each close approach. If the integrator is the variable step
+Everhart, a full report is issued for each close approach, including a
+computation (by interpolation) of the minimum distance; the close
+approach is computed accurately, since the stepsize is shortened as
+necessary.
+
+The numerical integration schemes available are: an Adams-Cowell
+multistep method (of arbitrary order), a symplectic implicit
+Runge-Kutta-Gauss of arbitrary even order, and an implicit
+Runge-Kutta-Radau method of order 15; the two former come from the
+public domain software ORBIT9 by A. Milani, the latter is the well
+known public domain software by Everhart. In most cases the user does
+not need to choose any one of the parameters entering in the
+definition of the numerical integration scheme; as an example, the
+stepsize is chosen authomatically to achieve the required accuracy.
+By setting the flag 'imet=0" the user gives the entire control of the
+selection of the numerical integrator,and even of the acceleration
+model, to the propagator itself. The numerical method, the perturbing
+bodies, the need of the relativistic correction, stepsize and
+convergence controls, etc., all is set automatically. This results in
+a much more effcient propagation for main belt asteroids, for which a
+fixed step multistep method can be used.
+
+RMODEL has a single argument, the string 'run', and a very simple
+interface, all the options are stored in common; the file of close
+approaches is stored in run//'.clo'.
+
+c ================================================================
+c RMODEL
+c ================================================================
+c this subroutine reads from file 'propag.def' all the propagator options;
+c the only input argument is the string "run", used to open 
+c output files with appropriate names
+c  WARNING: we advise the user against changing the file propag.def;
+c                do it at your risk !....
+c ========INTERFACE============================
+      subroutine rmodel(run)
+      character*80 run
+c ========END INTERFACE========================
+
+Rmodel calls the subroutine INIPRO (contained in the same file) to set
+the options for the numerical integrators; the options actually used
+are stored in the file run//'.pro'. It also calls difini, rejini, and
+possibly other initialisation routines, which the user does not need
+to be aware of.
+
+
+
+
+
+
+
+
+

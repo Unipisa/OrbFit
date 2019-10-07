@@ -1,0 +1,192 @@
+DISTRIBUTION 2.0 (October xx, 1999)
+
+Main improvements with respect to 1.9.0 are:
+
+1) Automatic observation weighing, according to past performance of
+each observatory (for each observing technology) on numbered asteroids.
+
+2) Radar observations are handled, with input from JPL data files.
+Our radar processing is not yet as accurate as the one by JPL, but it
+is good to less than 1 km.
+
+3) Graphical interface to run the programs and an online help with
+TCL/TK interface (see doc/README.tcl).
+
+4) New MOID computation using Lowell Obs. subroutine based on method
+of Sitarski.
+
+5) Windows graphics, more stable Windows version.
+
+6) Generation of ephemerides (on the sky) from fitobs.  
+
+PATCHES TO DISTRIBUTION 2.0:
+
+[these files should be included in every patch, to make sure the patch
+itself is well defined:]
+
+./patchlist           
+./dellst
+./doc/README.patches
+./Makefile
+./doc/README.workinprog
+./src/vers.h
+./notar
+
+Patch 2.0.1
+
+./src/suit/jplrad.f     improved handling of objid for radar obs
+./src/suit/inobs.f      added change flag to calling sequence
+./src/orbfit/ofiobs.f     "
+./src/fitobs/finobs.f     "
+./src/fitobs/fitobs.f   bug in obs. prediction observatory code
+./src/propag/sincor.f   that iobs=1 thing again
+./src/propag/minsol.f   do not write conditioning number unless big
+./src/suit/astrow.f     declarations after data staement
+./src/fitobs/fmulti.f   stop when hyperbolic
+./src/propag/difvin.f   stop when non convergent
+./src/suit/jplrad.f     fix minor warning in fort77
+./lib/OBSCODE.dat       many new observatories listed
+./src/propag/rrdot.f    fix to relativistic wave propagation model
+./src/suit/obsrms.f
+./src/suit/pvobs2.f    new earth rotation model (used for radar only)
+./src/suit/angrot.f
+./src/suit/chmo2i.f
+./src/suit/ierini.f
+./src/suit/lin3alg.f
+./src/suit/matlib.f
+./src/suit/bessep.f
+./src/suit/errel.f
+./src/suit/iers.f
+./src/suit/linalg.f
+./src/suit/matrot.f 
+./src/suit/Makefile
+./src/suit/bessyr.h
+./src/suit/comeps.h       
+./src/suit/parlgi.h    
+./src/suit/parsmo.h
+./src/suit/cmiers.h
+./src/suit/comtim.h
+./src/suit/cmieru.h
+./src/suit/parier.h
+./lib/eop90c04.cnc
+./lib/eopc04.cnc
+./lib/eopc04.lis
+./lib/eopc04/
+./src/propag/yarkinit.f     modifications for yarkse.f
+./src/propag/eihrel.f       minor changes
+./src/fitobs/fdifco.f       radar residuals output
+./src/propag/falsi.f        revised convergence test
+./src/propag/subclan.f      structured fclan
+./src/fitobs/fclan.f          "
+./src/fitobs/fclanout.f       "
+./src/fitobs/Makefile         "
+./src/propag/Makefile         "
+./src/propag/LIST.propag      "
+./conf/mf.PGI.d             stricter check
+./config                    add Silicon Graphics
+./src/prelim/solv8.f        remove IMAG non standard
+./src/include/masses.h      Fortran standard
+./src/propag/yarkom.h        "
+./src/propag/lowmoid.f       "
+./src/propag/earth.f        starting in close approach
+./src/propag/propag.f        "
+./src/propag/clotest.f       "
+./src/suit/state.f          fixing compilation of jpl ephem. software
+./src/suit/const.f           "
+./src/suit/dpleph.f          "
+./src/suit/split.f           "
+./src/suit/interp.f         this is the one requiring no bounds check
+
+Patch 2.0.2
+
+./lib/TAI-UTC.dat		new leap second added
+./lib/bulletinA		input data for IERS time series
+./lib/dut1r.coe
+./lib/dut1s.coe
+./lib/eop90c04.cnc
+./lib/eopc04
+./lib/eopc04.cnc
+./lib/eopc04.lis
+./lib/iers.key		new keywords for IERS interpolation
+./lib/fitobs.key		added: "INPUT: iers.key"
+./lib/orbfit.key		added: "INPUT: iers.key"
+./src/suit/assmat.f	new math/util routines needed by IERS stuff
+./src/suit/bessep.f
+./src/suit/chebyd.f
+./src/suit/chebym.f
+./src/suit/chmo2i.f
+./src/suit/epsini.f
+./src/suit/inver2.f
+./src/suit/isbnum.f
+./src/suit/lgnint.f
+./src/suit/pcwlgi.f
+./src/suit/pd1mat.f
+./src/suit/pd2mat.f
+./src/suit/pdmat.f
+./src/suit/prodvs.f
+./src/suit/rotmt1.f
+./src/suit/rotmt2.f
+./src/suit/smoocn.f
+./src/suit/summat.f
+./src/suit/sumv.f
+./src/suit/tchol2.f
+./src/suit/trsp3.f
+./src/suit/bessyr.h	new header files
+./src/suit/cmiers.h
+./src/suit/comeps.h
+./src/suit/etmtai.h
+./src/suit/parier.h
+./src/suit/parlgi.h
+./src/suit/parsmo.h
+./src/suit/delthp.f	routines for IERS time series handling
+./src/suit/diurot.f	and high precision reference systems
+./src/suit/dut1r.f
+./src/suit/dut1s.f
+./src/suit/equeqd.f
+./src/suit/gmsnom.f
+./src/suit/gmstd.f
+./src/suit/ierini.f
+./src/suit/iersts.f
+./src/suit/isbadr.f
+./src/suit/nutarg.f
+./src/suit/nutnd.f
+./src/suit/nutwhr.f
+./src/suit/obleqd.f
+./src/suit/precd.f
+./src/suit/rdbula.f
+./src/suit/rnutd.f
+./src/suit/rotpv.f
+./src/suit/rotsys.f
+./src/suit/xypol.f
+dellist
+./src/suit/LIST.suit
+./src/propag/rescov.f   normalisation coefficient for covariance
+./src/propag/difcor.f   control of no correction case
+./src/fitobs/fmulti.f   new algorithm for multiple solutions
+./src/propag/intstep.f    "
+./src/propag/difvin.f     "    
+./lib/astorb.rad        to keep this file updated in all the version
+./src/prelim/solv8.f    non stop
+./src/prelim/pzeros.f   declarations
+./src/propag/magest.f   silent in batch mode
+./src/suit/carequ.f     batch mode preliminary orbdet
+./src/prelim/sel3g.f      "  change in accepted arcs
+./src/prelim/vaisala.f    "
+./src/prelim/iodini.f      "
+./src/propag/ra15v.f      "
+./src/prelim/iodet.f     change in fail message
+./src/propag/bizarre.f control of bizarre orbits
+./src/propag/rmodel.f    "
+
+Patch 2.0.4
+
+./src/propag/intstep.f   ecc.1 during multiple solution controlled 
+./src/fitobs/finopt.f    file names too short
+./src/fitobs/fmupro.f    dimension bug
+./src/propag/falsi.f     fixes to stabilize rkg.
+./src/propag/subclan.f   duration of close approaches
+./src/fitobs/fclanout.f  graphics repeated options
+
+
+
+

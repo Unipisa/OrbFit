@@ -1,0 +1,27 @@
+DISTRIBUTION 2.3 (May 2002)
+
+Main improvements with respect to 2.2 are:
+
+This is meant to be the last distribution compatible with the old
+Fortran 77 standard. Thus the main change is the preparation of the
+module structure, which will be used in the next Fortran 90 version.
+
+
+
+PATCHES TO DISTRIBUTION 2.3
+
+[these files should be included in every patch, to make sure the patch
+itself is well defined:]
+
+./patchlist           
+./dellst
+./doc/README.patches
+./Makefile
+./doc/README.workinprog
+./src/vers.h
+./notar
+
+PATCH 2.3.1
+
+
+

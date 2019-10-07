@@ -1,0 +1,51 @@
+
+choosedeg.o: \
+	../suit/fund_const.mod 
+
+comp_heart_rot.o: \
+	../suit/fund_const.mod \
+	../suit/output_control.mod 
+
+compute_minima.o: \
+	../suit/fund_const.mod \
+	../suit/planet_masses.mod 
+
+compute_statpts.o: \
+	../suit/fund_const.mod 
+
+d2eval.o: \
+	../suit/fund_const.mod 
+
+hess.o: \
+	../suit/fund_const.mod 
+
+int_eval.o: \
+	../suit/fund_const.mod 
+
+min_comp.o: \
+	../suit/fund_const.mod \
+	../suit/output_control.mod 
+
+mutualrefcha.o: \
+	../suit/fund_const.mod 
+
+solvesystem_rot.o: \
+	../suit/output_control.mod 
+
+solvpoly.o: \
+	../suit/output_control.mod 
+
+stat_comp.o: \
+	../suit/fund_const.mod 
+
+stat_search.o: \
+	../suit/fund_const.mod \
+	../suit/output_control.mod 
+
+writemin.o: \
+	../include/jplhdr.h90 \
+	../suit/fund_const.mod \
+	../suit/planet_masses.mod 
+
+writestat3.o: \
+	../suit/output_control.mod 

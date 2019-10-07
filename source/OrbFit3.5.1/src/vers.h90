@@ -1,0 +1,2 @@
+! Program version
+      CHARACTER*15, PARAMETER (pvers='3.5.1, 24/12/2007')

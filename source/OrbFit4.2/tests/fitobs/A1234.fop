@@ -1,0 +1,11 @@
+! input file for fitobs
+fitobs.
+! first arc
+        .astna0='101234'    ! full name, first arc
+        .obsdir0='obsdata'    ! directory of observs. file, first arc 
+        .elefi0='101234.arc' ! first arc elements file
+        .error_model='cbm09' 
+
+propag.
+        .imet=0 !numerical method automatic choice
+

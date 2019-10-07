@@ -1,0 +1,9 @@
+./patchlist
+./README.patches
+./Makefile
+./README.workinprog
+./src/vers.h90
+./notar
+./lib/OBSCODE.dat
+./lib/eopc04/eopc04.62-now
+./lib/astorb.rad

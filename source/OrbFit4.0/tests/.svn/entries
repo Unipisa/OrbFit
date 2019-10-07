@@ -1,0 +1,101 @@
+9
+
+dir
+105
+file:///home/orbfit/orbfit_subv/trunk/tests
+file:///home/orbfit/orbfit_subv
+
+
+
+2009-01-09T12:08:59.413030Z
+105
+orbfit_amc
+
+
+svn:special svn:externals svn:needs-lock
+
+
+
+
+
+
+
+
+
+
+
+8274e527-0b42-0410-9bf8-b60396510e46
+
+neodys
+dir
+
+bineph
+dir
+
+orbfit
+dir
+
+panst
+dir
+
+fitobs
+dir
+
+moid
+dir
+
+orbit9
+dir
+
+debris
+dir
+
+lostPHAs
+dir
+
+Makefile
+file
+
+
+
+
+2008-12-23T11:15:24.000000Z
+a2975152bfb239fc57a6a45ccda4c70a
+2008-12-25T20:08:01.920971Z
+99
+orbfit_amc
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+429
+
+README.tests
+file
+
+
+
+
+2008-12-18T14:04:31.000000Z
+080f5dd70d58eec95d1b0842c5660481
+2008-12-18T18:02:36.575954Z
+98
+orbfit_amc
+
