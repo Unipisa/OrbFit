@@ -1,10 +1,8 @@
-# SW_NAME Workbench
+# OrbFit Workbench
 
-### This [SWHAPPE](https://github.com/Unipisa/SWHAPPE) workbench is for the acquisition of the source code of SW_NAME, SW_DESCRIPTION.  
+### This [SWHAPPE](https://github.com/Unipisa/SWHAPPE) workbench is for the acquisition of the source code of OrbFit, an astronomy library to compute orbits and ephemerides.  
 
 -------------------
-
-__Please note: this file need be renamed as README.md just after instantiation. We suggest that you delete this line, once done.__
 
 This workbench comes with a few folders to support the process.
 
