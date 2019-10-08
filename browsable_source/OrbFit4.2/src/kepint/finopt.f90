@@ -1,1 +1,0 @@
-../fitobs/finopt.f90

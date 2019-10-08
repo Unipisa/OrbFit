@@ -1,2 +1,0 @@
-..\..\bin\fitobs.exe
-pause

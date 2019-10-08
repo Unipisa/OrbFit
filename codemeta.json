@@ -1,0 +1,58 @@
+{
+    "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+    "@type": "SoftwareSourceCode",
+    "identifier": "OrbFit",
+    "description": "astronomy library to compute orbits and ephemerides",
+    "applicationCategory" : "Astronomy",
+    "name": "OrbFit",
+    "codeRepository":  "https://github.com/Unipisa/OrbFit",
+    "license": "GNU General Public License v2.0",
+    "version": "5.0.5",
+    "keywords" : [
+        "Astronomy", 
+        "Orbits", 
+        "Ephemerides"
+    ],
+    "runtimePlatform" : "LINUX",
+    "softwareRequirements" : ["Fortran95 Compiler gfortran"],
+    "developmentStatus" : "Active", 
+    "dateCreated" : "2002-05-11",
+    "datePublished" : "2019-10-08",
+    "relatedLink" : ["http://adams.dm.unipi.it/orbfit/", "https://newton.spacedys.com/neodys/", "https://newton.spacedys.com/astdys/"],
+    "programmingLanguage" : "Fortran95",
+    "referencePublication" : [ 
+      {
+          "@type": "ScholarlyArticle",
+          "idendifier": "https://doi.org/10.1017/CBO9781139175371",
+          "name": "Theory of Orbit Determination",
+          "author": [
+            {
+              "@type": "Person",
+              "givenName": "Andrea",
+              "familyName": "Milani",
+              "affiliation" : "Università di Pisa",
+              "email": "milani@dm.unipi.it"
+            },
+            {
+                "@type": "Person",
+                "givenName": "Giovanni",
+                "familyName": "Gronchi",
+                "affiliation" : "Università di Pisa",
+                "email": "gronchi@dm.unipi.it"
+              }
+          ]
+      }
+      ],
+    "author": [
+        {
+            "@type": "Person",
+            "givenName": "Andrea",
+            "familyName": "Milani",
+            "affiliation" : "Università di Pisa",
+            "email": "milani@dm.unipi.it"
+          }
+    ]
+    
+}
+
+
