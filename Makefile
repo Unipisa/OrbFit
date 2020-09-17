@@ -26,8 +26,8 @@ distclean:
 	@ exit 1
 
 distribution: distclean notar; \
-	tar -cf ../OrbFit5.0.5.tar -X notar . ; \
-	gzip ../OrbFit5.0.5.tar
+	tar -cf ../OrbFit5.0.6.tar -X notar . ; \
+	gzip ../OrbFit5.0.6.tar
 
 doctar:
 	tar -cf ../doc.tar --exclude-from notar ./doc; gzip ../doc.tar

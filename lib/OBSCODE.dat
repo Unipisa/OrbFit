@@ -1744,7 +1744,6 @@ K02   0.667610.622858+0.779718Eastwood Observatory, Leigh on Sea
 K03   0.744110.744133+0.665979Observatori AAS Montsec
 K04   0.744160.744130+0.665983Lo Fossil Observatory, Ager
 K05   1.023110.610689+0.789233Eden Observatory, Banham
-K06   1.999500.749658+0.659703Observatorio Montagut, Can Sola
 K07   2.4614 0.65973 +0.74902 Observatoire de Gravelle, St. Maurice
 K08   1.8800 0.75142 +0.65773 Observatorio Lledoner, Vallirana
 K09   2.2400 0.74889 +0.66051 Llica d'Amunt
@@ -1878,7 +1877,6 @@ L36  14.780080.645319+0.761467Ondrejov--BlueEye600 Telescope
 L37 353.738830.803937+0.592739Observatorio Alnitak, El Puerto de Santa Maria
 L38   9.699970.615648+0.785407Gartensternwarte Schafsweide, Schelde
 L39  11.040310.723062+0.688490Osservatorio Spica, Signa
-L40   6.956810.654011+0.754011Sternwarte Saarbruecken Rastpfuhl
 L50  34.0114 0.71157 +0.70039 GenShtab Observatory, Nauchnij
 L51  34.0164 0.71169 +0.70028 MARGO, Nauchnij
 L52  34.016940.711679+0.700287MASTER-Tavrida
@@ -1926,7 +1924,7 @@ Q65 149.193130.855519-0.516201Warrumbungle Observatory
 Q66 149.064250.855627-0.516205Siding Spring-Janess-G, JAXA
 Q67 149.492330.835816-0.547369JBL Observatory, Bathurst
 Q68 150.337420.832917-0.551813Blue Mountains Observatory, Leura
-Q69 150.449330.832777-0.551945Hazelbrook
+Q69 150.449330.832777-0.551945Hazelbrook (O'Day)
 Q79 152.8481 0.88871 -0.45696 Samford Valley Observatory
 Q80 153.2160 0.88762 -0.45904 Birkdale
 R57 170.472780.720489-0.691309Aorangi Iti Observatory, Lake Tekapo
@@ -1953,7 +1951,6 @@ U80 243.6151 0.82737 +0.56004 CS3-DanHenge Observatory, Landers
 U81 243.615140.827367+0.560037CS3-Trojan Station, Landers
 U82 243.615190.827368+0.560036CS3-Palmer Divide Station, Landers
 U96 246.686000.579007+0.812698Athabasca University Geophysical Observatory
-V00 248.399810.849456+0.526492Kitt Peak-Bok
 V01 248.239110.762243+0.645493Mountainville Observatory, Alpine
 V02 248.057940.835743+0.547377Command Module, Tempe
 V03 248.3314 0.79889 +0.59979 Big Water

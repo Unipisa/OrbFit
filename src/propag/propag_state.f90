@@ -1175,7 +1175,7 @@ SUBROUTINE propin(nfl,y1,t1,t2,y2,h,nvar,nd,dxp0dep0)
               ENDIF
 ! if the end is at the required time, but a close approach to Earth is still
 ! going on, the output mtp/tp trace must be available anyway: str_clan shall decide
-     !         IF(min_dist) CALL str_clan(stm0,nd,dxp0dep0)
+              IF(min_dist) CALL str_clan(stm0,nd,dxp0dep0)
 !
 ! the partials with respect to the dyn.parameters
 ! are already renormalized; they are left as they are

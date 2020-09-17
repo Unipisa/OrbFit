@@ -8,8 +8,6 @@ ALL t=T     c=*          p=    >            <            @  0.50,  0.50 ! Transi
 ALL t=e     c=*          p=    >            <            @  0.75,  0.75 ! Encoder
 ALL t=M     c=*          p=    >            <            @  3.00,  3.00 ! Micrometer
 ALL t=S     c=*          p=    >            <            @  1.50,  1.50 ! Satellite
-ALL t=cC    c=UV         p=    >            <            @  0.60,  0.60 ! Gaia astrometric catalogs
-258 t=cC    c=*          p=    >            <            @  0.10,  0.10 ! Gaia asteroids observations
 F51 t=cC    c=*          p=    >            <            @  0.20,  0.20
 F52 t=cC    c=*          p=    >            <            @  0.20,  0.20
 G96 t=cC    c=*          p=    >            <            @  0.50,  0.50 

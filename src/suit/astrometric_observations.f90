@@ -706,9 +706,14 @@ SUBROUTINE write_rwo_pos(unit,obs,obsw)
 !         CALL rotpn(rot,'ECLM','J2000',0.d0,'EQUM','J2000',0.d0)
      equpos=MATMUL(roteceq,obs%obspos)
      equpos=equpos*conv
-     ! Write parallax unit and satellite position
-     WRITE(unit,205) tmp3,obs%par_unit,equpos,obs%obscod_s(1:3)
-205  FORMAT(A,1X,A1,3F24.12,1X,A)
+     SELECT CASE (obs%par_unit)
+     CASE('1')
+        WRITE(unit,204) tmp3,obs%par_unit,equpos,obs%obscod_s(1:3)
+204     FORMAT(A,1X,A1,3F12.4,1X,A)
+     CASE('2')
+        WRITE(unit,205) tmp3,obs%par_unit,equpos,obs%obscod_s(1:3)
+205     FORMAT(A,1X,A1,3F12.8,1X,A)
+     END SELECT
   END IF
 ! Second record for roving observatory observations
   IF(obs%obscod_s == '247') THEN
@@ -917,9 +922,7 @@ USE reference_systems
   INTEGER                       :: hh,mm,iss,ipr0,ipr1,code_tx,code_rx
   DOUBLE PRECISION, EXTERNAL    :: tjm1
   CHARACTER(LEN=16)             :: stname
-  CHARACTER(LEN=200)            :: tem_rec
-  INTEGER                       :: len_comp,vec_comp,i0,len_aux,i  ! variables for splitting string of satellite position
-
+  CHARACTER(LEN=40)             :: tem_rec
   ! ======================================
 ! setup of flags
   error=.FALSE.
@@ -1063,34 +1066,16 @@ USE reference_systems
            CALL observer_position(obs1%time_tdt,obs1%obspos,obs1%obsvel,OBSCODE=obs1%obscod_i)
         END SELECT
      CASE ('S')
-        ! Read parallax unit and satellite position
         READ(unit,205,ERR=1) tmp3,obs1%par_unit,tem_rec
-205     FORMAT(A33,1X,A1,A)
-        ! Split string of satellite position with respect to blanks
-        len_comp=0
-        vec_comp=0
-        len_aux=LEN_TRIM(tem_rec)
-        DO i=1,len_aux-3
-           IF(tem_rec(i:i).EQ.'-'.OR.tem_rec(i:i).EQ.'+')THEN
-              i0=i
-              len_comp=len_comp+1
-           ELSEIF(isnumber(tem_rec(i:i)).OR.tem_rec(i:i).EQ.'.')THEN
-              len_comp=len_comp+1
-              IF(len_comp.EQ.1) i0=i
-              IF(i.EQ.len_aux-3)THEN
-                 vec_comp=vec_comp+1
-                 READ(tem_rec(i0:i0+len_comp-1),*) equpos(vec_comp)
-                 len_comp=0
-              END IF
-           ELSEIF(tem_rec(i:i).EQ.' ')THEN
-              IF(len_comp.GT.0)THEN
-                 vec_comp=vec_comp+1
-                 READ(tem_rec(i0:i0+len_comp-1),*) equpos(vec_comp)
-                 len_comp=0
-              END IF
-           END IF
-        END DO
-        obscod_s1 = tem_rec(len_aux-2:len_aux)
+205     FORMAT(A33,1X,A1,A40)
+        SELECT CASE (obs1%par_unit)
+        CASE('1')
+           READ(tem_rec,204) equpos,obscod_s1
+204        FORMAT(3F12.4,1X,A)
+        CASE('2')
+           READ(tem_rec,202) equpos,obscod_s1
+202        FORMAT(3F12.8,1X,A)
+        END SELECT
         nr=nr+1
         tmp3(14:14)='S'
         IF(tmp3 /= record(1:33)) GOTO 1
@@ -3322,49 +3307,6 @@ DOUBLE PRECISION FUNCTION magrms_new(magstr,tdt,idsta,typ)
      magrms_new=0.5
   ENDIF
 END  FUNCTION magrms_new
-
-
-! --------------------------------------------------------------------- !
-! SUBROUTINE isnumber                                                   !
-! It tells whether a character string contains only digits              !
-! WARNING: assumes ASCII internal representation of characters          !
-!                                                                       !
-!  0 nul   16 dle   32 sp    48 0     64 @     80 P     96 `    112 p   !
-!  1 soh   17 dc1   33 !     49 1     65 A     81 Q     97 a    113 q   !
-!  2 stx   18 dc2   34 "     50 2     66 B     82 R     98 b    114 r   !
-!  3 etx   19 dc3   35 #     51 3     67 C     83 S     99 c    115 s   !
-!  4 eot   20 dc4   36 $     52 4     68 D     84 T    100 d    116 t   !
-!  5 enq   21 nak   37 %     53 5     69 E     85 U    101 e    117 u   !
-!  6 ack   22 syn   38 &     54 6     70 F     86 V    102 f    118 v   !
-!  7 bel   23 etb   39 '     55 7     71 G     87 W    103 g    119 w   !
-!  8 bs    24 can   40 (     56 8     72 H     88 X    104 h    120 x   !
-!  9 ht    25 em    41 )     57 9     73 I     89 Y    105 i    121 y   !
-! 10 nl    26 sub   42 *     58 :     74 J     90 Z    106 j    122 z   !
-! 11 vt    27 esc   43 +     59 ;     75 K     91 [    107 k    123 {   !
-! 12 np    28 fs    44 ,     60 <     76 L     92 \    108 l    124 |   !
-! 13 cr    29 gs    45 -     61 =     77 M     93 ]    109 m    125 }   !
-! 14 so    30 rs    46 .     62 >     78 N     94 ^    110 n    126 ~   !
-! 15 si    31 us    47 /     63 ?     79 O     95 _    111 o    127 del !
-! --------------------------------------------------------------------- !
-! Author: D. Bracali Cioci                                               !
-! Last Update: 2013 Sep                                                 !
-! --------------------------------------------------------------------- !
-LOGICAL FUNCTION isnumber(string) 
-  
-  CHARACTER(LEN=*),INTENT(IN) :: string   ! input string
-  
-  INTEGER :: i,icc 
-  
-  isnumber = .FALSE. 
-  DO i=1,LEN(string) 
-     icc = ICHAR(string(i:i)) 
-     IF(icc.LT.48.OR.icc.GT.57) RETURN 
-  END DO
-  
-  isnumber = .TRUE.           
-END FUNCTION isnumber
-
-
 
 ! END SUB_MODULE observ_bias_weight
 END MODULE astrometric_observations
