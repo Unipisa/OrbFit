@@ -27,9 +27,6 @@
 ./src/kepint
 ./src/link3att
 ./src/imp_corridor
-./src/potential_NEAs
-./src/resonant
-./src/sec_evol
 ./tests/fitobs/othertests
 ./tests/fitobs/mn4
 ./tests/panst
@@ -39,7 +36,6 @@
 ./tests/kepint
 ./tests/link3att
 ./tests/lostPHAs
-./tests/sec_evol
 ./lib/mfitob.key
 ./lib/ident.key
 ./lib/neofit.key

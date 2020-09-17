@@ -1,5 +1,1 @@
-./patchlist
-./dellist
-./README.patches
-./Makefile
-./notar
+../patchlist

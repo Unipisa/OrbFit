@@ -8,7 +8,6 @@ ALL:  c=m    @ 0.56, 0.57
 ALL:  c=w    @ 0.44, 0.36
 ALL:  c=fg   @ 0.73, 0.64
 ALL:  c=UV   @ 0.60, 0.60
-258:  c=*    @ 0.10, 0.10
 704:  c=cd   @ 0.62, 0.60 ! CBM Station-Catalog specific rules
 699:  c=cd   @ 0.47, 0.39
 691:  c=cd   @ 0.32, 0.34
