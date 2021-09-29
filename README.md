@@ -1,6 +1,8 @@
 # OrbFit
 
-### an astronomy library to compute orbits and ephemerides. 
+### an astronomy library to compute orbits and ephemerides developed at the Department of Mathematics of Univeristy of Pisa by the group of Andrea Milani Comparetti. 
+
+The year of the first version of OrbFit is 1995, even if the starting point was the Orbit11 software which by that year had already reached the 11th version. The beginning of the writing of Orbit1 dates back to the founding date of the Space Mechanics group, that is, to 1978. [http://adams.dm.unipi.it/orbfit/](http://adams.dm.unipi.it/orbfit/).
 
 [![SWH](https://archive.softwareheritage.org/badge/origin/https://github.com/Unipisa/OrbFit.git/)](https://archive.softwareheritage.org/browse/origin/https://github.com/Unipisa/OrbFit.git/)
 
